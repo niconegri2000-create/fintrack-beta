@@ -9,7 +9,7 @@ export interface ReportData {
     savings: number;
     savingsRate: number;
   };
-  avg3Months: {
+  avgMonths: {
     income: number;
     expense: number;
     savings: number;
@@ -42,19 +42,19 @@ function sumByType(rows: { amount: number; type: string | null }[]) {
   return { income, expense };
 }
 
-export function useReport(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useReport(monthsBack: number = 3, workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const cur = monthRange(0);
   const prev = monthRange(-1);
-  const threeAgo = monthRange(-2);
+  const oldest = monthRange(-(monthsBack - 1));
 
   return useQuery({
-    queryKey: ["report", workspaceId],
+    queryKey: ["report", monthsBack, workspaceId],
     queryFn: async (): Promise<ReportData> => {
       const { data, error } = await supabase
         .from("transactions")
         .select("date, amount, type")
         .eq("workspace_id", workspaceId)
-        .gte("date", threeAgo.start)
+        .gte("date", oldest.start)
         .lte("date", cur.end);
 
       if (error) throw error;
@@ -63,17 +63,16 @@ export function useReport(workspaceId: string = DEFAULT_WORKSPACE_ID) {
 
       const curRows = rows.filter((r) => r.date >= cur.start && r.date <= cur.end);
       const prevRows = rows.filter((r) => r.date >= prev.start && r.date <= prev.end);
-      const threeMonthRows = rows.filter((r) => r.date >= threeAgo.start && r.date <= cur.end);
+      const avgRows = rows.filter((r) => r.date >= oldest.start && r.date <= cur.end);
 
       const curTotals = sumByType(curRows);
       const prevTotals = sumByType(prevRows);
 
-      // Split 3-month rows by month for proper averaging
       const months = new Set<string>();
-      for (const r of threeMonthRows) months.add(r.date.slice(0, 7));
+      for (const r of avgRows) months.add(r.date.slice(0, 7));
       const monthCount = Math.max(months.size, 1);
 
-      const threeTotals = sumByType(threeMonthRows);
+      const avgTotals = sumByType(avgRows);
 
       const curSavings = curTotals.income - curTotals.expense;
       const prevSavings = prevTotals.income - prevTotals.expense;
@@ -85,10 +84,10 @@ export function useReport(workspaceId: string = DEFAULT_WORKSPACE_ID) {
           savings: curSavings,
           savingsRate: curTotals.income > 0 ? (curSavings / curTotals.income) * 100 : 0,
         },
-        avg3Months: {
-          income: threeTotals.income / monthCount,
-          expense: threeTotals.expense / monthCount,
-          savings: (threeTotals.income - threeTotals.expense) / monthCount,
+        avgMonths: {
+          income: avgTotals.income / monthCount,
+          expense: avgTotals.expense / monthCount,
+          savings: (avgTotals.income - avgTotals.expense) / monthCount,
         },
         comparison: {
           prevSavings,
