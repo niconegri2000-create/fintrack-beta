@@ -2,6 +2,7 @@ import { CategoriesSection } from "@/components/settings/CategoriesSection";
 import { BudgetSection } from "@/components/settings/BudgetSection";
 import { OpeningBalanceSection } from "@/components/settings/OpeningBalanceSection";
 import { MinBalanceThresholdSection } from "@/components/settings/MinBalanceThresholdSection";
+import { GeneralPreferencesSection } from "@/components/settings/GeneralPreferencesSection";
 
 const Impostazioni = () => {
   return (
@@ -12,6 +13,8 @@ const Impostazioni = () => {
           Configura il tuo workspace
         </p>
       </div>
+
+      <GeneralPreferencesSection />
 
       <div className="rounded-xl border bg-card p-6 space-y-4">
         <div>
