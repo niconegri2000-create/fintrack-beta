@@ -1,3 +1,5 @@
+import { CategoriesSection } from "@/components/settings/CategoriesSection";
+
 const Impostazioni = () => {
   return (
     <div className="space-y-6">
@@ -14,6 +16,8 @@ const Impostazioni = () => {
           <p className="text-muted-foreground text-sm">Personale</p>
         </div>
       </div>
+
+      <CategoriesSection />
     </div>
   );
 };
