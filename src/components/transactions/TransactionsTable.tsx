@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { TransactionRow } from "@/hooks/useTransactions";
+import { capitalizeFirst } from "@/lib/normalize";
 
 interface Props {
   data: TransactionRow[];
@@ -51,7 +52,7 @@ export function TransactionsTable({ data, isLoading }: Props) {
               <TableCell className="font-mono text-xs">
                 {tx.date}
               </TableCell>
-              <TableCell>{tx.description || "—"}</TableCell>
+              <TableCell>{capitalizeFirst(tx.description) || "—"}</TableCell>
               <TableCell className="text-muted-foreground">
                 {tx.category?.name || "—"}
               </TableCell>
