@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTransactions } from "@/hooks/useTransactions";
 import { MonthPicker } from "@/components/transactions/MonthPicker";
 import { TransactionsTable } from "@/components/transactions/TransactionsTable";
 import { TransactionFormDialog } from "@/components/transactions/TransactionFormDialog";
+import { TrendingUp, TrendingDown } from "lucide-react";
 
 function currentMonth() {
   const d = new Date();
@@ -12,6 +13,9 @@ function currentMonth() {
 const Transazioni = () => {
   const [month, setMonth] = useState(currentMonth);
   const { data = [], isLoading } = useTransactions(month);
+
+  const income = useMemo(() => data.filter((t) => t.type === "income"), [data]);
+  const expense = useMemo(() => data.filter((t) => t.type === "expense"), [data]);
 
   return (
     <div className="space-y-6">
@@ -32,7 +36,37 @@ const Transazioni = () => {
         </p>
       </div>
 
-      <TransactionsTable data={data} isLoading={isLoading} />
+      {/* Entrate */}
+      <section className="space-y-2">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-success" />
+          <h2 className="text-base font-semibold">Entrate</h2>
+          <span className="text-xs text-muted-foreground">({income.length})</span>
+        </div>
+        {isLoading ? (
+          <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">Caricamento…</div>
+        ) : income.length === 0 ? (
+          <div className="rounded-xl border bg-card p-6 text-center text-muted-foreground text-sm">Nessuna entrata nel periodo</div>
+        ) : (
+          <TransactionsTable data={income} isLoading={false} />
+        )}
+      </section>
+
+      {/* Uscite */}
+      <section className="space-y-2">
+        <div className="flex items-center gap-2">
+          <TrendingDown className="h-4 w-4 text-destructive" />
+          <h2 className="text-base font-semibold">Uscite</h2>
+          <span className="text-xs text-muted-foreground">({expense.length})</span>
+        </div>
+        {isLoading ? (
+          <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">Caricamento…</div>
+        ) : expense.length === 0 ? (
+          <div className="rounded-xl border bg-card p-6 text-center text-muted-foreground text-sm">Nessuna uscita nel periodo</div>
+        ) : (
+          <TransactionsTable data={expense} isLoading={false} />
+        )}
+      </section>
     </div>
   );
 };

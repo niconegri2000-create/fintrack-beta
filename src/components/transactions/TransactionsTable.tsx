@@ -58,8 +58,11 @@ export function TransactionsTable({ data, isLoading }: Props) {
               </TableCell>
               <TableCell>
                 <Badge
-                  variant={tx.type === "income" ? "default" : "destructive"}
-                  className="text-[11px]"
+                  className={`text-[11px] ${
+                    tx.type === "income"
+                      ? "bg-success text-success-foreground hover:bg-success/80"
+                      : "bg-destructive text-destructive-foreground hover:bg-destructive/80"
+                  }`}
                 >
                   {tx.type === "income" ? "Entrata" : "Uscita"}
                 </Badge>
