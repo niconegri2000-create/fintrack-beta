@@ -3,7 +3,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { differenceInMonths } from "date-fns";
-import { Plus, Minus, Pause, Play, CheckCircle2, AlertTriangle, Archive } from "lucide-react";
+import { Plus, Minus, Pause, Play, CheckCircle2, AlertTriangle, Archive, RotateCcw, Trash2 } from "lucide-react";
 
 interface Props {
   goal: Goal;
@@ -13,9 +13,11 @@ interface Props {
   onTogglePause: (g: Goal) => void;
   onComplete: (g: Goal) => void;
   onArchive?: (g: Goal) => void;
+  onRestore?: (g: Goal) => void;
+  onDeletePermanently?: (g: Goal) => void;
 }
 
-export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWithdraw, onTogglePause, onComplete, onArchive }: Props) {
+export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWithdraw, onTogglePause, onComplete, onArchive, onRestore, onDeletePermanently }: Props) {
   const remaining = Math.max(goal.target_amount - goal.saved, 0);
   const progress = goal.target_amount > 0 ? Math.min(Math.max((goal.saved / goal.target_amount) * 100, 0), 100) : 0;
   const reached = goal.saved >= goal.target_amount;
@@ -98,7 +100,7 @@ export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWi
         </div>
       )}
 
-      {/* Actions */}
+      {/* Actions - active/paused */}
       {goal.status !== "completed" && goal.status !== "archived" && (
         <div className="flex flex-wrap gap-2 pt-1">
           <Button size="sm" variant="outline" onClick={() => onContribute(goal)} className="gap-1.5">
@@ -119,6 +121,22 @@ export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWi
           {onArchive && (
             <Button size="sm" variant="ghost" onClick={() => onArchive(goal)} className="gap-1.5 text-destructive">
               <Archive className="h-3.5 w-3.5" /> Archivia
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Actions - archived */}
+      {goal.status === "archived" && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {onRestore && (
+            <Button size="sm" variant="outline" onClick={() => onRestore(goal)} className="gap-1.5">
+              <RotateCcw className="h-3.5 w-3.5" /> Ripristina
+            </Button>
+          )}
+          {onDeletePermanently && (
+            <Button size="sm" variant="destructive" onClick={() => onDeletePermanently(goal)} className="gap-1.5">
+              <Trash2 className="h-3.5 w-3.5" /> Elimina definitivamente
             </Button>
           )}
         </div>
