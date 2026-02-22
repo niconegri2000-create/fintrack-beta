@@ -66,20 +66,31 @@ export function useGenerateRecurring() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (month: string) => {
-      // month = "YYYY-MM"
+    mutationFn: async (month: string): Promise<{ created: number; skipped: string[] }> => {
       const [y, m] = month.split("-").map(Number);
 
-      // 1. fetch active rules
+      // 1. fetch active rules with category info
       const { data: rules, error: rErr } = await supabase
         .from("recurring_rules")
-        .select("id, name, type, amount, category_id, is_fixed, day_of_month")
+        .select("id, name, type, amount, category_id, is_fixed, day_of_month, category:categories(id, name, is_active)")
         .eq("workspace_id", DEFAULT_WORKSPACE_ID)
         .eq("is_active", true);
       if (rErr) throw rErr;
-      if (!rules || rules.length === 0) return 0;
+      if (!rules || rules.length === 0) return { created: 0, skipped: [] };
 
-      // 2. fetch existing generated transactions for the month
+      // 2. separate rules: skip those with inactive category
+      const skipped: string[] = [];
+      const eligible = rules.filter((r: any) => {
+        if (r.category_id && r.category && r.category.is_active === false) {
+          skipped.push(r.name || "Senza nome");
+          return false;
+        }
+        return true;
+      });
+
+      if (eligible.length === 0) return { created: 0, skipped };
+
+      // 3. fetch existing generated transactions for the month
       const startDate = `${month}-01`;
       const lastDay = new Date(y, m, 0).getDate();
       const endDate = `${month}-${String(lastDay).padStart(2, "0")}`;
@@ -95,8 +106,8 @@ export function useGenerateRecurring() {
 
       const existingIds = new Set((existing || []).map((t: any) => t.recurring_rule_id));
 
-      // 3. build inserts for missing
-      const toInsert = rules
+      // 4. build inserts for missing
+      const toInsert = eligible
         .filter((r: any) => !existingIds.has(r.id))
         .map((r: any) => {
           const day = Math.min(r.day_of_month || 1, lastDay);
@@ -114,12 +125,12 @@ export function useGenerateRecurring() {
           };
         });
 
-      if (toInsert.length === 0) return 0;
+      if (toInsert.length > 0) {
+        const { error: iErr } = await supabase.from("transactions").insert(toInsert);
+        if (iErr) throw iErr;
+      }
 
-      const { error: iErr } = await supabase.from("transactions").insert(toInsert);
-      if (iErr) throw iErr;
-
-      return toInsert.length;
+      return { created: toInsert.length, skipped };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
