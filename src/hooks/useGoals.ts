@@ -8,7 +8,7 @@ export interface Goal {
   name: string;
   target_amount: number;
   target_date: string | null;
-  status: "active" | "paused" | "completed";
+  status: "active" | "paused" | "completed" | "archived";
   note: string | null;
   created_at: string | null;
   saved: number;

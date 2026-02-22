@@ -3,7 +3,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { differenceInMonths } from "date-fns";
-import { Plus, Minus, Pause, Play, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Plus, Minus, Pause, Play, CheckCircle2, AlertTriangle, Archive } from "lucide-react";
 
 interface Props {
   goal: Goal;
@@ -12,9 +12,10 @@ interface Props {
   onWithdraw: (g: Goal) => void;
   onTogglePause: (g: Goal) => void;
   onComplete: (g: Goal) => void;
+  onArchive?: (g: Goal) => void;
 }
 
-export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWithdraw, onTogglePause, onComplete }: Props) {
+export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWithdraw, onTogglePause, onComplete, onArchive }: Props) {
   const remaining = Math.max(goal.target_amount - goal.saved, 0);
   const progress = goal.target_amount > 0 ? Math.min(Math.max((goal.saved / goal.target_amount) * 100, 0), 100) : 0;
   const reached = goal.saved >= goal.target_amount;
@@ -41,6 +42,7 @@ export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWi
     switch (goal.status) {
       case "completed": return <Badge className="bg-accent text-accent-foreground">Completato</Badge>;
       case "paused": return <Badge variant="secondary">In pausa</Badge>;
+      case "archived": return <Badge variant="secondary">Archiviato</Badge>;
       default: return <Badge variant="outline">Attivo</Badge>;
     }
   };
@@ -97,7 +99,7 @@ export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWi
       )}
 
       {/* Actions */}
-      {goal.status !== "completed" && (
+      {goal.status !== "completed" && goal.status !== "archived" && (
         <div className="flex flex-wrap gap-2 pt-1">
           <Button size="sm" variant="outline" onClick={() => onContribute(goal)} className="gap-1.5">
             <Plus className="h-3.5 w-3.5" /> Contributo
@@ -112,6 +114,11 @@ export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWi
           {(reached || goal.saved > 0) && (
             <Button size="sm" variant="ghost" onClick={() => onComplete(goal)} className="gap-1.5 text-accent">
               <CheckCircle2 className="h-3.5 w-3.5" /> Completa
+            </Button>
+          )}
+          {onArchive && (
+            <Button size="sm" variant="ghost" onClick={() => onArchive(goal)} className="gap-1.5 text-destructive">
+              <Archive className="h-3.5 w-3.5" /> Archivia
             </Button>
           )}
         </div>
