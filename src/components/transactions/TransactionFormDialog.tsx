@@ -30,6 +30,7 @@ import {
 import { useCategories } from "@/hooks/useCategories";
 import { useCreateTransaction } from "@/hooks/useTransactions";
 import { toast } from "sonner";
+import { capitalizeFirst } from "@/lib/normalize";
 
 export function TransactionFormDialog() {
   const [open, setOpen] = useState(false);
@@ -67,7 +68,7 @@ export function TransactionFormDialog() {
         type,
         amount: numAmount,
         category_id: categoryId || null,
-        description,
+        description: capitalizeFirst(description),
         is_fixed: isFixed,
         notes,
       },

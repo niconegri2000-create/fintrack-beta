@@ -29,6 +29,7 @@ import {
 import { useCategories } from "@/hooks/useCategories";
 import { useCreateRecurring } from "@/hooks/useRecurringRules";
 import { toast } from "sonner";
+import { capitalizeFirst } from "@/lib/normalize";
 
 export function RecurringFormDialog() {
   const [open, setOpen] = useState(false);
@@ -73,7 +74,7 @@ export function RecurringFormDialog() {
 
     create.mutate(
       {
-        name: name.trim(),
+        name: capitalizeFirst(name),
         type,
         amount: num,
         category_id: categoryId || null,

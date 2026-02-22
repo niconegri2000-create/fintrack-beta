@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { RecurringRow } from "@/hooks/useRecurringRules";
+import { capitalizeFirst } from "@/lib/normalize";
 
 interface Props {
   data: RecurringRow[];
@@ -47,7 +48,7 @@ export function RecurringTable({ data, isLoading }: Props) {
         <TableBody>
           {data.map((r) => (
             <TableRow key={r.id}>
-              <TableCell className="font-medium">{r.name || "—"}</TableCell>
+              <TableCell className="font-medium">{capitalizeFirst(r.name) || "—"}</TableCell>
               <TableCell>
                 <Badge variant={r.type === "income" ? "default" : "destructive"} className="text-[11px]">
                   {r.type === "income" ? "Entrata" : "Uscita"}
