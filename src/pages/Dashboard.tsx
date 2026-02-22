@@ -15,6 +15,8 @@ import {
 import { PeriodPicker, usePeriodState } from "@/components/dashboard/PeriodPicker";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useBudgetSummary, type BudgetSummaryRow } from "@/hooks/useCategoryBudgets";
+import { useForecast } from "@/hooks/useForecast";
+import { ForecastWidget } from "@/components/dashboard/ForecastWidget";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
@@ -43,6 +45,8 @@ const Dashboard = () => {
   const { range, activePreset, applyPreset, applyCustom } = usePeriodState();
   const { data, isLoading } = useDashboardData(range.start, range.end);
   const { data: budgetRows } = useBudgetSummary(range.start, range.end);
+  const currentMonth = range.start.slice(0, 7);
+  const { data: forecastData, isLoading: forecastLoading } = useForecast(currentMonth);
 
   const budgetMap = new Map<string, BudgetSummaryRow>();
   for (const b of budgetRows) budgetMap.set(b.category_name, b);
@@ -220,6 +224,9 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Forecast widget */}
+      <ForecastWidget data={forecastData ?? []} isLoading={forecastLoading} />
     </div>
   );
 };
