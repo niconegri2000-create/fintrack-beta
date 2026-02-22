@@ -2,8 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
 
+export interface DateRange {
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+}
+
 export interface ReportData {
-  currentMonth: {
+  period: {
     income: number;
     expense: number;
     savings: number;
@@ -13,22 +18,18 @@ export interface ReportData {
     income: number;
     expense: number;
     savings: number;
+    monthCount: number;
   };
-  comparison: {
-    prevSavings: number;
-    diff: number;
+  compare: {
+    income: number;
+    expense: number;
+    savings: number;
+    savingsRate: number;
   };
-}
-
-function monthRange(offset: number): { start: string; end: string } {
-  const now = new Date();
-  const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-  const y = d.getFullYear();
-  const m = d.getMonth();
-  const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
-  const last = new Date(y, m + 1, 0).getDate();
-  const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
-  return { start, end };
+  diff: {
+    savings: number;
+    savingsPercent: number; // % change
+  };
 }
 
 function sumByType(rows: { amount: number; type: string | null }[]) {
@@ -42,56 +43,69 @@ function sumByType(rows: { amount: number; type: string | null }[]) {
   return { income, expense };
 }
 
-export function useReport(monthsBack: number = 3, workspaceId: string = DEFAULT_WORKSPACE_ID) {
-  const cur = monthRange(0);
-  const prev = monthRange(-1);
-  const oldest = monthRange(-(monthsBack - 1));
+/** Count distinct YYYY-MM in a set of rows */
+function countMonths(startDate: string, endDate: string): number {
+  const [sy, sm] = startDate.split("-").map(Number);
+  const [ey, em] = endDate.split("-").map(Number);
+  return (ey - sy) * 12 + (em - sm) + 1;
+}
+
+export function useReport(
+  range: DateRange,
+  compareRange: DateRange,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+) {
+  // figure out the earliest date we need
+  const earliest = range.startDate < compareRange.startDate ? range.startDate : compareRange.startDate;
+  const latest = range.endDate > compareRange.endDate ? range.endDate : compareRange.endDate;
 
   return useQuery({
-    queryKey: ["report", monthsBack, workspaceId],
+    queryKey: ["report", range.startDate, range.endDate, compareRange.startDate, compareRange.endDate, workspaceId],
     queryFn: async (): Promise<ReportData> => {
       const { data, error } = await supabase
         .from("transactions")
         .select("date, amount, type")
         .eq("workspace_id", workspaceId)
-        .gte("date", oldest.start)
-        .lte("date", cur.end);
+        .gte("date", earliest)
+        .lte("date", latest);
 
       if (error) throw error;
 
       const rows = (data ?? []) as { date: string; amount: number; type: string | null }[];
 
-      const curRows = rows.filter((r) => r.date >= cur.start && r.date <= cur.end);
-      const prevRows = rows.filter((r) => r.date >= prev.start && r.date <= prev.end);
-      const avgRows = rows.filter((r) => r.date >= oldest.start && r.date <= cur.end);
+      const periodRows = rows.filter((r) => r.date >= range.startDate && r.date <= range.endDate);
+      const compareRows = rows.filter((r) => r.date >= compareRange.startDate && r.date <= compareRange.endDate);
 
-      const curTotals = sumByType(curRows);
-      const prevTotals = sumByType(prevRows);
+      const pTotals = sumByType(periodRows);
+      const cTotals = sumByType(compareRows);
 
-      const months = new Set<string>();
-      for (const r of avgRows) months.add(r.date.slice(0, 7));
-      const monthCount = Math.max(months.size, 1);
+      const pSavings = pTotals.income - pTotals.expense;
+      const cSavings = cTotals.income - cTotals.expense;
 
-      const avgTotals = sumByType(avgRows);
-
-      const curSavings = curTotals.income - curTotals.expense;
-      const prevSavings = prevTotals.income - prevTotals.expense;
+      const monthCount = Math.max(countMonths(range.startDate, range.endDate), 1);
 
       return {
-        currentMonth: {
-          income: curTotals.income,
-          expense: curTotals.expense,
-          savings: curSavings,
-          savingsRate: curTotals.income > 0 ? (curSavings / curTotals.income) * 100 : 0,
+        period: {
+          income: pTotals.income,
+          expense: pTotals.expense,
+          savings: pSavings,
+          savingsRate: pTotals.income > 0 ? (pSavings / pTotals.income) * 100 : 0,
         },
         avgMonths: {
-          income: avgTotals.income / monthCount,
-          expense: avgTotals.expense / monthCount,
-          savings: (avgTotals.income - avgTotals.expense) / monthCount,
+          income: pTotals.income / monthCount,
+          expense: pTotals.expense / monthCount,
+          savings: pSavings / monthCount,
+          monthCount,
         },
-        comparison: {
-          prevSavings,
-          diff: curSavings - prevSavings,
+        compare: {
+          income: cTotals.income,
+          expense: cTotals.expense,
+          savings: cSavings,
+          savingsRate: cTotals.income > 0 ? (cSavings / cTotals.income) * 100 : 0,
+        },
+        diff: {
+          savings: pSavings - cSavings,
+          savingsPercent: cSavings !== 0 ? ((pSavings - cSavings) / Math.abs(cSavings)) * 100 : 0,
         },
       };
     },
