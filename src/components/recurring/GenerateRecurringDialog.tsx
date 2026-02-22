@@ -24,10 +24,16 @@ export function GenerateRecurringDialog() {
 
   const handleGenerate = () => {
     generate.mutate(month, {
-      onSuccess: (count) => {
+      onSuccess: ({ created, skipped }) => {
+        if (skipped.length > 0) {
+          const names = skipped.length <= 3
+            ? skipped.join(", ")
+            : `${skipped.slice(0, 3).join(", ")}…`;
+          toast.warning(`⚠ Ricorrenze saltate (categoria disattivata): ${names}`);
+        }
         toast.success(
-          count > 0
-            ? `${count} transazion${count === 1 ? "e generata" : "i generate"}`
+          created > 0
+            ? `${created} transazion${created === 1 ? "e generata" : "i generate"}`
             : "Nessuna nuova transazione da generare"
         );
         setOpen(false);
