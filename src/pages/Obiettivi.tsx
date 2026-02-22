@@ -58,9 +58,6 @@ const Obiettivi = () => {
             <p className="font-medium">Nessun obiettivo</p>
             <p className="text-muted-foreground text-sm mt-1">Crea il tuo primo obiettivo di risparmio per iniziare</p>
           </div>
-          <Button onClick={() => setShowNew(true)} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Nuovo obiettivo
-          </Button>
         </div>
       )}
 
