@@ -324,12 +324,21 @@ const Report = () => {
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="text-sm font-medium whitespace-nowrap">Periodo:</span>
-              <ToggleGroup type="single" value={periodPreset} onValueChange={handlePeriodPreset} size="sm">
-                {["3", "6", "12"].map((v) => (
-                  <ToggleGroupItem key={v} value={v} className="text-xs px-3">{v}m</ToggleGroupItem>
+              <ToggleGroup type="single" value={periodPreset} onValueChange={handlePeriodPreset} size="sm" className="bg-muted/50 rounded-lg p-0.5">
+                {["1", "3", "6", "12"].map((v) => (
+                  <ToggleGroupItem
+                    key={v}
+                    value={v}
+                    className="text-xs px-3 rounded-md data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:font-semibold data-[state=on]:shadow-sm data-[state=off]:text-muted-foreground data-[state=off]:hover:text-foreground"
+                  >
+                    {v}m
+                  </ToggleGroupItem>
                 ))}
-                <ToggleGroupItem value="custom" className="text-xs px-3">
-                  <Calendar className="h-3.5 w-3.5 mr-1" />Custom
+                <ToggleGroupItem
+                  value="custom"
+                  className="text-xs px-3 rounded-md data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:font-semibold data-[state=on]:shadow-sm data-[state=off]:text-muted-foreground data-[state=off]:hover:text-foreground"
+                >
+                  <Calendar className="h-3.5 w-3.5 mr-1" />Personalizza
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>
