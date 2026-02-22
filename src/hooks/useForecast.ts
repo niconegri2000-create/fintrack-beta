@@ -47,7 +47,7 @@ export function useForecast(baseMonth: string) {
       // 2. Fetch active recurring rules with category info
       const { data: rules, error: rErr } = await supabase
         .from("recurring_rules")
-        .select("id, name, type, amount, category_id, day_of_month, start_date, interval_months, category:categories(name, is_active)")
+        .select("id, name, type, amount, category_id, day_of_month, start_date, interval_months, end_date, category:categories(name, is_active)")
         .eq("workspace_id", DEFAULT_WORKSPACE_ID)
         .eq("is_active", true);
       if (rErr) throw rErr;
@@ -94,6 +94,10 @@ export function useForecast(baseMonth: string) {
             warnings.push(r.name || "Senza nome");
             continue;
           }
+
+          // Check end_date: skip if rule ended before this month
+          const forecastMonthStart = `${y}-${mm}-01`;
+          if ((r as any).end_date && (r as any).end_date < forecastMonthStart) continue;
 
           // Check interval_months alignment
           const sd = new Date(r.start_date);
