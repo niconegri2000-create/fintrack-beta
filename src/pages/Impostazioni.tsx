@@ -1,4 +1,5 @@
 import { CategoriesSection } from "@/components/settings/CategoriesSection";
+import { BudgetSection } from "@/components/settings/BudgetSection";
 
 const Impostazioni = () => {
   return (
@@ -18,6 +19,7 @@ const Impostazioni = () => {
       </div>
 
       <CategoriesSection />
+      <BudgetSection />
     </div>
   );
 };
