@@ -23,16 +23,20 @@ function fmtEur(v: number) {
   return v.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
 }
 
-const PRESET_OPTIONS = [
-  { value: "6", label: "6 mesi" },
-  { value: "12", label: "12 mesi" },
-  { value: "24", label: "24 mesi" },
-  { value: "60", label: "5 anni" },
-  { value: "120", label: "10 anni" },
-  { value: "custom", label: "Custom…" },
+const PRESET_OPTIONS: { value: string; label: string; months: number }[] = [
+  { value: "6m", label: "6 mesi", months: 6 },
+  { value: "12m", label: "12 mesi", months: 12 },
+  { value: "24m", label: "24 mesi", months: 24 },
+  { value: "5y", label: "5 anni", months: 60 },
+  { value: "10y", label: "10 anni", months: 120 },
 ];
 
 const MAX_HORIZON = 360;
+
+function presetKeyFromMonths(months: number): string {
+  const found = PRESET_OPTIONS.find((p) => p.months === months);
+  return found ? found.value : "custom";
+}
 
 interface ForecastWidgetProps {
   data: ForecastMonth[];
@@ -43,29 +47,35 @@ interface ForecastWidgetProps {
   onHorizonChange: (months: number) => void;
 }
 
-function horizonLabel(months: number): string {
-  if (months % 12 === 0 && months >= 12) return `${months / 12} ann${months / 12 === 1 ? "o" : "i"}`;
-  return `${months} mes${months === 1 ? "e" : "i"}`;
-}
-
 export function ForecastWidget({
   data, isLoading, minBalanceThreshold = 0, granularity, horizonMonths, onHorizonChange,
 }: ForecastWidgetProps) {
-  const [showCustom, setShowCustom] = useState(false);
-  const [customValue, setCustomValue] = useState("");
+  const [selectedKey, setSelectedKey] = useState(() => presetKeyFromMonths(horizonMonths));
+  const [customValue, setCustomValue] = useState(() => {
+    if (presetKeyFromMonths(horizonMonths) === "custom") return String(horizonMonths);
+    return "";
+  });
   const [customUnit, setCustomUnit] = useState<"months" | "years">("months");
 
-  const currentPreset = PRESET_OPTIONS.find((p) => p.value === String(horizonMonths))
-    ? String(horizonMonths)
-    : "custom";
+  // Derive display label
+  const displayLabel = (() => {
+    if (selectedKey !== "custom") {
+      return PRESET_OPTIONS.find((p) => p.value === selectedKey)?.label ?? "";
+    }
+    const num = parseInt(customValue, 10);
+    if (!num || num <= 0) return `${horizonMonths} mesi`;
+    if (customUnit === "years") return `${num} ann${num === 1 ? "o" : "i"}`;
+    return `${num} mes${num === 1 ? "e" : "i"}`;
+  })();
 
-  const handlePresetChange = (val: string) => {
+  const handleSelectChange = (val: string) => {
     if (val === "custom") {
-      setShowCustom(true);
+      setSelectedKey("custom");
       return;
     }
-    setShowCustom(false);
-    onHorizonChange(Number(val));
+    setSelectedKey(val);
+    const preset = PRESET_OPTIONS.find((p) => p.value === val);
+    if (preset) onHorizonChange(preset.months);
   };
 
   const applyCustom = () => {
@@ -78,7 +88,7 @@ export function ForecastWidget({
     }
     if (months < 1) months = 1;
     onHorizonChange(months);
-    setShowCustom(false);
+    // remain in custom mode
   };
 
   const isYearly = granularity === "yearly";
@@ -112,9 +122,9 @@ export function ForecastWidget({
     <div className="rounded-xl border bg-card p-5 space-y-4">
       {/* Header with selector */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <p className="text-sm font-medium">Forecast saldo — {horizonLabel(horizonMonths)}</p>
+        <p className="text-sm font-medium">Forecast saldo — {displayLabel}</p>
         <div className="flex items-center gap-2">
-          <Select value={currentPreset} onValueChange={handlePresetChange}>
+          <Select value={selectedKey} onValueChange={handleSelectChange}>
             <SelectTrigger className="w-[140px] h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
@@ -124,13 +134,14 @@ export function ForecastWidget({
                   {o.label}
                 </SelectItem>
               ))}
+              <SelectItem value="custom" className="text-xs">Custom…</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
       {/* Custom input */}
-      {showCustom && (
+      {selectedKey === "custom" && (
         <div className="flex items-center gap-2">
           <Input
             type="number"
