@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useReport, type DateRange } from "@/hooks/useReport";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -66,27 +66,7 @@ function offsetRange(range: DateRange, months: number): DateRange {
   };
 }
 
-function yearAgoRange(range: DateRange): DateRange {
-  return offsetRange(range, 12);
-}
-
-function prevPeriodRange(range: DateRange): DateRange {
-  const [sy, sm] = range.startDate.split("-").map(Number);
-  const [ey, em] = range.endDate.split("-").map(Number);
-  const dur = (ey - sy) * 12 + (em - sm) + 1;
-  return offsetRange(range, dur);
-}
-
-function prevMonthRange(): DateRange {
-  const now = new Date();
-  const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  return {
-    startDate: monthStart(d.getFullYear(), d.getMonth() + 1),
-    endDate: monthEnd(d.getFullYear(), d.getMonth() + 1),
-  };
-}
-
-function buildRange(preset: string): DateRange {
+function buildPresetRange(preset: string): DateRange {
   const now = new Date();
   const curY = now.getFullYear();
   const curM = now.getMonth() + 1;
@@ -96,6 +76,59 @@ function buildRange(preset: string): DateRange {
     startDate: monthStart(start.getFullYear(), start.getMonth() + 1),
     endDate: monthEnd(curY, curM),
   };
+}
+
+function rangeMonthCount(range: DateRange): number {
+  const [sy, sm] = range.startDate.split("-").map(Number);
+  const [ey, em] = range.endDate.split("-").map(Number);
+  return (ey - sy) * 12 + (em - sm) + 1;
+}
+
+// ── compare mode helpers ──
+
+type CompareMode = "prev_month" | "prev_period" | "year_ago" | "custom" | "none";
+
+function getAvailableModes(months: number): { value: CompareMode; label: string }[] {
+  if (months === 1) {
+    return [
+      { value: "prev_month", label: "Mese precedente" },
+      { value: "year_ago", label: "Stesso periodo anno precedente" },
+      { value: "custom", label: "Personalizzato" },
+      { value: "none", label: "Nessuno" },
+    ];
+  }
+  return [
+    { value: "prev_period", label: "Periodo precedente (stessa durata)" },
+    { value: "year_ago", label: "Stesso periodo anno precedente" },
+    { value: "custom", label: "Personalizzato" },
+    { value: "none", label: "Nessuno" },
+  ];
+}
+
+function defaultCompareMode(months: number): CompareMode {
+  return months === 1 ? "prev_month" : "prev_period";
+}
+
+function computeCompareRange(mode: CompareMode, range: DateRange): DateRange | null {
+  const months = rangeMonthCount(range);
+  switch (mode) {
+    case "prev_month": {
+      const now = new Date();
+      const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return {
+        startDate: monthStart(d.getFullYear(), d.getMonth() + 1),
+        endDate: monthEnd(d.getFullYear(), d.getMonth() + 1),
+      };
+    }
+    case "prev_period":
+      return offsetRange(range, months);
+    case "year_ago":
+      return offsetRange(range, 12);
+    case "none":
+      return null;
+    default:
+      return null; // custom is handled externally
+  }
 }
 
 // ── sub-components ──
@@ -143,9 +176,7 @@ function StatCard({
 function SectionSkeleton() {
   return (
     <Card>
-      <CardHeader>
-        <Skeleton className="h-5 w-40" />
-      </CardHeader>
+      <CardHeader><Skeleton className="h-5 w-40" /></CardHeader>
       <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="space-y-2">
@@ -158,8 +189,6 @@ function SectionSkeleton() {
   );
 }
 
-// ── month input helper ──
-
 function MonthInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className="space-y-1.5">
@@ -169,60 +198,58 @@ function MonthInput({ label, value, onChange }: { label: string; value: string; 
   );
 }
 
-// ── compare modes ──
-
-type CompareMode = "prev_month" | "year_ago" | "prev_period" | "custom";
-
-const COMPARE_LABELS: Record<CompareMode, string> = {
-  prev_month: "Mese precedente",
-  year_ago: "Stesso periodo anno precedente",
-  prev_period: "Periodo precedente (stessa durata)",
-  custom: "Personalizzato",
-};
-
 // ── main component ──
 
 const Report = () => {
-  // period state
+  // ── Period state ──
   const [periodPreset, setPeriodPreset] = useState<string>("3");
   const [customPeriodOpen, setCustomPeriodOpen] = useState(false);
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [appliedCustomRange, setAppliedCustomRange] = useState<DateRange | null>(null);
 
-  // compare state
+  // ── Compare state ──
   const [compareMode, setCompareMode] = useState<CompareMode>("prev_month");
   const [customCompareOpen, setCustomCompareOpen] = useState(false);
   const [customCmpFrom, setCustomCmpFrom] = useState("");
   const [customCmpTo, setCustomCmpTo] = useState("");
   const [appliedCustomCompare, setAppliedCustomCompare] = useState<DateRange | null>(null);
 
-  // compute ranges
+  // ── Computed range ──
   const range: DateRange = useMemo(() => {
     if (periodPreset === "custom" && appliedCustomRange) return appliedCustomRange;
-    return buildRange(periodPreset === "custom" ? "3" : periodPreset);
+    return buildPresetRange(periodPreset === "custom" ? "3" : periodPreset);
   }, [periodPreset, appliedCustomRange]);
 
-  const compareRange: DateRange = useMemo(() => {
-    switch (compareMode) {
-      case "prev_month":
-        return prevMonthRange();
-      case "year_ago":
-        return yearAgoRange(range);
-      case "prev_period":
-        return prevPeriodRange(range);
-      case "custom":
-        return appliedCustomCompare ?? prevMonthRange();
+  const months = rangeMonthCount(range);
+  const availableModes = useMemo(() => getAvailableModes(months), [months]);
+
+  // ── Auto-correct compare mode when period changes ──
+  useEffect(() => {
+    if (compareMode === "custom") return; // never override custom
+    if (compareMode === "none") return;
+    const valid = availableModes.some((m) => m.value === compareMode);
+    if (!valid) {
+      setCompareMode(defaultCompareMode(months));
     }
+  }, [months, availableModes, compareMode]);
+
+  // ── Computed compare range ──
+  const compareRange: DateRange | null = useMemo(() => {
+    if (compareMode === "none") return null;
+    if (compareMode === "custom") return appliedCustomCompare;
+    return computeCompareRange(compareMode, range);
   }, [compareMode, range, appliedCustomCompare]);
 
+  const compareModeLabel = availableModes.find((m) => m.value === compareMode)?.label ?? "";
+
+  // ── Data ──
   const { data, isLoading } = useReport(range, compareRange);
 
-  // handlers
+  // ── Handlers ──
   function handlePeriodPreset(v: string) {
     if (!v) return;
     if (v === "custom") {
-      // pre-fill with current range
       setCustomFrom(range.startDate.slice(0, 7));
       setCustomTo(range.endDate.slice(0, 7));
       setCustomPeriodOpen(true);
@@ -244,12 +271,14 @@ const Report = () => {
   }
 
   function handleCompareMode(v: string) {
-    if (v === "custom") {
-      setCustomCmpFrom(compareRange.startDate.slice(0, 7));
-      setCustomCmpTo(compareRange.endDate.slice(0, 7));
+    const mode = v as CompareMode;
+    if (mode === "custom") {
+      const cr = compareRange ?? range;
+      setCustomCmpFrom(cr.startDate.slice(0, 7));
+      setCustomCmpTo(cr.endDate.slice(0, 7));
       setCustomCompareOpen(true);
     }
-    setCompareMode(v as CompareMode);
+    setCompareMode(mode);
   }
 
   function applyCustomCompare() {
@@ -263,6 +292,7 @@ const Report = () => {
     setCustomCompareOpen(false);
   }
 
+  // ── Loading ──
   if (isLoading || !data) {
     return (
       <div className="space-y-6">
@@ -286,64 +316,56 @@ const Report = () => {
         <p className="text-muted-foreground text-sm mt-1">Panoramica finanziaria</p>
       </div>
 
-      {/* ── Filter bar ── */}
+      {/* ── Filter Bar ── */}
       <Card>
         <CardContent className="py-4">
           <div className="flex flex-col md:flex-row md:items-center gap-4">
-            {/* Period selector */}
+            {/* Period */}
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="text-sm font-medium whitespace-nowrap">Periodo:</span>
-              <ToggleGroup
-                type="single"
-                value={periodPreset}
-                onValueChange={handlePeriodPreset}
-                size="sm"
-              >
+              <ToggleGroup type="single" value={periodPreset} onValueChange={handlePeriodPreset} size="sm">
                 {["3", "6", "12"].map((v) => (
-                  <ToggleGroupItem key={v} value={v} className="text-xs px-3">
-                    {v}m
-                  </ToggleGroupItem>
+                  <ToggleGroupItem key={v} value={v} className="text-xs px-3">{v}m</ToggleGroupItem>
                 ))}
                 <ToggleGroupItem value="custom" className="text-xs px-3">
-                  <Calendar className="h-3.5 w-3.5 mr-1" />
-                  Custom
+                  <Calendar className="h-3.5 w-3.5 mr-1" />Custom
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>
 
-            {/* Compare selector */}
+            {/* Compare */}
             <div className="flex items-center gap-2">
               <ArrowUpDown className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="text-sm font-medium whitespace-nowrap">Confronto:</span>
               <Select value={compareMode} onValueChange={handleCompareMode}>
-                <SelectTrigger className="w-auto min-w-[200px] h-8 text-xs">
+                <SelectTrigger className="w-auto min-w-[220px] h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Object.entries(COMPARE_LABELS) as [CompareMode, string][]).map(([k, l]) => (
-                    <SelectItem key={k} value={k} className="text-xs">
-                      {l}
-                    </SelectItem>
+                  {availableModes.map(({ value, label }) => (
+                    <SelectItem key={value} value={value} className="text-xs">{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {/* Summary line */}
+          {/* Summary */}
           <div className="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-xs text-muted-foreground">
             <span>
               Periodo: <strong className="text-foreground">{fmtMonth(range.startDate)} – {fmtMonth(range.endDate)}</strong>
             </span>
-            <span>
-              Confronto: <strong className="text-foreground">{fmtMonth(compareRange.startDate)} – {fmtMonth(compareRange.endDate)}</strong>
-            </span>
+            {compareRange && (
+              <span>
+                Confronto: <strong className="text-foreground">{fmtMonth(compareRange.startDate)} – {fmtMonth(compareRange.endDate)}</strong>
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* ── Sezione 1 – Periodo selezionato ── */}
+      {/* ── Card 1 – Periodo selezionato ── */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
@@ -359,13 +381,16 @@ const Report = () => {
         </CardContent>
       </Card>
 
-      {/* ── Sezione 2 – Media mensile ── */}
+      {/* ── Card 2 – Media mensile ── */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <History className="h-4 w-4 text-primary" />
-            Media mensile ({avg.monthCount} {avg.monthCount === 1 ? "mese" : "mesi"})
+            Media mensile
           </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Calcolata sul periodo selezionato ({avg.monthCount} {avg.monthCount === 1 ? "mese" : "mesi"})
+          </p>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-6">
           <StatCard label="Media entrate" value={fmt(avg.income)} colorClass="text-green-600 dark:text-green-400" />
@@ -374,45 +399,35 @@ const Report = () => {
         </CardContent>
       </Card>
 
-      {/* ── Sezione 3 – Confronto ── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <ArrowUpDown className="h-4 w-4 text-primary" />
-            Confronto: {COMPARE_LABELS[compareMode]}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <StatCard label="Entrate (confronto)" value={fmt(cmp.income)} colorClass="text-green-600 dark:text-green-400" />
-          <StatCard label="Uscite (confronto)" value={fmt(cmp.expense)} colorClass="text-red-600 dark:text-red-400" />
-          <StatCard label="Risparmio (confronto)" value={fmt(cmp.savings)} />
-          <StatCard
-            label="Differenza risparmio"
-            value={fmt(diff.savings)}
-            sub={
-              <DiffBadge value={diff.savings} />
-            }
-          />
-        </CardContent>
-      </Card>
+      {/* ── Card 3 – Confronto (only if active) ── */}
+      {cmp && diff && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ArrowUpDown className="h-4 w-4 text-primary" />
+              Confronto: {compareModeLabel}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <StatCard label="Entrate (confronto)" value={fmt(cmp.income)} colorClass="text-green-600 dark:text-green-400" />
+            <StatCard label="Uscite (confronto)" value={fmt(cmp.expense)} colorClass="text-red-600 dark:text-red-400" />
+            <StatCard label="Risparmio (confronto)" value={fmt(cmp.savings)} />
+            <StatCard label="Differenza risparmio" value={fmt(diff.savings)} sub={<DiffBadge value={diff.savings} />} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Custom Period Dialog ── */}
       <Dialog open={customPeriodOpen} onOpenChange={setCustomPeriodOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Periodo personalizzato</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Periodo personalizzato</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-4">
             <MonthInput label="Da" value={customFrom} onChange={setCustomFrom} />
             <MonthInput label="A" value={customTo} onChange={setCustomTo} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCustomPeriodOpen(false)}>
-              Annulla
-            </Button>
-            <Button onClick={applyCustomPeriod} disabled={!customFrom || !customTo || customFrom > customTo}>
-              Applica
-            </Button>
+            <Button variant="outline" onClick={() => setCustomPeriodOpen(false)}>Annulla</Button>
+            <Button onClick={applyCustomPeriod} disabled={!customFrom || !customTo || customFrom > customTo}>Applica</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -420,20 +435,14 @@ const Report = () => {
       {/* ── Custom Compare Dialog ── */}
       <Dialog open={customCompareOpen} onOpenChange={setCustomCompareOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Periodo di confronto personalizzato</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Periodo di confronto personalizzato</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-4">
             <MonthInput label="Da" value={customCmpFrom} onChange={setCustomCmpFrom} />
             <MonthInput label="A" value={customCmpTo} onChange={setCustomCmpTo} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCustomCompareOpen(false)}>
-              Annulla
-            </Button>
-            <Button onClick={applyCustomCompare} disabled={!customCmpFrom || !customCmpTo || customCmpFrom > customCmpTo}>
-              Applica
-            </Button>
+            <Button variant="outline" onClick={() => setCustomCompareOpen(false)}>Annulla</Button>
+            <Button onClick={applyCustomCompare} disabled={!customCmpFrom || !customCmpTo || customCmpFrom > customCmpTo}>Applica</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
