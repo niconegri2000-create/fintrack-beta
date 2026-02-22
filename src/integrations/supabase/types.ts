@@ -275,6 +275,7 @@ export type Database = {
         Row: {
           created_at: string | null
           currency: string | null
+          forecast_horizon_months: number
           id: string
           min_balance_threshold: number
           name: string
@@ -283,6 +284,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           currency?: string | null
+          forecast_horizon_months?: number
           id?: string
           min_balance_threshold?: number
           name: string
@@ -291,6 +293,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           currency?: string | null
+          forecast_horizon_months?: number
           id?: string
           min_balance_threshold?: number
           name?: string

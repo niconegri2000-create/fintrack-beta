@@ -22,6 +22,8 @@ import { useForecast } from "@/hooks/useForecast";
 import { ForecastWidget } from "@/components/dashboard/ForecastWidget";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const MONTH_LABELS: Record<string, string> = {
   "01": "Gen", "02": "Feb", "03": "Mar", "04": "Apr",
@@ -48,15 +50,14 @@ const Dashboard = () => {
   const { range, activePreset, applyPreset, applyCustom } = usePeriodState();
   const { data, isLoading } = useDashboardData(range.start, range.end);
   const { data: budgetRows } = useBudgetSummary(range.start, range.end);
-  const currentMonth = range.start.slice(0, 7);
-  const { data: forecastData, isLoading: forecastLoading } = useForecast(currentMonth);
+  const queryClient = useQueryClient();
 
   const { data: workspace } = useQuery({
     queryKey: ["workspace", DEFAULT_WORKSPACE_ID],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workspaces")
-        .select("opening_balance, min_balance_threshold")
+        .select("opening_balance, min_balance_threshold, forecast_horizon_months")
         .eq("id", DEFAULT_WORKSPACE_ID)
         .single();
       if (error) throw error;
@@ -65,6 +66,23 @@ const Dashboard = () => {
   });
   const openingBalance = Number((workspace as any)?.opening_balance ?? 0);
   const minThreshold = Number((workspace as any)?.min_balance_threshold ?? 0);
+  const forecastHorizon = Number((workspace as any)?.forecast_horizon_months ?? 6);
+
+  const currentMonth = range.start.slice(0, 7);
+  const { data: forecastResult, isLoading: forecastLoading } = useForecast(currentMonth, forecastHorizon);
+
+  const updateHorizon = useMutation({
+    mutationFn: async (months: number) => {
+      const { error } = await supabase
+        .from("workspaces")
+        .update({ forecast_horizon_months: months } as any)
+        .eq("id", DEFAULT_WORKSPACE_ID);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workspace"] });
+    },
+  });
 
   const budgetMap = new Map<string, BudgetSummaryRow>();
   for (const b of budgetRows) budgetMap.set(b.category_name, b);
@@ -286,7 +304,14 @@ const Dashboard = () => {
       )}
 
       {/* Forecast widget */}
-      <ForecastWidget data={forecastData ?? []} isLoading={forecastLoading} minBalanceThreshold={minThreshold} />
+      <ForecastWidget
+        data={forecastResult?.data ?? []}
+        isLoading={forecastLoading}
+        minBalanceThreshold={minThreshold}
+        granularity={forecastResult?.granularity ?? "monthly"}
+        horizonMonths={forecastHorizon}
+        onHorizonChange={(m) => updateHorizon.mutate(m)}
+      />
     </div>
   );
 };

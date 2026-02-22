@@ -1,0 +1,1 @@
+ALTER TABLE public.workspaces ADD COLUMN forecast_horizon_months integer NOT NULL DEFAULT 6;
