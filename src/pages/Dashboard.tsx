@@ -1,4 +1,7 @@
-import { TrendingUp, TrendingDown, Wallet, PiggyBank } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, Landmark } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
 import {
   BarChart,
   Bar,
@@ -48,13 +51,30 @@ const Dashboard = () => {
   const currentMonth = range.start.slice(0, 7);
   const { data: forecastData, isLoading: forecastLoading } = useForecast(currentMonth);
 
+  const { data: workspace } = useQuery({
+    queryKey: ["workspace", DEFAULT_WORKSPACE_ID],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("workspaces")
+        .select("opening_balance")
+        .eq("id", DEFAULT_WORKSPACE_ID)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const openingBalance = Number((workspace as any)?.opening_balance ?? 0);
+
   const budgetMap = new Map<string, BudgetSummaryRow>();
   for (const b of budgetRows) budgetMap.set(b.category_name, b);
+
+  const saldoConto = data ? openingBalance + data.balance : null;
 
   const kpis = [
     { label: "Entrate", value: data ? fmtEur(data.income) : "—", icon: TrendingUp, accent: "text-accent" },
     { label: "Uscite", value: data ? fmtEur(data.expense) : "—", icon: TrendingDown, accent: "text-destructive" },
-    { label: "Saldo", value: data ? fmtEur(data.balance) : "—", icon: Wallet, accent: data && data.balance >= 0 ? "text-accent" : "text-destructive" },
+    { label: "Netto periodo", value: data ? fmtEur(data.balance) : "—", icon: Wallet, accent: data && data.balance >= 0 ? "text-accent" : "text-destructive" },
+    { label: "Saldo conto", value: saldoConto !== null ? fmtEur(saldoConto) : "—", icon: Landmark, accent: saldoConto !== null && saldoConto >= 0 ? "text-accent" : "text-destructive" },
     { label: "% Risparmio", value: data ? `${data.savingsRate.toFixed(1)}%` : "—", icon: PiggyBank, accent: "text-muted-foreground" },
   ];
 
@@ -81,7 +101,7 @@ const Dashboard = () => {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {kpis.map((kpi) => (
           <div key={kpi.label} className="rounded-xl border bg-card p-5 space-y-1">
             <div className="flex items-center justify-between">
