@@ -52,7 +52,13 @@ export function RecurringTable({ data, isLoading }: Props) {
             <TableRow key={r.id}>
               <TableCell className="font-medium">{capitalizeFirst(r.name) || "—"}</TableCell>
               <TableCell>
-                <Badge variant={r.type === "income" ? "default" : "destructive"} className="text-[11px]">
+                <Badge
+                  className={`text-[11px] ${
+                    r.type === "income"
+                      ? "bg-success text-success-foreground hover:bg-success/80"
+                      : "bg-destructive text-destructive-foreground hover:bg-destructive/80"
+                  }`}
+                >
                   {r.type === "income" ? "Entrata" : "Uscita"}
                 </Badge>
               </TableCell>
