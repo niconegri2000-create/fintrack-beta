@@ -1,18 +1,27 @@
+import { useRecurringRules } from "@/hooks/useRecurringRules";
+import { RecurringTable } from "@/components/recurring/RecurringTable";
+import { RecurringFormDialog } from "@/components/recurring/RecurringFormDialog";
+import { GenerateRecurringDialog } from "@/components/recurring/GenerateRecurringDialog";
+
 const Ricorrenti = () => {
+  const { data = [], isLoading } = useRecurringRules();
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Ricorrenti</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Movimenti automatici mensili
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Ricorrenti</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Movimenti automatici mensili
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <GenerateRecurringDialog />
+          <RecurringFormDialog />
+        </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-6 flex items-center justify-center h-64">
-        <p className="text-muted-foreground text-sm">
-          I movimenti ricorrenti appariranno qui
-        </p>
-      </div>
+      <RecurringTable data={data} isLoading={isLoading} />
     </div>
   );
 };
