@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
 
 export interface ForecastMonth {
-  month: string; // YYYY-MM or YYYY for yearly
+  month: string;
   label: string;
   income: number;
   expense: number;
@@ -24,18 +24,12 @@ const MONTH_LABELS: Record<string, string> = {
   "09": "Set", "10": "Ott", "11": "Nov", "12": "Dic",
 };
 
-/**
- * Variable-horizon forecast based on recurring rules.
- * If horizonMonths <= 24 → monthly granularity
- * If horizonMonths > 24  → yearly aggregation
- */
-export function useForecast(baseMonth: string, horizonMonths: number = 6) {
+export function useForecast(baseMonth: string, horizonMonths: number = 6, workspaceId: string = DEFAULT_WORKSPACE_ID) {
   return useQuery({
-    queryKey: ["forecast", baseMonth, horizonMonths],
+    queryKey: ["forecast", baseMonth, horizonMonths, workspaceId],
     queryFn: async (): Promise<ForecastResult> => {
       const [baseY, baseM] = baseMonth.split("-").map(Number);
 
-      // 1. Fetch current month transactions for baseline
       const startDate = `${baseMonth}-01`;
       const lastDay = new Date(baseY, baseM, 0).getDate();
       const endDate = `${baseMonth}-${String(lastDay).padStart(2, "0")}`;
@@ -43,7 +37,7 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6) {
       const { data: txns, error: tErr } = await supabase
         .from("transactions")
         .select("amount, type")
-        .eq("workspace_id", DEFAULT_WORKSPACE_ID)
+        .eq("workspace_id", workspaceId)
         .gte("date", startDate)
         .lte("date", endDate);
       if (tErr) throw tErr;
@@ -56,15 +50,13 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6) {
         else baseExpense += amt;
       }
 
-      // 2. Fetch active recurring rules with category info
       const { data: rules, error: rErr } = await supabase
         .from("recurring_rules")
         .select("id, name, type, amount, category_id, day_of_month, start_date, interval_months, end_date, category:categories(name, is_active)")
-        .eq("workspace_id", DEFAULT_WORKSPACE_ID)
+        .eq("workspace_id", workspaceId)
         .eq("is_active", true);
       if (rErr) throw rErr;
 
-      // 3. Build monthly forecast (0 = current, 1..N = future)
       const monthlyResults: ForecastMonth[] = [];
 
       for (let offset = 0; offset <= horizonMonths; offset++) {
@@ -76,14 +68,7 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6) {
         const label = `${MONTH_LABELS[mm]} ${String(y).slice(2)}`;
 
         if (offset === 0) {
-          monthlyResults.push({
-            month: monthKey,
-            label,
-            income: baseIncome,
-            expense: baseExpense,
-            balance: baseIncome - baseExpense,
-            warnings: [],
-          });
+          monthlyResults.push({ month: monthKey, label, income: baseIncome, expense: baseExpense, balance: baseIncome - baseExpense, warnings: [] });
           continue;
         }
 
@@ -114,40 +99,30 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6) {
           else expense += amt;
         }
 
-        monthlyResults.push({
-          month: monthKey,
-          label,
-          income,
-          expense,
-          balance: income - expense,
-          warnings: [...new Set(warnings)],
-        });
+        monthlyResults.push({ month: monthKey, label, income, expense, balance: income - expense, warnings: [...new Set(warnings)] });
       }
 
-      // Fetch opening_balance
+      // Fetch opening_balance for this workspace
       const { data: ws, error: wErr } = await supabase
         .from("workspaces")
         .select("opening_balance")
-        .eq("id", DEFAULT_WORKSPACE_ID)
+        .eq("id", workspaceId)
         .single();
       if (wErr) throw wErr;
       const openingBalance = Number((ws as any)?.opening_balance ?? 0);
 
-      // Compute cumulative balance
       let cumulative = openingBalance;
       for (const fm of monthlyResults) {
         cumulative += fm.balance;
         fm.balance = cumulative;
       }
 
-      // 4. Determine granularity and aggregate if needed
       const granularity: ForecastGranularity = horizonMonths > 24 ? "yearly" : "monthly";
 
       if (granularity === "monthly") {
         return { data: monthlyResults, granularity };
       }
 
-      // Aggregate by year
       const yearMap = new Map<string, { income: number; expense: number; balance: number; warnings: string[] }>();
       for (const fm of monthlyResults) {
         const year = fm.month.slice(0, 4);
@@ -155,28 +130,16 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6) {
         if (entry) {
           entry.income += fm.income;
           entry.expense += fm.expense;
-          entry.balance = fm.balance; // last month's cumulative = year-end
+          entry.balance = fm.balance;
           entry.warnings.push(...fm.warnings);
         } else {
-          yearMap.set(year, {
-            income: fm.income,
-            expense: fm.expense,
-            balance: fm.balance,
-            warnings: [...fm.warnings],
-          });
+          yearMap.set(year, { income: fm.income, expense: fm.expense, balance: fm.balance, warnings: [...fm.warnings] });
         }
       }
 
       const yearlyResults: ForecastMonth[] = [];
       for (const [year, v] of yearMap) {
-        yearlyResults.push({
-          month: year,
-          label: year,
-          income: v.income,
-          expense: v.expense,
-          balance: v.balance,
-          warnings: [...new Set(v.warnings)],
-        });
+        yearlyResults.push({ month: year, label: year, income: v.income, expense: v.expense, balance: v.balance, warnings: [...new Set(v.warnings)] });
       }
 
       return { data: yearlyResults, granularity };

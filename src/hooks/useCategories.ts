@@ -11,14 +11,14 @@ export interface Category {
 }
 
 /** All categories (for settings page) */
-export function useAllCategories() {
+export function useAllCategories(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   return useQuery({
-    queryKey: ["categories", "all", DEFAULT_WORKSPACE_ID],
+    queryKey: ["categories", "all", workspaceId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
         .select("id, name, priority, is_fixed_default, is_active")
-        .eq("workspace_id", DEFAULT_WORKSPACE_ID)
+        .eq("workspace_id", workspaceId)
         .order("name");
       if (error) throw error;
       return data as Category[];
@@ -27,14 +27,14 @@ export function useAllCategories() {
 }
 
 /** Only active categories (for dropdowns) */
-export function useCategories() {
+export function useCategories(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   return useQuery({
-    queryKey: ["categories", DEFAULT_WORKSPACE_ID],
+    queryKey: ["categories", workspaceId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
         .select("id, name, priority, is_fixed_default, is_active")
-        .eq("workspace_id", DEFAULT_WORKSPACE_ID)
+        .eq("workspace_id", workspaceId)
         .eq("is_active", true)
         .order("name");
       if (error) throw error;
@@ -50,12 +50,12 @@ export interface NewCategory {
   is_active: boolean;
 }
 
-export function useCreateCategory() {
+export function useCreateCategory(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (cat: NewCategory) => {
       const { error } = await supabase.from("categories").insert({
-        workspace_id: DEFAULT_WORKSPACE_ID,
+        workspace_id: workspaceId,
         name: cat.name,
         priority: cat.priority,
         is_fixed_default: cat.is_fixed_default,
@@ -67,22 +67,30 @@ export function useCreateCategory() {
   });
 }
 
-export function useUpdateCategory() {
+export function useUpdateCategory(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Category> & { id: string }) => {
-      const { error } = await supabase.from("categories").update(updates).eq("id", id);
+      const { error } = await supabase
+        .from("categories")
+        .update(updates)
+        .eq("id", id)
+        .eq("workspace_id", workspaceId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
   });
 }
 
-export function useDeleteCategory() {
+export function useDeleteCategory(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("categories").delete().eq("id", id);
+      const { error } = await supabase
+        .from("categories")
+        .delete()
+        .eq("id", id)
+        .eq("workspace_id", workspaceId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),

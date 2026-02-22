@@ -24,19 +24,18 @@ export interface NewTransaction {
   notes: string;
 }
 
-export function useTransactions(month: string) {
-  // month format: "YYYY-MM"
+export function useTransactions(month: string, workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const startDate = `${month}-01`;
   const [y, m] = month.split("-").map(Number);
-  const endDate = new Date(y, m, 0).toISOString().slice(0, 10); // last day
+  const endDate = new Date(y, m, 0).toISOString().slice(0, 10);
 
   return useQuery({
-    queryKey: ["transactions", month],
+    queryKey: ["transactions", month, workspaceId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("transactions")
         .select("id, date, description, amount, type, is_fixed, source, notes, category:categories(id, name)")
-        .eq("workspace_id", DEFAULT_WORKSPACE_ID)
+        .eq("workspace_id", workspaceId)
         .gte("date", startDate)
         .lte("date", endDate)
         .order("date", { ascending: false });
@@ -46,13 +45,13 @@ export function useTransactions(month: string) {
   });
 }
 
-export function useCreateTransaction() {
+export function useCreateTransaction(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: async (tx: NewTransaction) => {
       const { error } = await supabase.from("transactions").insert({
-        workspace_id: DEFAULT_WORKSPACE_ID,
+        workspace_id: workspaceId,
         date: tx.date,
         type: tx.type,
         amount: tx.amount,

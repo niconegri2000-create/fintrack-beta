@@ -11,16 +11,16 @@ export interface CategoryBudget {
   updated_at: string;
 }
 
-export function useCategoryBudgets() {
+export function useCategoryBudgets(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
 
   const list = useQuery({
-    queryKey: ["category_budgets", DEFAULT_WORKSPACE_ID],
+    queryKey: ["category_budgets", workspaceId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("category_budgets")
         .select("id, category_id, monthly_limit, is_active, updated_at, category:categories(name)")
-        .eq("workspace_id", DEFAULT_WORKSPACE_ID)
+        .eq("workspace_id", workspaceId)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []).map((r: any) => ({
@@ -40,7 +40,7 @@ export function useCategoryBudgets() {
         .from("category_budgets")
         .upsert(
           {
-            workspace_id: DEFAULT_WORKSPACE_ID,
+            workspace_id: workspaceId,
             category_id: input.category_id,
             monthly_limit: input.monthly_limit,
             is_active: input.is_active ?? true,
@@ -57,7 +57,8 @@ export function useCategoryBudgets() {
       const { error } = await supabase
         .from("category_budgets")
         .update({ is_active: input.is_active })
-        .eq("id", input.id);
+        .eq("id", input.id)
+        .eq("workspace_id", workspaceId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["category_budgets"] }),
@@ -68,7 +69,8 @@ export function useCategoryBudgets() {
       const { error } = await supabase
         .from("category_budgets")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .eq("workspace_id", workspaceId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["category_budgets"] }),
@@ -84,14 +86,14 @@ export interface CategorySpending {
   total_spent: number;
 }
 
-export function useCategorySpending(startDate: string, endDate: string) {
+export function useCategorySpending(startDate: string, endDate: string, workspaceId: string = DEFAULT_WORKSPACE_ID) {
   return useQuery({
-    queryKey: ["category_spending", DEFAULT_WORKSPACE_ID, startDate, endDate],
+    queryKey: ["category_spending", workspaceId, startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("transactions")
         .select("category_id, amount")
-        .eq("workspace_id", DEFAULT_WORKSPACE_ID)
+        .eq("workspace_id", workspaceId)
         .eq("type", "expense")
         .gte("date", startDate)
         .lte("date", endDate);
@@ -123,9 +125,9 @@ export interface BudgetSummaryRow {
   status: BudgetStatus;
 }
 
-export function useBudgetSummary(startDate: string, endDate: string) {
-  const { list } = useCategoryBudgets();
-  const spending = useCategorySpending(startDate, endDate);
+export function useBudgetSummary(startDate: string, endDate: string, workspaceId: string = DEFAULT_WORKSPACE_ID) {
+  const { list } = useCategoryBudgets(workspaceId);
+  const spending = useCategorySpending(startDate, endDate, workspaceId);
 
   const isLoading = list.isLoading || spending.isLoading;
   const error = list.error || spending.error;

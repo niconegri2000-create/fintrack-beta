@@ -1,51 +1,20 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
+import { useWorkspace, useUpdateWorkspace } from "@/hooks/useWorkspace";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { Save } from "lucide-react";
 
 export function MinBalanceThresholdSection() {
-  const queryClient = useQueryClient();
   const [value, setValue] = useState("");
-
-  const { data: workspace } = useQuery({
-    queryKey: ["workspace", DEFAULT_WORKSPACE_ID],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("workspaces")
-        .select("min_balance_threshold")
-        .eq("id", DEFAULT_WORKSPACE_ID)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-  });
+  const { data: workspace } = useWorkspace();
+  const mutation = useUpdateWorkspace();
 
   useEffect(() => {
     if (workspace) {
-      setValue(String((workspace as any).min_balance_threshold ?? 0));
+      setValue(String(workspace.min_balance_threshold ?? 0));
     }
   }, [workspace]);
-
-  const mutation = useMutation({
-    mutationFn: async (amount: number) => {
-      const { error } = await supabase
-        .from("workspaces")
-        .update({ min_balance_threshold: amount } as any)
-        .eq("id", DEFAULT_WORKSPACE_ID);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: "Soglia salvata correttamente" });
-      queryClient.invalidateQueries({ queryKey: ["workspace"] });
-    },
-    onError: () => {
-      toast({ title: "Errore nel salvataggio", variant: "destructive" });
-    },
-  });
 
   const handleSave = () => {
     const num = parseFloat(value) || 0;
@@ -53,7 +22,13 @@ export function MinBalanceThresholdSection() {
       toast({ title: "La soglia non può essere negativa", variant: "destructive" });
       return;
     }
-    mutation.mutate(num);
+    mutation.mutate(
+      { min_balance_threshold: num },
+      {
+        onSuccess: () => toast({ title: "Soglia salvata correttamente" }),
+        onError: () => toast({ title: "Errore nel salvataggio", variant: "destructive" }),
+      }
+    );
   };
 
   return (

@@ -29,14 +29,14 @@ export interface NewRecurring {
   end_date: string | null;
 }
 
-export function useRecurringRules() {
+export function useRecurringRules(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   return useQuery({
-    queryKey: ["recurring_rules"],
+    queryKey: ["recurring_rules", workspaceId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("recurring_rules")
         .select("id, name, type, amount, day_of_month, is_fixed, is_active, category_id, interval_months, end_date, category:categories(id, name)")
-        .eq("workspace_id", DEFAULT_WORKSPACE_ID)
+        .eq("workspace_id", workspaceId)
         .order("name");
       if (error) throw error;
       return data as unknown as RecurringRow[];
@@ -44,12 +44,12 @@ export function useRecurringRules() {
   });
 }
 
-export function useCreateRecurring() {
+export function useCreateRecurring(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (r: NewRecurring) => {
       const { error } = await supabase.from("recurring_rules").insert({
-        workspace_id: DEFAULT_WORKSPACE_ID,
+        workspace_id: workspaceId,
         name: r.name,
         type: r.type,
         amount: r.amount,
@@ -68,7 +68,7 @@ export function useCreateRecurring() {
   });
 }
 
-export function useGenerateRecurring() {
+export function useGenerateRecurring(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
 
   return useMutation({
@@ -79,7 +79,7 @@ export function useGenerateRecurring() {
       const { data: rules, error: rErr } = await supabase
         .from("recurring_rules")
         .select("id, name, type, amount, category_id, is_fixed, day_of_month, start_date, interval_months, end_date, category:categories(id, name, is_active)")
-        .eq("workspace_id", DEFAULT_WORKSPACE_ID)
+        .eq("workspace_id", workspaceId)
         .eq("is_active", true);
       if (rErr) throw rErr;
       if (!rules || rules.length === 0) return { created: 0, skipped: [] };
@@ -98,23 +98,21 @@ export function useGenerateRecurring() {
 
       // 3. filter by interval_months + end_date
       const monthStart = `${month}-01`;
-      const monthEnd = `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
       const targetEligible = eligible.filter((r: any) => {
-        // Check end_date: if set, rule must not have ended before this month
         if (r.end_date && r.end_date < monthStart) return false;
 
         const sd = new Date(r.start_date);
         const startYear = sd.getFullYear();
-        const startMonth = sd.getMonth(); // 0-indexed
+        const startMonth = sd.getMonth();
         const monthsDiff = (y - startYear) * 12 + (m - 1 - startMonth);
-        if (monthsDiff < 0) return false; // rule hasn't started yet
+        if (monthsDiff < 0) return false;
         const interval = r.interval_months || 1;
         return monthsDiff % interval === 0;
       });
 
       if (targetEligible.length === 0) return { created: 0, skipped };
 
-      // 3. fetch existing generated transactions for the month
+      // 4. fetch existing generated transactions for the month (anti-duplicate)
       const startDate = `${month}-01`;
       const lastDay = new Date(y, m, 0).getDate();
       const endDate = `${month}-${String(lastDay).padStart(2, "0")}`;
@@ -122,7 +120,7 @@ export function useGenerateRecurring() {
       const { data: existing, error: eErr } = await supabase
         .from("transactions")
         .select("recurring_rule_id")
-        .eq("workspace_id", DEFAULT_WORKSPACE_ID)
+        .eq("workspace_id", workspaceId)
         .eq("source", "recurring_generated")
         .gte("date", startDate)
         .lte("date", endDate);
@@ -137,7 +135,7 @@ export function useGenerateRecurring() {
           const day = Math.min(r.day_of_month || 1, lastDay);
           const date = `${month}-${String(day).padStart(2, "0")}`;
           return {
-            workspace_id: DEFAULT_WORKSPACE_ID,
+            workspace_id: workspaceId,
             date,
             description: r.name,
             amount: r.amount,
