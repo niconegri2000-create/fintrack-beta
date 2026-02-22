@@ -14,6 +14,9 @@ import {
 } from "recharts";
 import { PeriodPicker, usePeriodState } from "@/components/dashboard/PeriodPicker";
 import { useDashboardData } from "@/hooks/useDashboardData";
+import { useBudgetSummary, type BudgetSummaryRow } from "@/hooks/useCategoryBudgets";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 const MONTH_LABELS: Record<string, string> = {
   "01": "Gen", "02": "Feb", "03": "Mar", "04": "Apr",
@@ -39,6 +42,10 @@ function fmtEur(v: number) {
 const Dashboard = () => {
   const { range, activePreset, applyPreset, applyCustom } = usePeriodState();
   const { data, isLoading } = useDashboardData(range.start, range.end);
+  const { data: budgetRows } = useBudgetSummary(range.start, range.end);
+
+  const budgetMap = new Map<string, BudgetSummaryRow>();
+  for (const b of budgetRows) budgetMap.set(b.category_name, b);
 
   const kpis = [
     { label: "Entrate", value: data ? fmtEur(data.income) : "—", icon: TrendingUp, accent: "text-accent" },
@@ -116,7 +123,7 @@ const Dashboard = () => {
               Nessun dato nel periodo
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={240}>
+             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
                 <Pie
                   data={data!.byCategory}
@@ -125,7 +132,12 @@ const Dashboard = () => {
                   cx="50%"
                   cy="50%"
                   outerRadius={90}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => {
+                    const b = budgetMap.get(name);
+                    const pctLabel = `${(percent * 100).toFixed(0)}%`;
+                    const over = b && b.status === "over" ? " ⚠️" : "";
+                    return `${name} ${pctLabel}${over}`;
+                  }}
                   labelLine={false}
                   style={{ fontSize: 11 }}
                 >
@@ -133,13 +145,81 @@ const Dashboard = () => {
                     <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v: number) => fmtEur(v)} />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.[0]) return null;
+                    const entry = payload[0];
+                    const name = entry.name as string;
+                    const amount = Number(entry.value);
+                    const b = budgetMap.get(name);
+                    return (
+                      <div className="rounded-lg border bg-card p-2.5 text-xs shadow-md space-y-0.5">
+                        <p className="font-medium">{name}</p>
+                        <p>Speso: {fmtEur(amount)}</p>
+                        {b && b.monthly_limit > 0 && (
+                          <>
+                            <p>Limite: {fmtEur(b.monthly_limit)}</p>
+                            <p>Utilizzo: {((b.percent ?? 0) * 100).toFixed(0)}%
+                              {b.status === "over" && <span className="text-destructive font-semibold"> OVER</span>}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    );
+                  }}
+                />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>
           )}
         </div>
       </div>
+
+      {/* Budget widget */}
+      {budgetRows.length > 0 && (
+        <div className="rounded-xl border bg-card p-5 space-y-3">
+          <p className="text-sm font-medium">Budget — Top 5 categorie</p>
+          <div className="space-y-3">
+            {budgetRows
+              .filter((b) => b.monthly_limit > 0)
+              .sort((a, b) => (b.percent ?? 0) - (a.percent ?? 0))
+              .slice(0, 5)
+              .map((b) => {
+                const pct = Math.min((b.percent ?? 0) * 100, 100);
+                return (
+                  <div key={b.category_id} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium">{b.category_name}</span>
+                      <span className="text-muted-foreground font-mono">
+                        {fmtEur(b.spent)} / {fmtEur(b.monthly_limit)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Progress
+                        value={pct}
+                        className={`h-2 flex-1 ${
+                          b.status === "over"
+                            ? "[&>div]:bg-destructive"
+                            : b.status === "warn"
+                            ? "[&>div]:bg-amber-500"
+                            : ""
+                        }`}
+                      />
+                      <Badge
+                        variant={b.status === "over" ? "destructive" : "secondary"}
+                        className={`text-[10px] w-12 justify-center ${
+                          b.status === "warn" ? "bg-amber-500/20 text-amber-600 border-amber-500/30" : ""
+                        }`}
+                      >
+                        {b.status === "over" ? "OVER" : b.status === "warn" ? "WARN" : "OK"}
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
