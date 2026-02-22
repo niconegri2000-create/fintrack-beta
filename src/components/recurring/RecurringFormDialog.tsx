@@ -38,6 +38,7 @@ export function RecurringFormDialog() {
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [dayOfMonth, setDayOfMonth] = useState("1");
+  const [intervalMonths, setIntervalMonths] = useState("1");
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [isFixed, setIsFixed] = useState(true);
   const [isActive, setIsActive] = useState(true);
@@ -51,6 +52,7 @@ export function RecurringFormDialog() {
     setAmount("");
     setCategoryId("");
     setDayOfMonth("1");
+    setIntervalMonths("1");
     setStartDate(new Date());
     setIsFixed(true);
     setIsActive(true);
@@ -82,6 +84,7 @@ export function RecurringFormDialog() {
         start_date: format(startDate, "yyyy-MM-dd"),
         is_fixed: isFixed,
         is_active: isActive,
+        interval_months: parseInt(intervalMonths) || 1,
       },
       {
         onSuccess: () => {
@@ -136,6 +139,20 @@ export function RecurringFormDialog() {
                 {categories.map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Frequenza</Label>
+            <Select value={intervalMonths} onValueChange={setIntervalMonths}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Ogni 1 mese</SelectItem>
+                <SelectItem value="2">Ogni 2 mesi</SelectItem>
+                <SelectItem value="3">Ogni 3 mesi</SelectItem>
+                <SelectItem value="6">Ogni 6 mesi</SelectItem>
+                <SelectItem value="12">Ogni 12 mesi</SelectItem>
               </SelectContent>
             </Select>
           </div>
