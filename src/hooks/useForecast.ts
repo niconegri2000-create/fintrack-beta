@@ -119,8 +119,17 @@ export function useForecast(baseMonth: string) {
         });
       }
 
-      // Compute cumulative balance
-      let cumulative = 0;
+      // Fetch opening_balance from workspace
+      const { data: ws, error: wErr } = await supabase
+        .from("workspaces")
+        .select("opening_balance")
+        .eq("id", DEFAULT_WORKSPACE_ID)
+        .single();
+      if (wErr) throw wErr;
+      const openingBalance = Number((ws as any)?.opening_balance ?? 0);
+
+      // Compute cumulative balance starting from opening_balance
+      let cumulative = openingBalance;
       for (const fm of results) {
         cumulative += fm.balance;
         fm.balance = cumulative;
