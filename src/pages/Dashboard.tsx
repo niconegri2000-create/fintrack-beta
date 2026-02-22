@@ -1,29 +1,16 @@
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, Landmark, AlertTriangle } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { PeriodPicker, usePeriodState } from "@/components/dashboard/PeriodPicker";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useBudgetSummary, type BudgetSummaryRow } from "@/hooks/useCategoryBudgets";
 import { useForecast } from "@/hooks/useForecast";
+import { useWorkspace, useUpdateWorkspace } from "@/hooks/useWorkspace";
 import { ForecastWidget } from "@/components/dashboard/ForecastWidget";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 
 const MONTH_LABELS: Record<string, string> = {
   "01": "Gen", "02": "Feb", "03": "Mar", "04": "Apr",
@@ -32,14 +19,8 @@ const MONTH_LABELS: Record<string, string> = {
 };
 
 const PIE_COLORS = [
-  "hsl(220, 60%, 20%)",
-  "hsl(160, 60%, 40%)",
-  "hsl(38, 92%, 50%)",
-  "hsl(0, 72%, 51%)",
-  "hsl(260, 50%, 50%)",
-  "hsl(190, 70%, 45%)",
-  "hsl(330, 60%, 50%)",
-  "hsl(80, 55%, 45%)",
+  "hsl(220, 60%, 20%)", "hsl(160, 60%, 40%)", "hsl(38, 92%, 50%)", "hsl(0, 72%, 51%)",
+  "hsl(260, 50%, 50%)", "hsl(190, 70%, 45%)", "hsl(330, 60%, 50%)", "hsl(80, 55%, 45%)",
 ];
 
 function fmtEur(v: number) {
@@ -50,39 +31,15 @@ const Dashboard = () => {
   const { range, activePreset, applyPreset, applyCustom } = usePeriodState();
   const { data, isLoading } = useDashboardData(range.start, range.end);
   const { data: budgetRows } = useBudgetSummary(range.start, range.end);
-  const queryClient = useQueryClient();
+  const { data: workspace } = useWorkspace();
+  const updateWorkspace = useUpdateWorkspace();
 
-  const { data: workspace } = useQuery({
-    queryKey: ["workspace", DEFAULT_WORKSPACE_ID],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("workspaces")
-        .select("opening_balance, min_balance_threshold, forecast_horizon_months")
-        .eq("id", DEFAULT_WORKSPACE_ID)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-  });
-  const openingBalance = Number((workspace as any)?.opening_balance ?? 0);
-  const minThreshold = Number((workspace as any)?.min_balance_threshold ?? 0);
-  const forecastHorizon = Number((workspace as any)?.forecast_horizon_months ?? 6);
+  const openingBalance = workspace?.opening_balance ?? 0;
+  const minThreshold = workspace?.min_balance_threshold ?? 0;
+  const forecastHorizon = workspace?.forecast_horizon_months ?? 6;
 
   const currentMonth = range.start.slice(0, 7);
   const { data: forecastResult, isLoading: forecastLoading } = useForecast(currentMonth, forecastHorizon);
-
-  const updateHorizon = useMutation({
-    mutationFn: async (months: number) => {
-      const { error } = await supabase
-        .from("workspaces")
-        .update({ forecast_horizon_months: months } as any)
-        .eq("id", DEFAULT_WORKSPACE_ID);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["workspace"] });
-    },
-  });
 
   const budgetMap = new Map<string, BudgetSummaryRow>();
   for (const b of budgetRows) budgetMap.set(b.category_name, b);
@@ -122,16 +79,8 @@ const Dashboard = () => {
       {(() => {
         const isNegative = saldoConto !== null && saldoConto < 0;
         const isBelowThreshold = saldoConto !== null && !isNegative && saldoConto < minThreshold;
-        const heroColor = isNegative
-          ? "text-destructive"
-          : isBelowThreshold
-          ? "text-foreground"
-          : "text-foreground";
-        const iconColor = isNegative
-          ? "text-destructive"
-          : isBelowThreshold
-          ? "text-amber-500"
-          : "text-accent";
+        const heroColor = isNegative ? "text-destructive" : "text-foreground";
+        const iconColor = isNegative ? "text-destructive" : isBelowThreshold ? "text-amber-500" : "text-accent";
         return (
           <div className="rounded-xl border bg-card p-6">
             <div className="flex items-center gap-2 mb-1">
@@ -141,12 +90,8 @@ const Dashboard = () => {
                 <Landmark className={`h-5 w-5 ${iconColor}`} />
               )}
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Saldo conto</p>
-              {isNegative && (
-                <Badge variant="destructive" className="text-[10px]">Negativo</Badge>
-              )}
-              {isBelowThreshold && (
-                <Badge className="text-[10px] bg-amber-500/20 text-amber-600 border-amber-500/30">Sotto soglia</Badge>
-              )}
+              {isNegative && <Badge variant="destructive" className="text-[10px]">Negativo</Badge>}
+              {isBelowThreshold && <Badge className="text-[10px] bg-amber-500/20 text-amber-600 border-amber-500/30">Sotto soglia</Badge>}
             </div>
             <p className={`text-4xl font-bold font-mono ${heroColor}`}>
               {saldoConto !== null ? fmtEur(saldoConto) : "—"}
@@ -173,23 +118,17 @@ const Dashboard = () => {
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Bar chart: Entrate vs Uscite per mese */}
         <div className="rounded-xl border bg-card p-5 space-y-3">
           <p className="text-sm font-medium">Entrate vs Uscite</p>
           {barData.length === 0 ? (
-            <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">
-              Nessun dato nel periodo
-            </div>
+            <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">Nessun dato nel periodo</div>
           ) : (
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={barData} barGap={4}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="label" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
                 <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                <Tooltip
-                  formatter={(v: number) => fmtEur(v)}
-                  contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
-                />
+                <Tooltip formatter={(v: number) => fmtEur(v)} contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
                 <Bar dataKey="income" name="Entrate" fill="hsl(160, 60%, 40%)" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="expense" name="Uscite" fill="hsl(0, 72%, 51%)" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -197,22 +136,18 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Pie chart: Spese per categoria */}
         <div className="rounded-xl border bg-card p-5 space-y-3">
           <p className="text-sm font-medium">Spese per categoria</p>
           {(data?.byCategory ?? []).length === 0 ? (
-            <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">
-              Nessun dato nel periodo
-            </div>
+            <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">Nessun dato nel periodo</div>
           ) : (
-             <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={240}>
               <PieChart>
                 <Pie
                   data={data!.byCategory}
                   dataKey="amount"
                   nameKey="name"
-                  cx="50%"
-                  cy="50%"
+                  cx="50%" cy="50%"
                   outerRadius={90}
                   label={({ name, percent }) => {
                     const b = budgetMap.get(name);
@@ -310,7 +245,7 @@ const Dashboard = () => {
         minBalanceThreshold={minThreshold}
         granularity={forecastResult?.granularity ?? "monthly"}
         horizonMonths={forecastHorizon}
-        onHorizonChange={(m) => updateHorizon.mutate(m)}
+        onHorizonChange={(m) => updateWorkspace.mutate({ forecast_horizon_months: m })}
       />
     </div>
   );

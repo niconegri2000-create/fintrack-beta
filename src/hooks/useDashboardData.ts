@@ -11,14 +11,14 @@ export interface DashboardData {
   byMonth: { month: string; income: number; expense: number }[];
 }
 
-export function useDashboardData(startDate: string, endDate: string) {
+export function useDashboardData(startDate: string, endDate: string, workspaceId: string = DEFAULT_WORKSPACE_ID) {
   return useQuery({
-    queryKey: ["dashboard", startDate, endDate],
+    queryKey: ["dashboard", startDate, endDate, workspaceId],
     queryFn: async (): Promise<DashboardData> => {
       const { data, error } = await supabase
         .from("transactions")
         .select("date, amount, type, category:categories(name)")
-        .eq("workspace_id", DEFAULT_WORKSPACE_ID)
+        .eq("workspace_id", workspaceId)
         .gte("date", startDate)
         .lte("date", endDate)
         .order("date", { ascending: true });
@@ -42,14 +42,12 @@ export function useDashboardData(startDate: string, endDate: string) {
         if (r.type === "income") income += amt;
         else expense += amt;
 
-        // category breakdown (expenses only)
         if (r.type === "expense") {
           const cat = r.category?.name ?? "Senza categoria";
           catMap.set(cat, (catMap.get(cat) ?? 0) + amt);
         }
 
-        // monthly breakdown
-        const m = r.date.slice(0, 7); // YYYY-MM
+        const m = r.date.slice(0, 7);
         const entry = monthMap.get(m) ?? { income: 0, expense: 0 };
         if (r.type === "income") entry.income += amt;
         else entry.expense += amt;
