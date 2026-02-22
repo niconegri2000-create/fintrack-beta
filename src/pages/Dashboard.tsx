@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, Landmark } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, Landmark, AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
@@ -56,7 +56,7 @@ const Dashboard = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workspaces")
-        .select("opening_balance")
+        .select("opening_balance, min_balance_threshold")
         .eq("id", DEFAULT_WORKSPACE_ID)
         .single();
       if (error) throw error;
@@ -64,6 +64,7 @@ const Dashboard = () => {
     },
   });
   const openingBalance = Number((workspace as any)?.opening_balance ?? 0);
+  const minThreshold = Number((workspace as any)?.min_balance_threshold ?? 0);
 
   const budgetMap = new Map<string, BudgetSummaryRow>();
   for (const b of budgetRows) budgetMap.set(b.category_name, b);
@@ -100,18 +101,44 @@ const Dashboard = () => {
       </div>
 
       {/* Hero: Saldo conto */}
-      <div className="rounded-xl border bg-card p-6">
-        <div className="flex items-center gap-2 mb-1">
-          <Landmark className={`h-5 w-5 ${saldoConto !== null && saldoConto >= 0 ? "text-accent" : "text-destructive"}`} />
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Saldo conto</p>
-        </div>
-        <p className={`text-4xl font-bold font-mono ${saldoConto !== null && saldoConto >= 0 ? "text-foreground" : "text-destructive"}`}>
-          {saldoConto !== null ? fmtEur(saldoConto) : "—"}
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Saldo iniziale: {fmtEur(openingBalance)} • Netto periodo: {data ? fmtEur(data.balance) : "—"}
-        </p>
-      </div>
+      {(() => {
+        const isNegative = saldoConto !== null && saldoConto < 0;
+        const isBelowThreshold = saldoConto !== null && !isNegative && saldoConto < minThreshold;
+        const heroColor = isNegative
+          ? "text-destructive"
+          : isBelowThreshold
+          ? "text-foreground"
+          : "text-foreground";
+        const iconColor = isNegative
+          ? "text-destructive"
+          : isBelowThreshold
+          ? "text-amber-500"
+          : "text-accent";
+        return (
+          <div className="rounded-xl border bg-card p-6">
+            <div className="flex items-center gap-2 mb-1">
+              {isBelowThreshold ? (
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+              ) : (
+                <Landmark className={`h-5 w-5 ${iconColor}`} />
+              )}
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Saldo conto</p>
+              {isNegative && (
+                <Badge variant="destructive" className="text-[10px]">Negativo</Badge>
+              )}
+              {isBelowThreshold && (
+                <Badge className="text-[10px] bg-amber-500/20 text-amber-600 border-amber-500/30">Sotto soglia</Badge>
+              )}
+            </div>
+            <p className={`text-4xl font-bold font-mono ${heroColor}`}>
+              {saldoConto !== null ? fmtEur(saldoConto) : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Saldo iniziale: {fmtEur(openingBalance)} • Netto periodo: {data ? fmtEur(data.balance) : "—"}
+            </p>
+          </div>
+        );
+      })()}
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -259,7 +286,7 @@ const Dashboard = () => {
       )}
 
       {/* Forecast widget */}
-      <ForecastWidget data={forecastData ?? []} isLoading={forecastLoading} />
+      <ForecastWidget data={forecastData ?? []} isLoading={forecastLoading} minBalanceThreshold={minThreshold} />
     </div>
   );
 };

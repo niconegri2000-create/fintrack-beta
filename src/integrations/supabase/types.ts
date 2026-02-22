@@ -276,6 +276,7 @@ export type Database = {
           created_at: string | null
           currency: string | null
           id: string
+          min_balance_threshold: number
           name: string
           opening_balance: number
         }
@@ -283,6 +284,7 @@ export type Database = {
           created_at?: string | null
           currency?: string | null
           id?: string
+          min_balance_threshold?: number
           name: string
           opening_balance?: number
         }
@@ -290,6 +292,7 @@ export type Database = {
           created_at?: string | null
           currency?: string | null
           id?: string
+          min_balance_threshold?: number
           name?: string
           opening_balance?: number
         }
