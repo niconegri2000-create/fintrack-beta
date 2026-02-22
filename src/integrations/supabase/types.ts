@@ -97,33 +97,77 @@ export type Database = {
           },
         ]
       }
+      goal_contributions: {
+        Row: {
+          amount: number
+          created_at: string | null
+          date: string
+          goal_id: string
+          id: string
+          note: string | null
+          workspace_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          date?: string
+          goal_id: string
+          id?: string
+          note?: string | null
+          workspace_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          date?: string
+          goal_id?: string
+          id?: string
+          note?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_contributions_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goals: {
         Row: {
           created_at: string | null
           id: string
           name: string
+          note: string | null
           starting_amount: number | null
+          status: string
           target_amount: number
           target_date: string
-          workspace_id: string | null
+          workspace_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
           name: string
+          note?: string | null
           starting_amount?: number | null
+          status?: string
           target_amount: number
           target_date: string
-          workspace_id?: string | null
+          workspace_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
           name?: string
+          note?: string | null
           starting_amount?: number | null
+          status?: string
           target_amount?: number
           target_date?: string
-          workspace_id?: string | null
+          workspace_id?: string
         }
         Relationships: [
           {
