@@ -99,6 +99,7 @@ export type Database = {
           end_date: string | null
           frequency: string | null
           id: string
+          interval_months: number
           is_active: boolean | null
           is_fixed: boolean | null
           last_generated_for_month: string | null
@@ -115,6 +116,7 @@ export type Database = {
           end_date?: string | null
           frequency?: string | null
           id?: string
+          interval_months?: number
           is_active?: boolean | null
           is_fixed?: boolean | null
           last_generated_for_month?: string | null
@@ -131,6 +133,7 @@ export type Database = {
           end_date?: string | null
           frequency?: string | null
           id?: string
+          interval_months?: number
           is_active?: boolean | null
           is_fixed?: boolean | null
           last_generated_for_month?: string | null

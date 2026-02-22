@@ -12,6 +12,7 @@ export interface RecurringRow {
   is_active: boolean;
   category: { id: string; name: string } | null;
   category_id: string | null;
+  interval_months: number;
 }
 
 export interface NewRecurring {
@@ -23,6 +24,7 @@ export interface NewRecurring {
   start_date: string;
   is_fixed: boolean;
   is_active: boolean;
+  interval_months: number;
 }
 
 export function useRecurringRules() {
@@ -31,7 +33,7 @@ export function useRecurringRules() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("recurring_rules")
-        .select("id, name, type, amount, day_of_month, is_fixed, is_active, category_id, category:categories(id, name)")
+        .select("id, name, type, amount, day_of_month, is_fixed, is_active, category_id, interval_months, category:categories(id, name)")
         .eq("workspace_id", DEFAULT_WORKSPACE_ID)
         .order("name");
       if (error) throw error;
@@ -55,6 +57,7 @@ export function useCreateRecurring() {
         is_fixed: r.is_fixed,
         is_active: r.is_active,
         frequency: "monthly",
+        interval_months: r.interval_months,
       });
       if (error) throw error;
     },
@@ -72,7 +75,7 @@ export function useGenerateRecurring() {
       // 1. fetch active rules with category info
       const { data: rules, error: rErr } = await supabase
         .from("recurring_rules")
-        .select("id, name, type, amount, category_id, is_fixed, day_of_month, category:categories(id, name, is_active)")
+        .select("id, name, type, amount, category_id, is_fixed, day_of_month, start_date, interval_months, category:categories(id, name, is_active)")
         .eq("workspace_id", DEFAULT_WORKSPACE_ID)
         .eq("is_active", true);
       if (rErr) throw rErr;
@@ -90,6 +93,19 @@ export function useGenerateRecurring() {
 
       if (eligible.length === 0) return { created: 0, skipped };
 
+      // 3. filter by interval_months: check if target month is an occurrence month
+      const targetEligible = eligible.filter((r: any) => {
+        const sd = new Date(r.start_date);
+        const startYear = sd.getFullYear();
+        const startMonth = sd.getMonth(); // 0-indexed
+        const monthsDiff = (y - startYear) * 12 + (m - 1 - startMonth);
+        if (monthsDiff < 0) return false; // rule hasn't started yet
+        const interval = r.interval_months || 1;
+        return monthsDiff % interval === 0;
+      });
+
+      if (targetEligible.length === 0) return { created: 0, skipped };
+
       // 3. fetch existing generated transactions for the month
       const startDate = `${month}-01`;
       const lastDay = new Date(y, m, 0).getDate();
@@ -106,8 +122,8 @@ export function useGenerateRecurring() {
 
       const existingIds = new Set((existing || []).map((t: any) => t.recurring_rule_id));
 
-      // 4. build inserts for missing
-      const toInsert = eligible
+      // 5. build inserts for missing
+      const toInsert = targetEligible
         .filter((r: any) => !existingIds.has(r.id))
         .map((r: any) => {
           const day = Math.min(r.day_of_month || 1, lastDay);
