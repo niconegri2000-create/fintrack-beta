@@ -277,18 +277,21 @@ export type Database = {
           currency: string | null
           id: string
           name: string
+          opening_balance: number
         }
         Insert: {
           created_at?: string | null
           currency?: string | null
           id?: string
           name: string
+          opening_balance?: number
         }
         Update: {
           created_at?: string | null
           currency?: string | null
           id?: string
           name?: string
+          opening_balance?: number
         }
         Relationships: []
       }
