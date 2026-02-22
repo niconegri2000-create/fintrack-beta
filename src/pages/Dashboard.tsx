@@ -74,7 +74,6 @@ const Dashboard = () => {
     { label: "Entrate", value: data ? fmtEur(data.income) : "—", icon: TrendingUp, accent: "text-accent" },
     { label: "Uscite", value: data ? fmtEur(data.expense) : "—", icon: TrendingDown, accent: "text-destructive" },
     { label: "Netto periodo", value: data ? fmtEur(data.balance) : "—", icon: Wallet, accent: data && data.balance >= 0 ? "text-accent" : "text-destructive" },
-    { label: "Saldo conto", value: saldoConto !== null ? fmtEur(saldoConto) : "—", icon: Landmark, accent: saldoConto !== null && saldoConto >= 0 ? "text-accent" : "text-destructive" },
     { label: "% Risparmio", value: data ? `${data.savingsRate.toFixed(1)}%` : "—", icon: PiggyBank, accent: "text-muted-foreground" },
   ];
 
@@ -100,8 +99,22 @@ const Dashboard = () => {
         />
       </div>
 
+      {/* Hero: Saldo conto */}
+      <div className="rounded-xl border bg-card p-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Landmark className={`h-5 w-5 ${saldoConto !== null && saldoConto >= 0 ? "text-accent" : "text-destructive"}`} />
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Saldo conto</p>
+        </div>
+        <p className={`text-4xl font-bold font-mono ${saldoConto !== null && saldoConto >= 0 ? "text-foreground" : "text-destructive"}`}>
+          {saldoConto !== null ? fmtEur(saldoConto) : "—"}
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Saldo iniziale: {fmtEur(openingBalance)} • Netto periodo: {data ? fmtEur(data.balance) : "—"}
+        </p>
+      </div>
+
       {/* KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((kpi) => (
           <div key={kpi.label} className="rounded-xl border bg-card p-5 space-y-1">
             <div className="flex items-center justify-between">
