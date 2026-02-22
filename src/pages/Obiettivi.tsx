@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useGoals, Goal, useUpdateGoalStatus } from "@/hooks/useGoals";
+import { useGoals, Goal, useUpdateGoalStatus, useDeleteGoal } from "@/hooks/useGoals";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -26,11 +26,13 @@ const Obiettivi = () => {
   const { data: goals = [], isLoading } = useGoals(workspaceId);
   const { data: ws } = useWorkspace(workspaceId);
   const updateStatus = useUpdateGoalStatus(workspaceId);
+  const deleteGoal = useDeleteGoal(workspaceId);
 
   const [showNew, setShowNew] = useState(false);
   const [contribGoal, setContribGoal] = useState<Goal | null>(null);
   const [withdrawGoal, setWithdrawGoal] = useState<Goal | null>(null);
   const [archiveGoal, setArchiveGoal] = useState<Goal | null>(null);
+  const [deleteGoalTarget, setDeleteGoalTarget] = useState<Goal | null>(null);
   const [archivedOpen, setArchivedOpen] = useState(false);
 
   const handleTogglePause = (g: Goal) => {
@@ -56,6 +58,22 @@ const Obiettivi = () => {
     });
   };
 
+  const handleRestore = (g: Goal) => {
+    updateStatus.mutate({ id: g.id, status: "active" }, {
+      onSuccess: () => toast.success("Obiettivo ripristinato"),
+    });
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!deleteGoalTarget) return;
+    deleteGoal.mutate(deleteGoalTarget.id, {
+      onSuccess: () => {
+        toast.success("Obiettivo eliminato definitivamente");
+        setDeleteGoalTarget(null);
+      },
+    });
+  };
+
   const visibleGoals = goals.filter((g) => g.status !== "archived");
   const activeGoals = goals.filter((g) => g.status === "active");
   const pausedGoals = goals.filter((g) => g.status === "paused");
@@ -71,6 +89,8 @@ const Obiettivi = () => {
     onTogglePause: handleTogglePause,
     onComplete: handleComplete,
     onArchive: setArchiveGoal,
+    onRestore: handleRestore,
+    onDeletePermanently: setDeleteGoalTarget,
   });
 
   return (
@@ -179,6 +199,24 @@ const Obiettivi = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Annulla</AlertDialogCancel>
             <AlertDialogAction onClick={handleArchiveConfirm}>Archivia</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteGoalTarget} onOpenChange={(v) => !v && setDeleteGoalTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Elimina definitivamente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Questa azione è irreversibile. L'obiettivo "{deleteGoalTarget?.name}" e tutti i suoi contributi verranno eliminati permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Elimina definitivamente
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

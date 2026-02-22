@@ -107,3 +107,18 @@ export function useUpdateGoal(workspaceId: string = DEFAULT_WORKSPACE_ID) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["goals", workspaceId] }),
   });
 }
+
+export function useDeleteGoal(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("goals")
+        .delete()
+        .eq("id", id)
+        .eq("workspace_id", workspaceId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals", workspaceId] }),
+  });
+}
