@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Transazioni from "./pages/Transazioni";
 import Ricorrenti from "./pages/Ricorrenti";
 import Obiettivi from "./pages/Obiettivi";
+import Report from "./pages/Report";
 import Impostazioni from "./pages/Impostazioni";
 import NotFound from "./pages/NotFound";
 
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/transazioni" element={<Transazioni />} />
             <Route path="/ricorrenti" element={<Ricorrenti />} />
             <Route path="/obiettivi" element={<Obiettivi />} />
+            <Route path="/report" element={<Report />} />
             <Route path="/impostazioni" element={<Impostazioni />} />
           </Route>
           <Route path="*" element={<NotFound />} />
