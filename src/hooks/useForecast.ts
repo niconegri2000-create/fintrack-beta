@@ -3,24 +3,36 @@ import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
 
 export interface ForecastMonth {
-  month: string; // YYYY-MM
+  month: string; // YYYY-MM or YYYY for yearly
   label: string;
   income: number;
   expense: number;
   balance: number;
-  warnings: string[]; // skipped rules (inactive category)
+  warnings: string[];
 }
 
+export type ForecastGranularity = "monthly" | "yearly";
+
+export interface ForecastResult {
+  data: ForecastMonth[];
+  granularity: ForecastGranularity;
+}
+
+const MONTH_LABELS: Record<string, string> = {
+  "01": "Gen", "02": "Feb", "03": "Mar", "04": "Apr",
+  "05": "Mag", "06": "Giu", "07": "Lug", "08": "Ago",
+  "09": "Set", "10": "Ott", "11": "Nov", "12": "Dic",
+};
+
 /**
- * 6-month forward forecast based on:
- * - current month real transactions as baseline (month 0)
- * - active recurring_rules projected for months 1-6
- * Respects interval_months and skips rules with inactive categories.
+ * Variable-horizon forecast based on recurring rules.
+ * If horizonMonths <= 24 → monthly granularity
+ * If horizonMonths > 24  → yearly aggregation
  */
-export function useForecast(baseMonth: string) {
+export function useForecast(baseMonth: string, horizonMonths: number = 6) {
   return useQuery({
-    queryKey: ["forecast", baseMonth],
-    queryFn: async (): Promise<ForecastMonth[]> => {
+    queryKey: ["forecast", baseMonth, horizonMonths],
+    queryFn: async (): Promise<ForecastResult> => {
       const [baseY, baseM] = baseMonth.split("-").map(Number);
 
       // 1. Fetch current month transactions for baseline
@@ -52,16 +64,10 @@ export function useForecast(baseMonth: string) {
         .eq("is_active", true);
       if (rErr) throw rErr;
 
-      // 3. Build forecast months (0 = current, 1-6 = future)
-      const MONTH_LABELS: Record<string, string> = {
-        "01": "Gen", "02": "Feb", "03": "Mar", "04": "Apr",
-        "05": "Mag", "06": "Giu", "07": "Lug", "08": "Ago",
-        "09": "Set", "10": "Ott", "11": "Nov", "12": "Dic",
-      };
+      // 3. Build monthly forecast (0 = current, 1..N = future)
+      const monthlyResults: ForecastMonth[] = [];
 
-      const results: ForecastMonth[] = [];
-
-      for (let offset = 0; offset <= 6; offset++) {
+      for (let offset = 0; offset <= horizonMonths; offset++) {
         const totalMonths = (baseY * 12 + (baseM - 1)) + offset;
         const y = Math.floor(totalMonths / 12);
         const m = (totalMonths % 12) + 1;
@@ -70,8 +76,7 @@ export function useForecast(baseMonth: string) {
         const label = `${MONTH_LABELS[mm]} ${String(y).slice(2)}`;
 
         if (offset === 0) {
-          // baseline from real data
-          results.push({
+          monthlyResults.push({
             month: monthKey,
             label,
             income: baseIncome,
@@ -82,29 +87,25 @@ export function useForecast(baseMonth: string) {
           continue;
         }
 
-        // Project recurring rules for this month
         let income = 0;
         let expense = 0;
         const warnings: string[] = [];
 
         for (const r of rules ?? []) {
           const cat = r.category as any;
-          // Skip if category is inactive
           if (r.category_id && cat && cat.is_active === false) {
             warnings.push(r.name || "Senza nome");
             continue;
           }
 
-          // Check end_date: skip if rule ended before this month
           const forecastMonthStart = `${y}-${mm}-01`;
           if ((r as any).end_date && (r as any).end_date < forecastMonthStart) continue;
 
-          // Check interval_months alignment
           const sd = new Date(r.start_date);
           const startYear = sd.getFullYear();
-          const startMonth = sd.getMonth(); // 0-indexed
+          const startMonth = sd.getMonth();
           const monthsDiff = (y - startYear) * 12 + (m - 1 - startMonth);
-          if (monthsDiff < 0) continue; // not started yet
+          if (monthsDiff < 0) continue;
           const interval = r.interval_months || 1;
           if (monthsDiff % interval !== 0) continue;
 
@@ -113,7 +114,7 @@ export function useForecast(baseMonth: string) {
           else expense += amt;
         }
 
-        results.push({
+        monthlyResults.push({
           month: monthKey,
           label,
           income,
@@ -123,7 +124,7 @@ export function useForecast(baseMonth: string) {
         });
       }
 
-      // Fetch opening_balance from workspace
+      // Fetch opening_balance
       const { data: ws, error: wErr } = await supabase
         .from("workspaces")
         .select("opening_balance")
@@ -132,14 +133,53 @@ export function useForecast(baseMonth: string) {
       if (wErr) throw wErr;
       const openingBalance = Number((ws as any)?.opening_balance ?? 0);
 
-      // Compute cumulative balance starting from opening_balance
+      // Compute cumulative balance
       let cumulative = openingBalance;
-      for (const fm of results) {
+      for (const fm of monthlyResults) {
         cumulative += fm.balance;
         fm.balance = cumulative;
       }
 
-      return results;
+      // 4. Determine granularity and aggregate if needed
+      const granularity: ForecastGranularity = horizonMonths > 24 ? "yearly" : "monthly";
+
+      if (granularity === "monthly") {
+        return { data: monthlyResults, granularity };
+      }
+
+      // Aggregate by year
+      const yearMap = new Map<string, { income: number; expense: number; balance: number; warnings: string[] }>();
+      for (const fm of monthlyResults) {
+        const year = fm.month.slice(0, 4);
+        const entry = yearMap.get(year);
+        if (entry) {
+          entry.income += fm.income;
+          entry.expense += fm.expense;
+          entry.balance = fm.balance; // last month's cumulative = year-end
+          entry.warnings.push(...fm.warnings);
+        } else {
+          yearMap.set(year, {
+            income: fm.income,
+            expense: fm.expense,
+            balance: fm.balance,
+            warnings: [...fm.warnings],
+          });
+        }
+      }
+
+      const yearlyResults: ForecastMonth[] = [];
+      for (const [year, v] of yearMap) {
+        yearlyResults.push({
+          month: year,
+          label: year,
+          income: v.income,
+          expense: v.expense,
+          balance: v.balance,
+          warnings: [...new Set(v.warnings)],
+        });
+      }
+
+      return { data: yearlyResults, granularity };
     },
   });
 }

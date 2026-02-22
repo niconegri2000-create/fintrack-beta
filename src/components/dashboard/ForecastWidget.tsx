@@ -1,47 +1,92 @@
+import { useState } from "react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ReferenceLine,
-  ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
 } from "recharts";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle } from "lucide-react";
 import {
-  Tooltip as UITooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+  Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import type { ForecastMonth } from "@/hooks/useForecast";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import type { ForecastMonth, ForecastGranularity } from "@/hooks/useForecast";
 
 function fmtEur(v: number) {
   return v.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
 }
 
+const PRESET_OPTIONS = [
+  { value: "6", label: "6 mesi" },
+  { value: "12", label: "12 mesi" },
+  { value: "24", label: "24 mesi" },
+  { value: "60", label: "5 anni" },
+  { value: "120", label: "10 anni" },
+  { value: "custom", label: "Custom…" },
+];
+
+const MAX_HORIZON = 360;
+
 interface ForecastWidgetProps {
   data: ForecastMonth[];
   isLoading: boolean;
   minBalanceThreshold?: number;
+  granularity: ForecastGranularity;
+  horizonMonths: number;
+  onHorizonChange: (months: number) => void;
 }
 
-export function ForecastWidget({ data, isLoading, minBalanceThreshold = 0 }: ForecastWidgetProps) {
+function horizonLabel(months: number): string {
+  if (months % 12 === 0 && months >= 12) return `${months / 12} ann${months / 12 === 1 ? "o" : "i"}`;
+  return `${months} mes${months === 1 ? "e" : "i"}`;
+}
+
+export function ForecastWidget({
+  data, isLoading, minBalanceThreshold = 0, granularity, horizonMonths, onHorizonChange,
+}: ForecastWidgetProps) {
+  const [showCustom, setShowCustom] = useState(false);
+  const [customValue, setCustomValue] = useState("");
+  const [customUnit, setCustomUnit] = useState<"months" | "years">("months");
+
+  const currentPreset = PRESET_OPTIONS.find((p) => p.value === String(horizonMonths))
+    ? String(horizonMonths)
+    : "custom";
+
+  const handlePresetChange = (val: string) => {
+    if (val === "custom") {
+      setShowCustom(true);
+      return;
+    }
+    setShowCustom(false);
+    onHorizonChange(Number(val));
+  };
+
+  const applyCustom = () => {
+    const num = parseInt(customValue, 10);
+    if (!num || num <= 0) return;
+    let months = customUnit === "years" ? num * 12 : num;
+    if (months > MAX_HORIZON) {
+      months = MAX_HORIZON;
+      toast.info(`Orizzonte massimo: ${MAX_HORIZON / 12} anni (${MAX_HORIZON} mesi)`);
+    }
+    if (months < 1) months = 1;
+    onHorizonChange(months);
+    setShowCustom(false);
+  };
+
+  const isYearly = granularity === "yearly";
+
   if (isLoading) {
     return (
       <div className="rounded-xl border bg-card p-5 space-y-3">
-        <p className="text-sm font-medium">Forecast saldo — 6 mesi</p>
+        <p className="text-sm font-medium">Forecast saldo</p>
         <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">
           Caricamento…
         </div>
@@ -52,7 +97,7 @@ export function ForecastWidget({ data, isLoading, minBalanceThreshold = 0 }: For
   if (!data || data.length === 0) {
     return (
       <div className="rounded-xl border bg-card p-5 space-y-3">
-        <p className="text-sm font-medium">Forecast saldo — 6 mesi</p>
+        <p className="text-sm font-medium">Forecast saldo</p>
         <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">
           Nessun dato disponibile
         </div>
@@ -65,14 +110,58 @@ export function ForecastWidget({ data, isLoading, minBalanceThreshold = 0 }: For
 
   return (
     <div className="rounded-xl border bg-card p-5 space-y-4">
-      <p className="text-sm font-medium">Forecast saldo — 6 mesi</p>
+      {/* Header with selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <p className="text-sm font-medium">Forecast saldo — {horizonLabel(horizonMonths)}</p>
+        <div className="flex items-center gap-2">
+          <Select value={currentPreset} onValueChange={handlePresetChange}>
+            <SelectTrigger className="w-[140px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PRESET_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value} className="text-xs">
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Custom input */}
+      {showCustom && (
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min={1}
+            max={customUnit === "years" ? 30 : 360}
+            value={customValue}
+            onChange={(e) => setCustomValue(e.target.value)}
+            placeholder="Valore"
+            className="w-20 h-8 text-xs"
+          />
+          <Select value={customUnit} onValueChange={(v) => setCustomUnit(v as "months" | "years")}>
+            <SelectTrigger className="w-[90px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="months" className="text-xs">Mesi</SelectItem>
+              <SelectItem value="years" className="text-xs">Anni</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button size="sm" variant="secondary" className="h-8 text-xs" onClick={applyCustom}>
+            Applica
+          </Button>
+        </div>
+      )}
 
       {/* Alerts */}
       {hasNegative && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            Attenzione: nei prossimi mesi il saldo previsto diventa negativo.
+            Attenzione: il saldo previsto diventa negativo nel periodo selezionato.
           </AlertDescription>
         </Alert>
       )}
@@ -80,7 +169,7 @@ export function ForecastWidget({ data, isLoading, minBalanceThreshold = 0 }: For
         <Alert className="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400 [&>svg]:text-amber-500">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            Attenzione: nei prossimi mesi il saldo scende sotto la soglia minima impostata.
+            Attenzione: il saldo scende sotto la soglia minima nel periodo selezionato.
           </AlertDescription>
         </Alert>
       )}
@@ -89,7 +178,7 @@ export function ForecastWidget({ data, isLoading, minBalanceThreshold = 0 }: For
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-          <XAxis dataKey="label" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+          <XAxis dataKey="label" tick={{ fontSize: 11 }} className="fill-muted-foreground" interval={isYearly ? 0 : "preserveStartEnd"} />
           <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
           <Tooltip
             formatter={(v: number) => fmtEur(v)}
@@ -113,8 +202,8 @@ export function ForecastWidget({ data, isLoading, minBalanceThreshold = 0 }: For
             name="Saldo cumulativo"
             stroke="hsl(220, 60%, 50%)"
             strokeWidth={2}
-            dot={{ r: 4 }}
-            activeDot={{ r: 6 }}
+            dot={data.length <= 30 ? { r: 3 } : false}
+            activeDot={{ r: 5 }}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -123,7 +212,7 @@ export function ForecastWidget({ data, isLoading, minBalanceThreshold = 0 }: For
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Mese</TableHead>
+            <TableHead>{isYearly ? "Anno" : "Mese"}</TableHead>
             <TableHead className="text-right">Entrate</TableHead>
             <TableHead className="text-right">Uscite</TableHead>
             <TableHead className="text-right">Saldo cum.</TableHead>
