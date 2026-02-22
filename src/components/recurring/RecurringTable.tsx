@@ -43,6 +43,7 @@ export function RecurringTable({ data, isLoading }: Props) {
             <TableHead>Categoria</TableHead>
             <TableHead className="w-[80px] text-center">Giorno</TableHead>
             <TableHead className="w-[120px]">Frequenza</TableHead>
+            <TableHead className="w-[100px]">Fine</TableHead>
             <TableHead className="w-[80px] text-center">Attiva</TableHead>
           </TableRow>
         </TableHeader>
@@ -62,6 +63,11 @@ export function RecurringTable({ data, isLoading }: Props) {
               <TableCell className="text-center font-mono">{r.day_of_month ?? "—"}</TableCell>
               <TableCell className="text-muted-foreground text-sm">
                 {(r.interval_months ?? 1) === 1 ? "Mensile" : `Ogni ${r.interval_months} mesi`}
+              </TableCell>
+              <TableCell className="text-muted-foreground text-sm">
+                {r.end_date
+                  ? new Date(r.end_date).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" })
+                  : "—"}
               </TableCell>
               <TableCell className="text-center">
                 <span className={`inline-block h-2 w-2 rounded-full ${r.is_active ? "bg-success" : "bg-muted-foreground"}`} />

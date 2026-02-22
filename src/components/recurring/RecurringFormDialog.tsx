@@ -42,6 +42,7 @@ export function RecurringFormDialog() {
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [isFixed, setIsFixed] = useState(true);
   const [isActive, setIsActive] = useState(true);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   const { data: categories = [] } = useCategories();
   const create = useCreateRecurring();
@@ -56,6 +57,7 @@ export function RecurringFormDialog() {
     setStartDate(new Date());
     setIsFixed(true);
     setIsActive(true);
+    setEndDate(undefined);
   };
 
   const handleSubmit = () => {
@@ -73,6 +75,10 @@ export function RecurringFormDialog() {
       toast.error("Giorno del mese non valido (1–31)");
       return;
     }
+    if (endDate && endDate < startDate) {
+      toast.error("La data fine deve essere uguale o successiva alla data inizio");
+      return;
+    }
 
     create.mutate(
       {
@@ -85,6 +91,7 @@ export function RecurringFormDialog() {
         is_fixed: isFixed,
         is_active: isActive,
         interval_months: parseInt(intervalMonths) || 1,
+        end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
       },
       {
         onSuccess: () => {
@@ -175,6 +182,26 @@ export function RecurringFormDialog() {
                 <Calendar mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} initialFocus className="p-3 pointer-events-auto" />
               </PopoverContent>
             </Popover>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Data fine (opzionale)</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {endDate ? format(endDate, "dd/MM/yyyy") : "Nessuna data fine"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={endDate} onSelect={(d) => setEndDate(d || undefined)} initialFocus className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+            {endDate && (
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => setEndDate(undefined)}>
+                Rimuovi data fine
+              </Button>
+            )}
           </div>
 
           <div className="flex items-center justify-between">

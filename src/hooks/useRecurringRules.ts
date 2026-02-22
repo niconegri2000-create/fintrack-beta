@@ -13,6 +13,7 @@ export interface RecurringRow {
   category: { id: string; name: string } | null;
   category_id: string | null;
   interval_months: number;
+  end_date: string | null;
 }
 
 export interface NewRecurring {
@@ -25,6 +26,7 @@ export interface NewRecurring {
   is_fixed: boolean;
   is_active: boolean;
   interval_months: number;
+  end_date: string | null;
 }
 
 export function useRecurringRules() {
@@ -33,7 +35,7 @@ export function useRecurringRules() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("recurring_rules")
-        .select("id, name, type, amount, day_of_month, is_fixed, is_active, category_id, interval_months, category:categories(id, name)")
+        .select("id, name, type, amount, day_of_month, is_fixed, is_active, category_id, interval_months, end_date, category:categories(id, name)")
         .eq("workspace_id", DEFAULT_WORKSPACE_ID)
         .order("name");
       if (error) throw error;
@@ -58,6 +60,7 @@ export function useCreateRecurring() {
         is_active: r.is_active,
         frequency: "monthly",
         interval_months: r.interval_months,
+        end_date: r.end_date || null,
       });
       if (error) throw error;
     },
@@ -75,7 +78,7 @@ export function useGenerateRecurring() {
       // 1. fetch active rules with category info
       const { data: rules, error: rErr } = await supabase
         .from("recurring_rules")
-        .select("id, name, type, amount, category_id, is_fixed, day_of_month, start_date, interval_months, category:categories(id, name, is_active)")
+        .select("id, name, type, amount, category_id, is_fixed, day_of_month, start_date, interval_months, end_date, category:categories(id, name, is_active)")
         .eq("workspace_id", DEFAULT_WORKSPACE_ID)
         .eq("is_active", true);
       if (rErr) throw rErr;
@@ -93,8 +96,13 @@ export function useGenerateRecurring() {
 
       if (eligible.length === 0) return { created: 0, skipped };
 
-      // 3. filter by interval_months: check if target month is an occurrence month
+      // 3. filter by interval_months + end_date
+      const monthStart = `${month}-01`;
+      const monthEnd = `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
       const targetEligible = eligible.filter((r: any) => {
+        // Check end_date: if set, rule must not have ended before this month
+        if (r.end_date && r.end_date < monthStart) return false;
+
         const sd = new Date(r.start_date);
         const startYear = sd.getFullYear();
         const startMonth = sd.getMonth(); // 0-indexed
