@@ -381,25 +381,7 @@ const Report = () => {
         </CardContent>
       </Card>
 
-      {/* ── Card 2 – Media mensile ── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <History className="h-4 w-4 text-primary" />
-            Media mensile
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Calcolata sul periodo selezionato ({avg.monthCount} {avg.monthCount === 1 ? "mese" : "mesi"})
-          </p>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-6">
-          <StatCard label="Media entrate" value={fmt(avg.income)} colorClass="text-green-600 dark:text-green-400" />
-          <StatCard label="Media uscite" value={fmt(avg.expense)} colorClass="text-red-600 dark:text-red-400" />
-          <StatCard label="Media risparmio" value={fmt(avg.savings)} sub={<DiffBadge value={avg.savings} />} />
-        </CardContent>
-      </Card>
-
-      {/* ── Card 3 – Confronto (only if active) ── */}
+      {/* ── Card 2 – Confronto (only if active) ── */}
       {cmp && diff && (
         <Card>
           <CardHeader className="pb-2">
@@ -416,6 +398,24 @@ const Report = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* ── Card 3 – Media mensile ── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <History className="h-4 w-4 text-primary" />
+            Media mensile
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Calcolata sul periodo selezionato ({avg.monthCount} {avg.monthCount === 1 ? "mese" : "mesi"})
+          </p>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          <StatCard label="Media entrate" value={fmt(avg.income)} colorClass="text-green-600 dark:text-green-400" />
+          <StatCard label="Media uscite" value={fmt(avg.expense)} colorClass="text-red-600 dark:text-red-400" />
+          <StatCard label="Media risparmio" value={fmt(avg.savings)} sub={<DiffBadge value={avg.savings} />} />
+        </CardContent>
+      </Card>
 
       {/* ── Custom Period Dialog ── */}
       <Dialog open={customPeriodOpen} onOpenChange={setCustomPeriodOpen}>
