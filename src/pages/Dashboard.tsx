@@ -30,7 +30,7 @@ const Dashboard = () => {
   const { data: budgetRows } = useBudgetSummary(range.start, range.end);
   const { data: workspace } = useWorkspace();
   const updateWorkspace = useUpdateWorkspace();
-  const { formatAmount, isPrivacy } = usePrivacy();
+  const { formatAmount, isPrivacy, renderSensitiveChart } = usePrivacy();
 
   const openingBalance = workspace?.opening_balance ?? 0;
   const minThreshold = workspace?.min_balance_threshold ?? 0;
@@ -48,7 +48,7 @@ const Dashboard = () => {
     { label: "Entrate", value: data ? formatAmount(data.income) : "—", icon: TrendingUp, accent: "text-accent" },
     { label: "Uscite", value: data ? formatAmount(data.expense) : "—", icon: TrendingDown, accent: "text-destructive" },
     { label: "Netto periodo", value: data ? formatAmount(data.balance) : "—", icon: Wallet, accent: data && data.balance >= 0 ? "text-accent" : "text-destructive" },
-    { label: "% Risparmio", value: data ? `${data.savingsRate.toFixed(1)}%` : "—", icon: PiggyBank, accent: "text-muted-foreground" },
+    { label: "% Risparmio", value: isPrivacy ? "••••" : (data ? `${data.savingsRate.toFixed(1)}%` : "—"), icon: PiggyBank, accent: "text-muted-foreground" },
   ];
 
   const barData = (data?.byMonth ?? []).map((m) => ({
@@ -211,7 +211,7 @@ const Dashboard = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <Progress
-                        value={pct}
+                        value={isPrivacy ? 0 : pct}
                         className={`h-2 flex-1 ${
                           b.status === "over"
                             ? "[&>div]:bg-destructive"

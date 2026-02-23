@@ -47,7 +47,7 @@ interface ForecastWidgetProps {
 export function ForecastWidget({
   data, isLoading, minBalanceThreshold = 0, granularity, horizonMonths, onHorizonChange,
 }: ForecastWidgetProps) {
-  const { formatAmount, isPrivacy } = usePrivacy();
+  const { formatAmount, isPrivacy, renderSensitiveChart } = usePrivacy();
   const [selectedKey, setSelectedKey] = useState(() => presetKeyFromMonths(horizonMonths));
   const [customValue, setCustomValue] = useState(() => {
     if (presetKeyFromMonths(horizonMonths) === "custom") return String(horizonMonths);
@@ -183,38 +183,40 @@ export function ForecastWidget({
       )}
 
       {/* Line chart */}
-      <ResponsiveContainer width="100%" height={220}>
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-          <XAxis dataKey="label" tick={{ fontSize: 11 }} className="fill-muted-foreground" interval={isYearly ? 0 : "preserveStartEnd"} />
-          <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" hide={isPrivacy} />
-          <Tooltip
-            formatter={(v: number) => formatAmount(v)}
-            contentStyle={{
-              borderRadius: 8,
-              border: "1px solid hsl(var(--border))",
-              background: "hsl(var(--card))",
-            }}
-          />
-          {minBalanceThreshold > 0 && (
-            <ReferenceLine
-              y={minBalanceThreshold}
-              stroke="hsl(38, 92%, 50%)"
-              strokeDasharray="6 3"
-              label={{ value: "Soglia", position: "right", fontSize: 11, fill: "hsl(38, 92%, 50%)" }}
+      {renderSensitiveChart(
+        <ResponsiveContainer width="100%" height={220}>
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+            <XAxis dataKey="label" tick={{ fontSize: 11 }} className="fill-muted-foreground" interval={isYearly ? 0 : "preserveStartEnd"} />
+            <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+            <Tooltip
+              formatter={(v: number) => formatAmount(v)}
+              contentStyle={{
+                borderRadius: 8,
+                border: "1px solid hsl(var(--border))",
+                background: "hsl(var(--card))",
+              }}
             />
-          )}
-          <Line
-            type="monotone"
-            dataKey="balance"
-            name="Saldo cumulativo"
-            stroke="hsl(220, 60%, 50%)"
-            strokeWidth={2}
-            dot={data.length <= 30 ? { r: 3 } : false}
-            activeDot={{ r: 5 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+            {minBalanceThreshold > 0 && (
+              <ReferenceLine
+                y={minBalanceThreshold}
+                stroke="hsl(38, 92%, 50%)"
+                strokeDasharray="6 3"
+                label={{ value: "Soglia", position: "right", fontSize: 11, fill: "hsl(38, 92%, 50%)" }}
+              />
+            )}
+            <Line
+              type="monotone"
+              dataKey="balance"
+              name="Saldo cumulativo"
+              stroke="hsl(220, 60%, 50%)"
+              strokeWidth={2}
+              dot={data.length <= 30 ? { r: 3 } : false}
+              activeDot={{ r: 5 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
 
       {/* Table */}
       <Table>

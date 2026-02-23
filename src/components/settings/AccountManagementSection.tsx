@@ -1,12 +1,9 @@
 import { OpeningBalanceSection } from "./OpeningBalanceSection";
 import { MinBalanceThresholdSection } from "./MinBalanceThresholdSection";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, PiggyBank, Wallet } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useState, useCallback } from "react";
-
-type BalanceMode = "total" | "net_savings" | "hidden";
 
 interface Alerts {
   belowThreshold: boolean;
@@ -15,16 +12,13 @@ interface Alerts {
 
 const STORAGE_KEY = "account_management_prefs";
 
-function loadPrefs(): { balanceMode: BalanceMode; alerts: Alerts } {
+function loadPrefs(): { privacyMode: boolean; alerts: Alerts } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { balanceMode: "total", alerts: { belowThreshold: true, budgetExceeded: true } };
+  return { privacyMode: false, alerts: { belowThreshold: true, budgetExceeded: true } };
 }
-
-const pillActive = "bg-primary text-primary-foreground font-semibold shadow-sm";
-const pillInactive = "text-muted-foreground";
 
 export function AccountManagementSection() {
   const [prefs, setPrefs] = useState(loadPrefs);
@@ -33,10 +27,6 @@ export function AccountManagementSection() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     setPrefs(next);
   }, []);
-
-  const setBalanceMode = (v: string) => {
-    if (v) persist({ ...prefs, balanceMode: v as BalanceMode });
-  };
 
   const toggleAlert = (key: keyof Alerts) => {
     persist({ ...prefs, alerts: { ...prefs.alerts, [key]: !prefs.alerts[key] } });
@@ -73,42 +63,25 @@ export function AccountManagementSection() {
         <ThresholdInline />
       </div>
 
-      {/* Modalità saldo */}
-      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+      {/* Privacy */}
+      <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium">Modalità saldo</p>
+          <p className="text-sm font-medium">Privacy</p>
           <p className="text-muted-foreground text-xs">
-            Scegli come visualizzare il saldo nell'app.
+            Nasconde importi, percentuali e grafici.
           </p>
         </div>
-        <ToggleGroup
-          type="single"
-          value={prefs.balanceMode}
-          onValueChange={setBalanceMode}
-          className="rounded-lg border bg-muted/50 p-0.5"
-        >
-          <ToggleGroupItem
-            value="total"
-            className={`rounded-md px-3 py-1.5 text-xs ${prefs.balanceMode === "total" ? pillActive : pillInactive}`}
-          >
-            <Wallet className="mr-1 h-3.5 w-3.5" />
-            Saldo totale
-          </ToggleGroupItem>
-          <ToggleGroupItem
-            value="net_savings"
-            className={`rounded-md px-3 py-1.5 text-xs ${prefs.balanceMode === "net_savings" ? pillActive : pillInactive}`}
-          >
-            <PiggyBank className="mr-1 h-3.5 w-3.5" />
-            Risparmio netto
-          </ToggleGroupItem>
-          <ToggleGroupItem
-            value="hidden"
-            className={`rounded-md px-3 py-1.5 text-xs ${prefs.balanceMode === "hidden" ? pillActive : pillInactive}`}
-          >
-            <EyeOff className="mr-1 h-3.5 w-3.5" />
-            Privacy
-          </ToggleGroupItem>
-        </ToggleGroup>
+        <div className="flex items-center gap-2">
+          {prefs.privacyMode ? (
+            <EyeOff className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <Eye className="h-4 w-4 text-muted-foreground" />
+          )}
+          <Switch
+            checked={prefs.privacyMode}
+            onCheckedChange={(v) => persist({ ...prefs, privacyMode: v })}
+          />
+        </div>
       </div>
 
       {/* Avvisi */}

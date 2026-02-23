@@ -74,7 +74,7 @@ export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWi
         </div>
         <Progress value={progress} className="h-2.5" />
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>{progress.toFixed(0)}%</span>
+          <span>{isPrivacy ? "••••" : `${progress.toFixed(0)}%`}</span>
           <span>Mancano {isPrivacy ? "••••" : `€ ${remaining.toFixed(2)}`}</span>
         </div>
       </div>
