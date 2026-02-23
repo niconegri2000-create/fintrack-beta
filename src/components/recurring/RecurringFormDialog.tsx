@@ -40,7 +40,7 @@ export function RecurringFormDialog() {
   const [dayOfMonth, setDayOfMonth] = useState("1");
   const [intervalMonths, setIntervalMonths] = useState("1");
   const [startDate, setStartDate] = useState<Date>(new Date());
-  const [isFixed, setIsFixed] = useState(true);
+  
   const [isActive, setIsActive] = useState(true);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
@@ -55,7 +55,7 @@ export function RecurringFormDialog() {
     setDayOfMonth("1");
     setIntervalMonths("1");
     setStartDate(new Date());
-    setIsFixed(true);
+    
     setIsActive(true);
     setEndDate(undefined);
   };
@@ -88,7 +88,7 @@ export function RecurringFormDialog() {
         category_id: categoryId || null,
         day_of_month: day,
         start_date: format(startDate, "yyyy-MM-dd"),
-        is_fixed: isFixed,
+        is_fixed: true,
         is_active: isActive,
         interval_months: parseInt(intervalMonths) || 1,
         end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
@@ -202,11 +202,6 @@ export function RecurringFormDialog() {
                 Rimuovi data fine
               </Button>
             )}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label>Costo fisso</Label>
-            <Switch checked={isFixed} onCheckedChange={setIsFixed} />
           </div>
 
           <div className="flex items-center justify-between">

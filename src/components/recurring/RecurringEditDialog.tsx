@@ -43,7 +43,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
   const [categoryId, setCategoryId] = useState(rule.category?.id || "");
   const [dayOfMonth, setDayOfMonth] = useState(String(rule.day_of_month || 1));
   const [intervalMonths, setIntervalMonths] = useState(String(rule.interval_months));
-  const [isFixed, setIsFixed] = useState(rule.is_fixed);
+  
   const [isActive, setIsActive] = useState(rule.is_active);
   const [endDate, setEndDate] = useState<Date | undefined>(rule.end_date ? new Date(rule.end_date) : undefined);
 
@@ -58,7 +58,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
       setCategoryId(rule.category?.id || "");
       setDayOfMonth(String(rule.day_of_month || 1));
       setIntervalMonths(String(rule.interval_months));
-      setIsFixed(rule.is_fixed);
+      
       setIsActive(rule.is_active);
       setEndDate(rule.end_date ? new Date(rule.end_date) : undefined);
     }
@@ -82,7 +82,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
         interval_months: parseInt(intervalMonths) || 1,
         end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
         is_active: isActive,
-        is_fixed: isFixed,
+        is_fixed: true,
       },
       {
         onSuccess: () => { toast.success("Ricorrenza aggiornata"); onOpenChange(false); },
@@ -166,11 +166,6 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
                 Rimuovi data fine
               </Button>
             )}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label>Costo fisso</Label>
-            <Switch checked={isFixed} onCheckedChange={setIsFixed} />
           </div>
 
           <div className="flex items-center justify-between">
