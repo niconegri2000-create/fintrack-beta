@@ -141,22 +141,26 @@ const Dashboard = () => {
           {(data?.byCategory ?? []).length === 0 ? (
             <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">Nessun dato nel periodo</div>
           ) : (
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie
                   data={data!.byCategory}
                   dataKey="amount"
                   nameKey="name"
-                  cx="50%" cy="50%"
-                  outerRadius={90}
-                  label={({ name, percent }) => {
+                  cx="50%" cy="45%"
+                  outerRadius={80}
+                  innerRadius={30}
+                  label={({ name, percent, x, y, textAnchor }) => {
                     const b = budgetMap.get(name);
                     const pctLabel = `${(percent * 100).toFixed(0)}%`;
                     const over = b && b.status === "over" ? " ⚠️" : "";
-                    return `${name} ${pctLabel}${over}`;
+                    return (
+                      <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" fill="hsl(var(--foreground))" fontSize={11}>
+                        {`${name} ${pctLabel}${over}`}
+                      </text>
+                    );
                   }}
                   labelLine={false}
-                  style={{ fontSize: 11 }}
                 >
                   {data!.byCategory.map((_, i) => (
                     <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
@@ -170,7 +174,7 @@ const Dashboard = () => {
                     const amount = Number(entry.value);
                     const b = budgetMap.get(name);
                     return (
-                      <div className="rounded-lg border bg-card p-2.5 text-xs shadow-md space-y-0.5">
+                      <div className="rounded-lg border bg-card p-2.5 text-xs shadow-md space-y-0.5 text-card-foreground">
                         <p className="font-medium">{name}</p>
                         <p>Speso: {formatAmount(amount)}</p>
                         {b && b.monthly_limit > 0 && (
@@ -185,7 +189,7 @@ const Dashboard = () => {
                     );
                   }}
                 />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 12, color: "hsl(var(--foreground))", paddingTop: 12 }} />
               </PieChart>
             </ResponsiveContainer>
           )}
