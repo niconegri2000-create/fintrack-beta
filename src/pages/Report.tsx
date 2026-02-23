@@ -203,7 +203,7 @@ function MonthInput({ label, value, onChange }: { label: string; value: string; 
 // ── main component ──
 
 const Report = () => {
-  const { formatAmount: fmtAmount } = usePrivacy();
+  const { formatAmount: fmtAmount, isPrivacy } = usePrivacy();
   // ── Period state ──
   const [periodPreset, setPeriodPreset] = useState<string>("3");
   const [customPeriodOpen, setCustomPeriodOpen] = useState(false);
@@ -389,7 +389,7 @@ const Report = () => {
           <StatCard label="Entrate" value={fmtAmount(p.income)} colorClass="text-green-600 dark:text-green-400" />
           <StatCard label="Uscite" value={fmtAmount(p.expense)} colorClass="text-red-600 dark:text-red-400" />
           <StatCard label="Risparmio netto" value={fmtAmount(p.savings)} sub={<DiffBadge value={p.savings} formatter={fmtAmount} />} />
-          <StatCard label="% Risparmio" value={`${p.savingsRate.toFixed(1)}%`} />
+          <StatCard label="% Risparmio" value={isPrivacy ? "••••" : `${p.savingsRate.toFixed(1)}%`} />
         </CardContent>
       </Card>
 
