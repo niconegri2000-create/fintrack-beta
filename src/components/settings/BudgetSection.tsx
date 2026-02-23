@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -11,30 +11,56 @@ import {
 } from "@/components/ui/tooltip";
 import { Info, RotateCcw } from "lucide-react";
 import { useAllCategories } from "@/hooks/useCategories";
-import { useCategoryBudgets, useBudgetSummary } from "@/hooks/useCategoryBudgets";
+import { useCategoryBudgets, useCategorySpending } from "@/hooks/useCategoryBudgets";
+import { useBudgetSettings } from "@/hooks/useBudgetSettings";
 import { toast } from "sonner";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfYear } from "date-fns";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 
 export function BudgetSection() {
   const { formatAmount } = usePrivacy();
+  const { data: settings } = useBudgetSettings();
+
   const now = new Date();
-  const start = format(startOfMonth(now), "yyyy-MM-dd");
-  const end = format(endOfMonth(now), "yyyy-MM-dd");
+
+  // Compute date window based on period + reset anchor
+  const computeWindow = () => {
+    const period = settings?.period ?? "monthly";
+    const resetMode = settings?.reset_mode ?? "auto";
+    const anchor = settings?.reset_anchor_date;
+
+    let windowStart: Date;
+    if (resetMode === "manual" && anchor) {
+      windowStart = new Date(anchor);
+    } else if (period === "yearly") {
+      windowStart = startOfYear(now);
+    } else {
+      windowStart = startOfMonth(now);
+    }
+
+    return {
+      start: format(windowStart, "yyyy-MM-dd"),
+      end: format(endOfMonth(now), "yyyy-MM-dd"),
+    };
+  };
+
+  const { start, end } = computeWindow();
 
   const { data: categories = [] } = useAllCategories();
   const { list, upsert } = useCategoryBudgets();
-  const { data: summaryRows } = useBudgetSummary(start, end);
+  const spending = useCategorySpending(start, end);
 
   const budgets = list.data ?? [];
+  const spendingData = spending.data ?? [];
 
-  // Local edit state keyed by category_id
   const [edits, setEdits] = useState<Record<string, string>>({});
 
   const activeCategories = categories.filter((c) => c.is_active);
-
   const budgetMap = new Map(budgets.map((b) => [b.category_id, b]));
-  const summaryMap = new Map(summaryRows.map((r) => [r.category_id, r]));
+  const spendMap = new Map(spendingData.map((s) => [s.category_id, s.total_spent]));
+
+  const alertsEnabled = settings?.alerts_enabled ?? true;
+  const alertThreshold = (settings?.alert_threshold ?? 100) / 100;
 
   const handleSave = (categoryId: string) => {
     const val = parseFloat(edits[categoryId] ?? "");
@@ -48,11 +74,7 @@ export function BudgetSection() {
       {
         onSuccess: () => {
           toast.success("Budget salvato");
-          setEdits((prev) => {
-            const next = { ...prev };
-            delete next[categoryId];
-            return next;
-          });
+          setEdits((prev) => { const next = { ...prev }; delete next[categoryId]; return next; });
         },
         onError: () => toast.error("Errore nel salvataggio"),
       }
@@ -66,11 +88,7 @@ export function BudgetSection() {
       {
         onSuccess: () => {
           toast.success("Budget azzerato");
-          setEdits((prev) => {
-            const next = { ...prev };
-            delete next[categoryId];
-            return next;
-          });
+          setEdits((prev) => { const next = { ...prev }; delete next[categoryId]; return next; });
         },
         onError: () => toast.error("Errore nel reset"),
       }
@@ -88,20 +106,35 @@ export function BudgetSection() {
     );
   };
 
+  const getStatus = (spent: number, limit: number): "ok" | "warn" | "over" | "nd" => {
+    if (limit === 0) return "nd";
+    if (!alertsEnabled) return "nd";
+    const pct = spent / limit;
+    if (pct >= 1) return "over";
+    if (pct >= alertThreshold) return "warn";
+    return "ok";
+  };
+
   const statusBadge = (status: string) => {
     if (status === "over")
       return <Badge variant="destructive" className="text-[11px]">OVER</Badge>;
     if (status === "warn")
       return <Badge className="text-[11px] bg-amber-500/20 text-amber-600 border-amber-500/30">WARN</Badge>;
+    if (status === "nd")
+      return <span className="text-xs text-muted-foreground">N/D</span>;
     return <Badge variant="secondary" className="text-[11px]">OK</Badge>;
   };
+
+  const periodLabel = settings?.period === "yearly" ? "anno" : "mese";
 
   return (
     <div className="rounded-xl border bg-card p-6 space-y-4">
       <div className="flex items-center gap-2">
         <div>
           <p className="text-sm font-medium">Budget per categoria</p>
-          <p className="text-muted-foreground text-xs">Mese corrente: {format(now, "MMMM yyyy")}</p>
+          <p className="text-muted-foreground text-xs">
+            Spese del {periodLabel} corrente ({format(new Date(start), "dd/MM")} – {format(new Date(end), "dd/MM/yyyy")})
+          </p>
         </div>
         <TooltipProvider>
           <Tooltip>
@@ -109,7 +142,7 @@ export function BudgetSection() {
               <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
             </TooltipTrigger>
             <TooltipContent>
-              <p className="text-xs max-w-[200px]">Imposta un limite mensile per controllare la spesa per ogni categoria.</p>
+              <p className="text-xs max-w-[200px]">Imposta un limite per controllare la spesa per ogni categoria.</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -126,20 +159,20 @@ export function BudgetSection() {
                 <TableHead className="w-[140px]">Limite (€)</TableHead>
                 <TableHead className="text-center w-[70px]">Attivo</TableHead>
                 <TableHead className="text-right w-[120px]">Speso</TableHead>
-                <TableHead className="text-center w-[80px]">%</TableHead>
+                <TableHead className="text-center w-[80px]">Stato</TableHead>
                 <TableHead className="text-right w-[100px]">Azioni</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {activeCategories.map((cat) => {
                 const budget = budgetMap.get(cat.id);
-                const summary = summaryMap.get(cat.id);
                 const limit = budget?.monthly_limit ?? 0;
                 const isActive = budget?.is_active ?? true;
-                const spent = summary?.spent ?? 0;
+                const spent = spendMap.get(cat.id) ?? 0;
                 const editVal = edits[cat.id];
                 const displayLimit = editVal !== undefined ? editVal : String(limit);
                 const isDirty = editVal !== undefined && parseFloat(editVal) !== limit;
+                const status = getStatus(spent, limit);
 
                 return (
                   <TableRow key={cat.id}>
@@ -154,38 +187,21 @@ export function BudgetSection() {
                         onChange={(e) =>
                           setEdits((prev) => ({ ...prev, [cat.id]: e.target.value }))
                         }
-                        onBlur={() => {
-                          if (isDirty) handleSave(cat.id);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && isDirty) handleSave(cat.id);
-                        }}
+                        onBlur={() => { if (isDirty) handleSave(cat.id); }}
+                        onKeyDown={(e) => { if (e.key === "Enter" && isDirty) handleSave(cat.id); }}
                       />
                     </TableCell>
                     <TableCell className="text-center">
-                      <Switch
-                        checked={isActive}
-                        onCheckedChange={(v) => handleToggle(cat.id, v)}
-                      />
+                      <Switch checked={isActive} onCheckedChange={(v) => handleToggle(cat.id, v)} />
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm">
                       {formatAmount(spent)}
                     </TableCell>
                     <TableCell className="text-center">
-                      {limit === 0 ? (
-                        <span className="text-xs text-muted-foreground">N/D</span>
-                      ) : (
-                        statusBadge(summary?.status ?? "ok")
-                      )}
+                      {statusBadge(status)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleReset(cat.id)}
-                        disabled={limit === 0}
-                      >
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleReset(cat.id)} disabled={limit === 0}>
                         <RotateCcw className="h-3.5 w-3.5" />
                       </Button>
                     </TableCell>

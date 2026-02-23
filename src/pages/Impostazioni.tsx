@@ -1,5 +1,6 @@
 import { CategoriesSection } from "@/components/settings/CategoriesSection";
 import { BudgetSection } from "@/components/settings/BudgetSection";
+import { BudgetControlSection } from "@/components/settings/BudgetControlSection";
 import { GeneralPreferencesSection } from "@/components/settings/GeneralPreferencesSection";
 import { AccountManagementSection } from "@/components/settings/AccountManagementSection";
 
@@ -24,6 +25,8 @@ const Impostazioni = () => {
       </div>
 
       <CategoriesSection />
+
+      <BudgetControlSection />
       <BudgetSection />
     </div>
   );
