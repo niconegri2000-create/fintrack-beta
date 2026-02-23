@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 export type PeriodPreset =
   | "current_month"
@@ -68,17 +69,12 @@ function fmt(d: Date) {
   return format(d, "yyyy-MM-dd");
 }
 
-interface PeriodPickerProps {
-  value: PeriodRange;
-  onChange: (range: PeriodRange) => void;
-}
-
 export function usePeriodState() {
   const [range, setRange] = useState<PeriodRange>(() => presetToRange("current_month"));
   const [activePreset, setActivePreset] = useState<PeriodPreset>("current_month");
 
   const applyPreset = (p: PeriodPreset) => {
-    if (p === "custom") return; // handled by dialog
+    if (p === "custom") return;
     setActivePreset(p);
     setRange(presetToRange(p));
   };
@@ -89,6 +85,45 @@ export function usePeriodState() {
   };
 
   return { range, activePreset, applyPreset, applyCustom };
+}
+
+function DateField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: Date | undefined;
+  onChange: (d: Date | undefined) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm">{label}</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className={cn(
+              "w-full justify-start text-left font-normal",
+              !value && "text-muted-foreground"
+            )}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {value ? format(value, "dd MMM yyyy", { locale: it }) : "Seleziona data"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
+          <Calendar
+            mode="single"
+            selected={value}
+            onSelect={onChange}
+            initialFocus
+            className="p-3 pointer-events-auto"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
 }
 
 export function PeriodPicker({
@@ -104,13 +139,23 @@ export function PeriodPicker({
 }) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
-  const [customTo, setCustomTo] = useState<Date | undefined>(undefined);
+  const [draftFrom, setDraftFrom] = useState<Date | undefined>(undefined);
+  const [draftTo, setDraftTo] = useState<Date | undefined>(undefined);
+
+  const isValidRange = draftFrom && draftTo;
 
   const label =
     activePreset === "custom"
-      ? `${format(new Date(value.start), "dd MMM yyyy", { locale: it })} – ${format(new Date(value.end), "dd MMM yyyy", { locale: it })}`
+      ? `${format(new Date(value.start), "dd MMM yy", { locale: it })} – ${format(new Date(value.end), "dd MMM yy", { locale: it })}`
       : PRESETS.find((p) => p.value === activePreset)?.label ?? "Periodo";
+
+  const handleApply = () => {
+    if (!draftFrom || !draftTo) return;
+    const s = draftFrom < draftTo ? draftFrom : draftTo;
+    const e = draftFrom < draftTo ? draftTo : draftFrom;
+    onCustom({ start: fmt(s), end: fmt(e) });
+    setDialogOpen(false);
+  };
 
   return (
     <>
@@ -133,8 +178,8 @@ export function PeriodPicker({
               )}
               onClick={() => {
                 if (p.value === "custom") {
-                  setCustomFrom(new Date(value.start));
-                  setCustomTo(new Date(value.end));
+                  setDraftFrom(new Date(value.start));
+                  setDraftTo(new Date(value.end));
                   setDialogOpen(true);
                 } else {
                   onPreset(p.value);
@@ -149,42 +194,19 @@ export function PeriodPicker({
       </Popover>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Periodo personalizzato</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Da</p>
-              <Calendar
-                mode="single"
-                selected={customFrom}
-                onSelect={setCustomFrom}
-                className="p-2 pointer-events-auto"
-              />
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium">A</p>
-              <Calendar
-                mode="single"
-                selected={customTo}
-                onSelect={setCustomTo}
-                className="p-2 pointer-events-auto"
-              />
-            </div>
+          <div className="space-y-4 pt-2">
+            <DateField label="Da" value={draftFrom} onChange={setDraftFrom} />
+            <DateField label="A" value={draftTo} onChange={setDraftTo} />
           </div>
-          <DialogFooter>
-            <Button
-              disabled={!customFrom || !customTo}
-              onClick={() => {
-                if (customFrom && customTo) {
-                  const s = customFrom < customTo ? customFrom : customTo;
-                  const e = customFrom < customTo ? customTo : customFrom;
-                  onCustom({ start: fmt(s), end: fmt(e) });
-                  setDialogOpen(false);
-                }
-              }}
-            >
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button disabled={!isValidRange} onClick={handleApply}>
               Applica
             </Button>
           </DialogFooter>
