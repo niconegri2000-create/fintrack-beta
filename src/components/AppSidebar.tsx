@@ -24,7 +24,7 @@ const navItems = [
   { title: "Transazioni", url: "/transazioni", icon: ArrowLeftRight },
   { title: "Ricorrenti", url: "/ricorrenti", icon: RefreshCw },
   { title: "Obiettivi", url: "/obiettivi", icon: Target },
-  { title: "Report", url: "/report", icon: FileBarChart },
+  { title: "Confronto", url: "/report", icon: FileBarChart },
   { title: "Impostazioni", url: "/impostazioni", icon: Settings },
 ];
 

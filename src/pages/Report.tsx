@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { format } from "date-fns";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { format, subMonths, subYears, startOfMonth, endOfMonth, differenceInCalendarDays } from "date-fns";
 import { it } from "date-fns/locale";
 import { useReport, type DateRange } from "@/hooks/useReport";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +11,8 @@ import {
   BarChart3,
   History,
   Calendar as CalendarIcon,
-  SlidersHorizontal,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -23,13 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -46,101 +37,117 @@ function fmt(n: number) {
   return n.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
 }
 
-function fmtMonth(dateStr: string) {
-  const [y, m] = dateStr.split("-");
-  const months = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
-  return `${months[Number(m) - 1]} ${y}`;
+function toDateStr(d: Date) {
+  return format(d, "yyyy-MM-dd");
 }
 
-function lastDayOfMonth(y: number, m: number) {
-  return new Date(y, m, 0).getDate();
+function fmtLabel(d: Date) {
+  return format(d, "dd MMM yyyy", { locale: it });
 }
 
-function monthStart(y: number, m: number) {
-  return `${y}-${String(m).padStart(2, "0")}-01`;
+function countMonths(startDate: string, endDate: string): number {
+  const [sy, sm] = startDate.split("-").map(Number);
+  const [ey, em] = endDate.split("-").map(Number);
+  return Math.max((ey - sy) * 12 + (em - sm) + 1, 1);
 }
 
-function monthEnd(y: number, m: number) {
-  return `${y}-${String(m).padStart(2, "0")}-${String(lastDayOfMonth(y, m)).padStart(2, "0")}`;
+// ── persistence ──
+
+const STORAGE_KEY = "confronto_ranges";
+
+interface StoredRanges {
+  aFrom: string;
+  aTo: string;
+  bPreset: string;
+  bFrom: string;
+  bTo: string;
 }
 
-function offsetRange(range: DateRange, months: number): DateRange {
-  const [sy, sm] = range.startDate.split("-").map(Number);
-  const [ey, em] = range.endDate.split("-").map(Number);
-  const ns = new Date(sy, sm - 1 - months, 1);
-  const ne = new Date(ey, em - 1 - months, 1);
-  return {
-    startDate: monthStart(ns.getFullYear(), ns.getMonth() + 1),
-    endDate: monthEnd(ne.getFullYear(), ne.getMonth() + 1),
-  };
-}
-
-function buildPresetRange(preset: string): DateRange {
-  const now = new Date();
-  const curY = now.getFullYear();
-  const curM = now.getMonth() + 1;
-  const months = Number(preset);
-  const start = new Date(curY, curM - months, 1);
-  return {
-    startDate: monthStart(start.getFullYear(), start.getMonth() + 1),
-    endDate: monthEnd(curY, curM),
-  };
-}
-
-function rangeMonthCount(range: DateRange): number {
-  const [sy, sm] = range.startDate.split("-").map(Number);
-  const [ey, em] = range.endDate.split("-").map(Number);
-  return (ey - sy) * 12 + (em - sm) + 1;
-}
-
-// ── compare mode helpers ──
-
-type CompareMode = "prev_month" | "prev_period" | "year_ago" | "custom" | "none";
-
-function getAvailableModes(months: number): { value: CompareMode; label: string }[] {
-  if (months === 1) {
-    return [
-      { value: "prev_month", label: "Mese precedente" },
-      { value: "year_ago", label: "Stesso periodo anno precedente" },
-      { value: "custom", label: "Personalizzato" },
-      { value: "none", label: "Nessuno" },
-    ];
-  }
-  return [
-    { value: "prev_period", label: "Periodo precedente (stessa durata)" },
-    { value: "year_ago", label: "Stesso periodo anno precedente" },
-    { value: "custom", label: "Personalizzato" },
-    { value: "none", label: "Nessuno" },
-  ];
-}
-
-function defaultCompareMode(months: number): CompareMode {
-  return months === 1 ? "prev_month" : "prev_period";
-}
-
-function computeCompareRange(mode: CompareMode, range: DateRange): DateRange | null {
-  const months = rangeMonthCount(range);
-  switch (mode) {
-    case "prev_month": {
-      const now = new Date();
-      const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      return {
-        startDate: monthStart(d.getFullYear(), d.getMonth() + 1),
-        endDate: monthEnd(d.getFullYear(), d.getMonth() + 1),
-      };
+function loadStored(): StoredRanges | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (p.aFrom && p.aTo && p.bFrom && p.bTo) return p as StoredRanges;
     }
-    case "prev_period":
-      return offsetRange(range, months);
-    case "year_ago":
-      return offsetRange(range, 12);
-    case "none":
-      return null;
-    default:
-      return null; // custom is handled externally
+  } catch { /* ignore */ }
+  return null;
+}
+
+function saveStored(s: StoredRanges) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+}
+
+// ── preset helpers for Periodo B ──
+
+type BPreset = "prev_period" | "year_ago" | "custom";
+
+const B_PRESETS: { value: BPreset; label: string }[] = [
+  { value: "prev_period", label: "Periodo precedente (stessa durata)" },
+  { value: "year_ago", label: "Stesso periodo anno scorso" },
+  { value: "custom", label: "Personalizzato" },
+];
+
+function computeB(preset: BPreset, aFrom: Date, aTo: Date): { from: Date; to: Date } {
+  if (preset === "year_ago") {
+    return { from: subYears(aFrom, 1), to: subYears(aTo, 1) };
   }
+  // prev_period: shift back by the duration of A
+  const days = differenceInCalendarDays(aTo, aFrom);
+  const to = new Date(aFrom);
+  to.setDate(to.getDate() - 1);
+  const from = new Date(to);
+  from.setDate(from.getDate() - days);
+  return { from, to };
 }
 
 // ── sub-components ──
+
+function DateField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: Date | undefined;
+  onChange: (d: Date) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm">{label}</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className={cn(
+              "w-full justify-start text-left font-normal",
+              !value && "text-muted-foreground"
+            )}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {value ? fmtLabel(value) : "Seleziona data"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
+          <Calendar
+            mode="single"
+            selected={value}
+            onSelect={(d) => {
+              if (d) {
+                onChange(d);
+                setOpen(false);
+              }
+            }}
+            initialFocus
+            className="p-3 pointer-events-auto"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
 
 function DiffBadge({ value, formatter }: { value: number; formatter?: (v: number) => string }) {
   const f = formatter ?? fmt;
@@ -199,154 +206,143 @@ function SectionSkeleton() {
   );
 }
 
-function DateField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: Date | undefined;
-  onChange: (d: Date) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-sm">{label}</Label>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            className={cn(
-              "w-full justify-start text-left font-normal",
-              !value && "text-muted-foreground"
-            )}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {value ? format(value, "dd MMM yyyy", { locale: it }) : "Seleziona data"}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
-          <Calendar
-            mode="single"
-            selected={value}
-            onSelect={(d) => {
-              if (d) {
-                onChange(d);
-                setOpen(false);
-              }
-            }}
-            initialFocus
-            className="p-3 pointer-events-auto"
-          />
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-}
-
 // ── main component ──
+
+function getDefaults() {
+  const stored = loadStored();
+  const now = new Date();
+  const defAFrom = startOfMonth(now);
+  const defATo = endOfMonth(now);
+
+  if (stored) {
+    const aF = new Date(stored.aFrom);
+    const aT = new Date(stored.aTo);
+    const bF = new Date(stored.bFrom);
+    const bT = new Date(stored.bTo);
+    return {
+      aFrom: aF, aTo: aT,
+      bFrom: bF, bTo: bT,
+      bPreset: (stored.bPreset || "prev_period") as BPreset,
+    };
+  }
+
+  const b = computeB("prev_period", defAFrom, defATo);
+  return {
+    aFrom: defAFrom, aTo: defATo,
+    bFrom: b.from, bTo: b.to,
+    bPreset: "prev_period" as BPreset,
+  };
+}
 
 const Report = () => {
   const { formatAmount: fmtAmount, isPrivacy } = usePrivacy();
-  // ── Period state ──
-  const [periodPreset, setPeriodPreset] = useState<string>("3");
-  const [customPeriodOpen, setCustomPeriodOpen] = useState(false);
-  const [draftFrom, setDraftFrom] = useState<Date | undefined>(undefined);
-  const [draftTo, setDraftTo] = useState<Date | undefined>(undefined);
-  const [appliedCustomRange, setAppliedCustomRange] = useState<DateRange | null>(null);
 
-  // ── Compare state ──
-  const [compareMode, setCompareMode] = useState<CompareMode>("prev_month");
-  const [customCompareOpen, setCustomCompareOpen] = useState(false);
-  const [draftCmpFrom, setDraftCmpFrom] = useState<Date | undefined>(undefined);
-  const [draftCmpTo, setDraftCmpTo] = useState<Date | undefined>(undefined);
-  const [appliedCustomCompare, setAppliedCustomCompare] = useState<DateRange | null>(null);
+  const defaults = useMemo(getDefaults, []);
 
-  // ── Computed range ──
-  const range: DateRange = useMemo(() => {
-    if (periodPreset === "custom" && appliedCustomRange) return appliedCustomRange;
-    return buildPresetRange(periodPreset === "custom" ? "3" : periodPreset);
-  }, [periodPreset, appliedCustomRange]);
+  // ── Draft state (editable, not yet applied) ──
+  const [aFrom, setAFrom] = useState<Date>(defaults.aFrom);
+  const [aTo, setATo] = useState<Date>(defaults.aTo);
+  const [bFrom, setBFrom] = useState<Date>(defaults.bFrom);
+  const [bTo, setBTo] = useState<Date>(defaults.bTo);
+  const [bPreset, setBPreset] = useState<BPreset>(defaults.bPreset);
 
-  const months = rangeMonthCount(range);
-  const availableModes = useMemo(() => getAvailableModes(months), [months]);
+  // ── Applied state (what the query uses) ──
+  const [appliedA, setAppliedA] = useState<DateRange>({
+    startDate: toDateStr(defaults.aFrom),
+    endDate: toDateStr(defaults.aTo),
+  });
+  const [appliedB, setAppliedB] = useState<DateRange>({
+    startDate: toDateStr(defaults.bFrom),
+    endDate: toDateStr(defaults.bTo),
+  });
 
-  // ── Auto-correct compare mode when period changes ──
-  useEffect(() => {
-    if (compareMode === "custom") return;
-    if (compareMode === "none") return;
-    const valid = availableModes.some((m) => m.value === compareMode);
-    if (!valid) {
-      setCompareMode(defaultCompareMode(months));
+  // ── Auto-update B when preset changes or A changes (only for non-custom) ──
+  const updateBFromPreset = useCallback((preset: BPreset, fromA: Date, toA: Date) => {
+    if (preset === "custom") return;
+    const b = computeB(preset, fromA, toA);
+    setBFrom(b.from);
+    setBTo(b.to);
+  }, []);
+
+  const handleBPresetChange = (v: string) => {
+    const preset = v as BPreset;
+    setBPreset(preset);
+    updateBFromPreset(preset, aFrom, aTo);
+  };
+
+  const handleAFromChange = (d: Date) => {
+    setAFrom(d);
+    if (d > aTo) setATo(d);
+    if (bPreset !== "custom") {
+      const effectiveTo = d > aTo ? d : aTo;
+      updateBFromPreset(bPreset, d, effectiveTo);
     }
-  }, [months, availableModes, compareMode]);
+  };
 
-  // ── Computed compare range ──
-  const compareRange: DateRange | null = useMemo(() => {
-    if (compareMode === "none") return null;
-    if (compareMode === "custom") return appliedCustomCompare;
-    return computeCompareRange(compareMode, range);
-  }, [compareMode, range, appliedCustomCompare]);
+  const handleAToChange = (d: Date) => {
+    setATo(d);
+    if (d < aFrom) setAFrom(d);
+    if (bPreset !== "custom") {
+      const effectiveFrom = d < aFrom ? d : aFrom;
+      updateBFromPreset(bPreset, effectiveFrom, d);
+    }
+  };
 
-  const compareModeLabel = availableModes.find((m) => m.value === compareMode)?.label ?? "";
+  const handleBFromChange = (d: Date) => {
+    setBFrom(d);
+    if (d > bTo) setBTo(d);
+    setBPreset("custom");
+  };
+
+  const handleBToChange = (d: Date) => {
+    setBTo(d);
+    if (d < bFrom) setBFrom(d);
+    setBPreset("custom");
+  };
+
+  // ── Validation ──
+  const aValid = aFrom <= aTo;
+  const bValid = bFrom <= bTo;
+  const canApply = aValid && bValid;
+
+  // ── Apply ──
+  const handleApply = () => {
+    if (!canApply) return;
+    const newA: DateRange = {
+      startDate: toDateStr(aFrom <= aTo ? aFrom : aTo),
+      endDate: toDateStr(aFrom <= aTo ? aTo : aFrom),
+    };
+    const newB: DateRange = {
+      startDate: toDateStr(bFrom <= bTo ? bFrom : bTo),
+      endDate: toDateStr(bFrom <= bTo ? bTo : bFrom),
+    };
+    setAppliedA(newA);
+    setAppliedB(newB);
+    saveStored({
+      aFrom: newA.startDate,
+      aTo: newA.endDate,
+      bPreset,
+      bFrom: newB.startDate,
+      bTo: newB.endDate,
+    });
+  };
+
+  // Auto-apply on mount
+  useEffect(() => {
+    handleApply();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Data ──
-  const { data, isLoading } = useReport(range, compareRange);
-
-  // ── Handlers ──
-  function handlePeriodPreset(v: string) {
-    if (!v) return;
-    if (v === "custom") {
-      setDraftFrom(new Date(range.startDate));
-      setDraftTo(new Date(range.endDate));
-      setCustomPeriodOpen(true);
-    } else {
-      setPeriodPreset(v);
-    }
-  }
-
-  function applyCustomPeriod() {
-    if (!draftFrom || !draftTo) return;
-    const s = draftFrom <= draftTo ? draftFrom : draftTo;
-    const e = draftFrom <= draftTo ? draftTo : draftFrom;
-    setAppliedCustomRange({
-      startDate: format(s, "yyyy-MM-dd"),
-      endDate: format(e, "yyyy-MM-dd"),
-    });
-    setPeriodPreset("custom");
-    setCustomPeriodOpen(false);
-  }
-
-  function handleCompareMode(v: string) {
-    const mode = v as CompareMode;
-    if (mode === "custom") {
-      const cr = compareRange ?? range;
-      setDraftCmpFrom(new Date(cr.startDate));
-      setDraftCmpTo(new Date(cr.endDate));
-      setCustomCompareOpen(true);
-    }
-    setCompareMode(mode);
-  }
-
-  function applyCustomCompare() {
-    if (!draftCmpFrom || !draftCmpTo) return;
-    const s = draftCmpFrom <= draftCmpTo ? draftCmpFrom : draftCmpTo;
-    const e = draftCmpFrom <= draftCmpTo ? draftCmpTo : draftCmpFrom;
-    setAppliedCustomCompare({
-      startDate: format(s, "yyyy-MM-dd"),
-      endDate: format(e, "yyyy-MM-dd"),
-    });
-    setCustomCompareOpen(false);
-  }
+  const { data, isLoading } = useReport(appliedA, appliedB);
 
   // ── Loading ──
   if (isLoading || !data) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold">Report</h1>
-          <p className="text-muted-foreground text-sm mt-1">Panoramica finanziaria</p>
+          <h1 className="text-2xl font-semibold">Confronto</h1>
+          <p className="text-muted-foreground text-sm mt-1">Confronta due periodi</p>
         </div>
         <SectionSkeleton />
         <SectionSkeleton />
@@ -360,74 +356,75 @@ const Report = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Report</h1>
-        <p className="text-muted-foreground text-sm mt-1">Panoramica finanziaria</p>
+        <h1 className="text-2xl font-semibold">Confronto</h1>
+        <p className="text-muted-foreground text-sm mt-1">Confronta due periodi</p>
       </div>
 
-      {/* ── Filter Bar ── */}
+      {/* ── Filter Card ── */}
       <Card>
-        <CardContent className="py-4">
-          <div className="flex flex-col md:flex-row md:items-center gap-4">
-            {/* Period */}
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-sm font-medium whitespace-nowrap">Periodo:</span>
-              <ToggleGroup type="single" value={periodPreset} onValueChange={handlePeriodPreset} size="sm" className="bg-muted/50 rounded-lg p-0.5">
-                {["1", "3", "6", "12"].map((v) => (
-                  <ToggleGroupItem
-                    key={v}
-                    value={v}
-                    className="text-xs px-3 rounded-md data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:font-semibold data-[state=on]:shadow-sm data-[state=off]:text-muted-foreground data-[state=off]:hover:text-foreground"
-                  >
-                    {v}m
-                  </ToggleGroupItem>
-                ))}
-                <ToggleGroupItem
-                  value="custom"
-                  className="text-xs px-3 rounded-md data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:font-semibold data-[state=on]:shadow-sm data-[state=off]:text-muted-foreground data-[state=off]:hover:text-foreground"
-                >
-                  <CalendarIcon className="h-3.5 w-3.5 mr-1" />Personalizza
-                </ToggleGroupItem>
-              </ToggleGroup>
+        <CardContent className="py-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Periodo A */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold">Periodo A</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <DateField label="Da" value={aFrom} onChange={handleAFromChange} />
+                <DateField label="A" value={aTo} onChange={handleAToChange} />
+              </div>
+              {!aValid && (
+                <p className="text-xs text-destructive">La data "Da" deve essere prima di "A"</p>
+              )}
             </div>
 
-            {/* Compare */}
-            <div className="flex items-center gap-2">
-              <ArrowUpDown className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-sm font-medium whitespace-nowrap">Confronto:</span>
-              <Select value={compareMode} onValueChange={handleCompareMode}>
-                <SelectTrigger className="w-auto min-w-[220px] h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableModes.map(({ value, label }) => (
-                    <SelectItem key={value} value={value} className="text-xs">{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Periodo B */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold">Periodo B</span>
+                <Select value={bPreset} onValueChange={handleBPresetChange}>
+                  <SelectTrigger className="w-auto min-w-[200px] h-7 text-xs ml-auto">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {B_PRESETS.map(({ value, label }) => (
+                      <SelectItem key={value} value={value} className="text-xs">{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <DateField label="Da" value={bFrom} onChange={handleBFromChange} />
+                <DateField label="A" value={bTo} onChange={handleBToChange} />
+              </div>
+              {!bValid && (
+                <p className="text-xs text-destructive">La data "Da" deve essere prima di "A"</p>
+              )}
             </div>
           </div>
 
-          {/* Summary */}
-          <div className="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-xs text-muted-foreground">
-            <span>
-              Periodo: <strong className="text-foreground">{fmtMonth(range.startDate)} – {fmtMonth(range.endDate)}</strong>
-            </span>
-            {compareRange && (
-              <span>
-                Confronto: <strong className="text-foreground">{fmtMonth(compareRange.startDate)} – {fmtMonth(compareRange.endDate)}</strong>
-              </span>
-            )}
+          {/* CTA */}
+          <div className="mt-5 flex items-center justify-between">
+            <div className="text-xs text-muted-foreground">
+              <span>A: <strong className="text-foreground">{fmtLabel(aFrom)} – {fmtLabel(aTo)}</strong></span>
+              <span className="mx-3">·</span>
+              <span>B: <strong className="text-foreground">{fmtLabel(bFrom)} – {fmtLabel(bTo)}</strong></span>
+            </div>
+            <Button onClick={handleApply} disabled={!canApply} size="sm">
+              Confronta
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* ── Card 1 – Periodo selezionato ── */}
+      {/* ── Card 1 – Periodo A ── */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
-            Periodo selezionato
+            Periodo A
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -438,25 +435,25 @@ const Report = () => {
         </CardContent>
       </Card>
 
-      {/* ── Card 2 – Confronto (only if active) ── */}
+      {/* ── Card 2 – Periodo B ── */}
       {cmp && diff && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <ArrowUpDown className="h-4 w-4 text-primary" />
-              Confronto: {compareModeLabel}
+              Periodo B
             </CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <StatCard label="Entrate (confronto)" value={fmtAmount(cmp.income)} colorClass="text-green-600 dark:text-green-400" />
-            <StatCard label="Uscite (confronto)" value={fmtAmount(cmp.expense)} colorClass="text-red-600 dark:text-red-400" />
-            <StatCard label="Risparmio (confronto)" value={fmtAmount(cmp.savings)} />
+            <StatCard label="Entrate" value={fmtAmount(cmp.income)} colorClass="text-green-600 dark:text-green-400" />
+            <StatCard label="Uscite" value={fmtAmount(cmp.expense)} colorClass="text-red-600 dark:text-red-400" />
+            <StatCard label="Risparmio" value={fmtAmount(cmp.savings)} />
             <StatCard label="Differenza risparmio" value={fmtAmount(diff.savings)} sub={<DiffBadge value={diff.savings} formatter={fmtAmount} />} />
           </CardContent>
         </Card>
       )}
 
-      {/* ── Card 3 – Media mensile ── */}
+      {/* ── Card 3 – Media mensile (su Periodo A) ── */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
@@ -464,7 +461,7 @@ const Report = () => {
             Media mensile
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Calcolata sul periodo selezionato ({avg.monthCount} {avg.monthCount === 1 ? "mese" : "mesi"})
+            Calcolata su Periodo A ({avg.monthCount} {avg.monthCount === 1 ? "mese" : "mesi"})
           </p>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-6">
@@ -473,36 +470,6 @@ const Report = () => {
           <StatCard label="Media risparmio" value={fmtAmount(avg.savings)} sub={<DiffBadge value={avg.savings} formatter={fmtAmount} />} />
         </CardContent>
       </Card>
-
-      {/* ── Custom Period Dialog ── */}
-      <Dialog open={customPeriodOpen} onOpenChange={setCustomPeriodOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>Periodo personalizzato</DialogTitle></DialogHeader>
-          <div className="space-y-4 pt-2">
-            <DateField label="Da" value={draftFrom} onChange={(d) => { setDraftFrom(d); if (draftTo && d > draftTo) setDraftTo(d); }} />
-            <DateField label="A" value={draftTo} onChange={(d) => { setDraftTo(d); if (draftFrom && d < draftFrom) setDraftFrom(d); }} />
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="ghost" onClick={() => setCustomPeriodOpen(false)}>Annulla</Button>
-            <Button onClick={applyCustomPeriod} disabled={!draftFrom || !draftTo}>Applica</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Custom Compare Dialog ── */}
-      <Dialog open={customCompareOpen} onOpenChange={setCustomCompareOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>Periodo di confronto personalizzato</DialogTitle></DialogHeader>
-          <div className="space-y-4 pt-2">
-            <DateField label="Da" value={draftCmpFrom} onChange={(d) => { setDraftCmpFrom(d); if (draftCmpTo && d > draftCmpTo) setDraftCmpTo(d); }} />
-            <DateField label="A" value={draftCmpTo} onChange={(d) => { setDraftCmpTo(d); if (draftCmpFrom && d < draftCmpFrom) setDraftCmpFrom(d); }} />
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="ghost" onClick={() => setCustomCompareOpen(false)}>Annulla</Button>
-            <Button onClick={applyCustomCompare} disabled={!draftCmpFrom || !draftCmpTo}>Applica</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
