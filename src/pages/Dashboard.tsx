@@ -6,6 +6,7 @@ import {
 import { PeriodPicker, usePeriodState } from "@/components/dashboard/PeriodPicker";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useBudgetSummary, type BudgetSummaryRow } from "@/hooks/useCategoryBudgets";
+import { useBudgetWindow } from "@/hooks/useBudgetWindow";
 import { useForecast } from "@/hooks/useForecast";
 import { useWorkspace, useUpdateWorkspace } from "@/hooks/useWorkspace";
 import { ForecastWidget } from "@/components/dashboard/ForecastWidget";
@@ -27,7 +28,8 @@ const PIE_COLORS = [
 const Dashboard = () => {
   const { range, activePreset, applyPreset, applyCustom } = usePeriodState();
   const { data, isLoading } = useDashboardData(range.start, range.end);
-  const { data: budgetRows } = useBudgetSummary(range.start, range.end);
+  const { start: budgetStart, end: budgetEnd } = useBudgetWindow();
+  const { data: budgetRows } = useBudgetSummary(budgetStart, budgetEnd);
   const { data: workspace } = useWorkspace();
   const updateWorkspace = useUpdateWorkspace();
   const { formatAmount, isPrivacy, renderSensitiveChart } = usePrivacy();
