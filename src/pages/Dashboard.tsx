@@ -3,16 +3,17 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { PeriodPicker, usePeriodState } from "@/components/dashboard/PeriodPicker";
+import { PeriodPicker } from "@/components/dashboard/PeriodPicker";
+import { useDateRange } from "@/contexts/DateRangeContext";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useBudgetSummary, type BudgetSummaryRow } from "@/hooks/useCategoryBudgets";
-import { useBudgetWindow } from "@/hooks/useBudgetWindow";
 import { useForecast } from "@/hooks/useForecast";
 import { useWorkspace, useUpdateWorkspace } from "@/hooks/useWorkspace";
 import { ForecastWidget } from "@/components/dashboard/ForecastWidget";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { usePrivacy } from "@/contexts/PrivacyContext";
+import { startOfMonth, endOfMonth, format } from "date-fns";
 
 const MONTH_LABELS: Record<string, string> = {
   "01": "Gen", "02": "Feb", "03": "Mar", "04": "Apr",
@@ -26,10 +27,14 @@ const PIE_COLORS = [
 ];
 
 const Dashboard = () => {
-  const { range, activePreset, applyPreset, applyCustom } = usePeriodState();
-  const { data, isLoading } = useDashboardData(range.start, range.end);
-  const { start: budgetStart, end: budgetEnd } = useBudgetWindow();
-  const { data: budgetRows } = useBudgetSummary(budgetStart, budgetEnd);
+  const { dateRange } = useDateRange();
+  const { data, isLoading } = useDashboardData(dateRange.from, dateRange.to);
+
+  // Budget always on the month of "from"
+  const budgetMonthStart = format(startOfMonth(new Date(dateRange.from)), "yyyy-MM-dd");
+  const budgetMonthEnd = format(endOfMonth(new Date(dateRange.from)), "yyyy-MM-dd");
+  const { data: budgetRows } = useBudgetSummary(budgetMonthStart, budgetMonthEnd);
+
   const { data: workspace } = useWorkspace();
   const updateWorkspace = useUpdateWorkspace();
   const { formatAmount, isPrivacy, renderSensitiveChart } = usePrivacy();
@@ -38,7 +43,7 @@ const Dashboard = () => {
   const minThreshold = workspace?.min_balance_threshold ?? 0;
   const forecastHorizon = workspace?.forecast_horizon_months ?? 6;
 
-  const currentMonth = range.start.slice(0, 7);
+  const currentMonth = dateRange.from.slice(0, 7);
   const { data: forecastResult, isLoading: forecastLoading } = useForecast(currentMonth, forecastHorizon);
 
   const budgetMap = new Map<string, BudgetSummaryRow>();
@@ -67,12 +72,7 @@ const Dashboard = () => {
             Panoramica delle tue finanze personali
           </p>
         </div>
-        <PeriodPicker
-          value={range}
-          activePreset={activePreset}
-          onPreset={applyPreset}
-          onCustom={applyCustom}
-        />
+        <PeriodPicker />
       </div>
 
       {/* Hero: Saldo conto */}
@@ -200,7 +200,6 @@ const Dashboard = () => {
             {budgetRows
               .filter((b) => b.monthly_limit > 0)
               .sort((a, b) => {
-                // OVER > WARN > OK ordering, then by percent desc
                 const statusOrder = { over: 3, warn: 2, ok: 1 };
                 const sa = statusOrder[a.status] ?? 0;
                 const sb = statusOrder[b.status] ?? 0;

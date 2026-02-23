@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format, startOfMonth, endOfMonth, subMonths, startOfYear } from "date-fns";
+import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,19 +18,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-
-export type PeriodPreset =
-  | "current_month"
-  | "previous_month"
-  | "last_3_months"
-  | "last_6_months"
-  | "ytd"
-  | "custom";
-
-interface PeriodRange {
-  start: string; // YYYY-MM-DD
-  end: string;
-}
+import { useDateRange, type PeriodPreset } from "@/contexts/DateRangeContext";
 
 const PRESETS: { value: PeriodPreset; label: string }[] = [
   { value: "current_month", label: "Mese corrente" },
@@ -41,52 +29,6 @@ const PRESETS: { value: PeriodPreset; label: string }[] = [
   { value: "custom", label: "Personalizzato…" },
 ];
 
-function presetToRange(preset: PeriodPreset): PeriodRange {
-  const today = new Date();
-  switch (preset) {
-    case "current_month":
-      return { start: fmt(startOfMonth(today)), end: fmt(endOfMonth(today)) };
-    case "previous_month": {
-      const prev = subMonths(today, 1);
-      return { start: fmt(startOfMonth(prev)), end: fmt(endOfMonth(prev)) };
-    }
-    case "last_3_months": {
-      const from = startOfMonth(subMonths(today, 2));
-      return { start: fmt(from), end: fmt(endOfMonth(today)) };
-    }
-    case "last_6_months": {
-      const from = startOfMonth(subMonths(today, 5));
-      return { start: fmt(from), end: fmt(endOfMonth(today)) };
-    }
-    case "ytd":
-      return { start: fmt(startOfYear(today)), end: fmt(endOfMonth(today)) };
-    default:
-      return { start: fmt(startOfMonth(today)), end: fmt(endOfMonth(today)) };
-  }
-}
-
-function fmt(d: Date) {
-  return format(d, "yyyy-MM-dd");
-}
-
-export function usePeriodState() {
-  const [range, setRange] = useState<PeriodRange>(() => presetToRange("current_month"));
-  const [activePreset, setActivePreset] = useState<PeriodPreset>("current_month");
-
-  const applyPreset = (p: PeriodPreset) => {
-    if (p === "custom") return;
-    setActivePreset(p);
-    setRange(presetToRange(p));
-  };
-
-  const applyCustom = (r: PeriodRange) => {
-    setActivePreset("custom");
-    setRange(r);
-  };
-
-  return { range, activePreset, applyPreset, applyCustom };
-}
-
 function DateField({
   label,
   value,
@@ -94,12 +36,14 @@ function DateField({
 }: {
   label: string;
   value: Date | undefined;
-  onChange: (d: Date | undefined) => void;
+  onChange: (d: Date) => void;
 }) {
+  const [open, setOpen] = useState(false);
+
   return (
     <div className="space-y-1.5">
       <Label className="text-sm">{label}</Label>
-      <Popover>
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -116,7 +60,12 @@ function DateField({
           <Calendar
             mode="single"
             selected={value}
-            onSelect={onChange}
+            onSelect={(d) => {
+              if (d) {
+                onChange(d);
+                setOpen(false);
+              }
+            }}
             initialFocus
             className="p-3 pointer-events-auto"
           />
@@ -126,34 +75,39 @@ function DateField({
   );
 }
 
-export function PeriodPicker({
-  value,
-  activePreset,
-  onPreset,
-  onCustom,
-}: {
-  value: PeriodRange;
-  activePreset: PeriodPreset;
-  onPreset: (p: PeriodPreset) => void;
-  onCustom: (r: PeriodRange) => void;
-}) {
+export function PeriodPicker() {
+  const { dateRange, applyPreset, applyCustom } = useDateRange();
+
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draftFrom, setDraftFrom] = useState<Date | undefined>(undefined);
   const [draftTo, setDraftTo] = useState<Date | undefined>(undefined);
 
-  const isValidRange = draftFrom && draftTo;
-
   const label =
-    activePreset === "custom"
-      ? `${format(new Date(value.start), "dd MMM yy", { locale: it })} – ${format(new Date(value.end), "dd MMM yy", { locale: it })}`
-      : PRESETS.find((p) => p.value === activePreset)?.label ?? "Periodo";
+    dateRange.preset === "custom"
+      ? `${format(new Date(dateRange.from), "dd MMM yy", { locale: it })} – ${format(new Date(dateRange.to), "dd MMM yy", { locale: it })}`
+      : PRESETS.find((p) => p.value === dateRange.preset)?.label ?? "Periodo";
+
+  // When "Da" changes and is after "A", auto-fix "A"
+  const handleFromChange = (d: Date) => {
+    setDraftFrom(d);
+    if (draftTo && d > draftTo) {
+      setDraftTo(d);
+    }
+  };
+
+  const handleToChange = (d: Date) => {
+    setDraftTo(d);
+    if (draftFrom && d < draftFrom) {
+      setDraftFrom(d);
+    }
+  };
 
   const handleApply = () => {
     if (!draftFrom || !draftTo) return;
-    const s = draftFrom < draftTo ? draftFrom : draftTo;
-    const e = draftFrom < draftTo ? draftTo : draftFrom;
-    onCustom({ start: fmt(s), end: fmt(e) });
+    const s = draftFrom <= draftTo ? draftFrom : draftTo;
+    const e = draftFrom <= draftTo ? draftTo : draftFrom;
+    applyCustom(format(s, "yyyy-MM-dd"), format(e, "yyyy-MM-dd"));
     setDialogOpen(false);
   };
 
@@ -172,17 +126,17 @@ export function PeriodPicker({
               key={p.value}
               className={cn(
                 "w-full text-left px-3 py-2 text-sm rounded-md transition-colors",
-                activePreset === p.value
+                dateRange.preset === p.value
                   ? "bg-accent text-accent-foreground font-medium"
                   : "hover:bg-muted"
               )}
               onClick={() => {
                 if (p.value === "custom") {
-                  setDraftFrom(new Date(value.start));
-                  setDraftTo(new Date(value.end));
+                  setDraftFrom(new Date(dateRange.from));
+                  setDraftTo(new Date(dateRange.to));
                   setDialogOpen(true);
                 } else {
-                  onPreset(p.value);
+                  applyPreset(p.value as Exclude<PeriodPreset, "custom">);
                 }
                 setPopoverOpen(false);
               }}
@@ -199,14 +153,14 @@ export function PeriodPicker({
             <DialogTitle>Periodo personalizzato</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <DateField label="Da" value={draftFrom} onChange={setDraftFrom} />
-            <DateField label="A" value={draftTo} onChange={setDraftTo} />
+            <DateField label="Da" value={draftFrom} onChange={handleFromChange} />
+            <DateField label="A" value={draftTo} onChange={handleToChange} />
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="ghost" onClick={() => setDialogOpen(false)}>
               Annulla
             </Button>
-            <Button disabled={!isValidRange} onClick={handleApply}>
+            <Button disabled={!draftFrom || !draftTo} onClick={handleApply}>
               Applica
             </Button>
           </DialogFooter>

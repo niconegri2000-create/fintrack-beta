@@ -24,20 +24,16 @@ export interface NewTransaction {
   notes: string;
 }
 
-export function useTransactions(month: string, workspaceId: string = DEFAULT_WORKSPACE_ID) {
-  const startDate = `${month}-01`;
-  const [y, m] = month.split("-").map(Number);
-  const endDate = new Date(y, m, 0).toISOString().slice(0, 10);
-
+export function useTransactions(from: string, to: string, workspaceId: string = DEFAULT_WORKSPACE_ID) {
   return useQuery({
-    queryKey: ["transactions", month, workspaceId],
+    queryKey: ["transactions", from, to, workspaceId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("transactions")
         .select("id, date, description, amount, type, is_fixed, source, notes, category:categories(id, name)")
         .eq("workspace_id", workspaceId)
-        .gte("date", startDate)
-        .lte("date", endDate)
+        .gte("date", from)
+        .lte("date", to)
         .order("date", { ascending: false });
       if (error) throw error;
       return data as unknown as TransactionRow[];
