@@ -39,7 +39,6 @@ export function TransactionFormDialog() {
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [description, setDescription] = useState("");
-  const [isFixed, setIsFixed] = useState(false);
   const [notes, setNotes] = useState("");
 
   const { data: categories = [] } = useCategories();
@@ -51,7 +50,7 @@ export function TransactionFormDialog() {
     setAmount("");
     setCategoryId("");
     setDescription("");
-    setIsFixed(false);
+    setNotes("");
     setNotes("");
   };
 
@@ -69,7 +68,7 @@ export function TransactionFormDialog() {
         amount: numAmount,
         category_id: categoryId || null,
         description: capitalizeFirst(description),
-        is_fixed: isFixed,
+        is_fixed: false,
         notes,
       },
       {
@@ -179,12 +178,6 @@ export function TransactionFormDialog() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-          </div>
-
-          {/* Is Fixed */}
-          <div className="flex items-center justify-between">
-            <Label>Costo fisso</Label>
-            <Switch checked={isFixed} onCheckedChange={setIsFixed} />
           </div>
 
           {/* Notes */}
