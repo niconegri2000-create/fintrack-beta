@@ -14,12 +14,10 @@ import { useAllCategories } from "@/hooks/useCategories";
 import { useCategoryBudgets, useBudgetSummary } from "@/hooks/useCategoryBudgets";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth } from "date-fns";
-
-function fmtEur(v: number) {
-  return v.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
-}
+import { usePrivacy } from "@/contexts/PrivacyContext";
 
 export function BudgetSection() {
+  const { formatAmount } = usePrivacy();
   const now = new Date();
   const start = format(startOfMonth(now), "yyyy-MM-dd");
   const end = format(endOfMonth(now), "yyyy-MM-dd");
@@ -171,7 +169,7 @@ export function BudgetSection() {
                       />
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm">
-                      {fmtEur(spent)}
+                      {formatAmount(spent)}
                     </TableCell>
                     <TableCell className="text-center">
                       {limit === 0 ? (

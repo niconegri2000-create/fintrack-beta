@@ -11,6 +11,7 @@ import { useWorkspace, useUpdateWorkspace } from "@/hooks/useWorkspace";
 import { ForecastWidget } from "@/components/dashboard/ForecastWidget";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 
 const MONTH_LABELS: Record<string, string> = {
   "01": "Gen", "02": "Feb", "03": "Mar", "04": "Apr",
@@ -23,16 +24,13 @@ const PIE_COLORS = [
   "hsl(260, 50%, 50%)", "hsl(190, 70%, 45%)", "hsl(330, 60%, 50%)", "hsl(80, 55%, 45%)",
 ];
 
-function fmtEur(v: number) {
-  return v.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
-}
-
 const Dashboard = () => {
   const { range, activePreset, applyPreset, applyCustom } = usePeriodState();
   const { data, isLoading } = useDashboardData(range.start, range.end);
   const { data: budgetRows } = useBudgetSummary(range.start, range.end);
   const { data: workspace } = useWorkspace();
   const updateWorkspace = useUpdateWorkspace();
+  const { formatAmount, isPrivacy } = usePrivacy();
 
   const openingBalance = workspace?.opening_balance ?? 0;
   const minThreshold = workspace?.min_balance_threshold ?? 0;
@@ -47,9 +45,9 @@ const Dashboard = () => {
   const saldoConto = data ? openingBalance + data.balance : null;
 
   const kpis = [
-    { label: "Entrate", value: data ? fmtEur(data.income) : "—", icon: TrendingUp, accent: "text-accent" },
-    { label: "Uscite", value: data ? fmtEur(data.expense) : "—", icon: TrendingDown, accent: "text-destructive" },
-    { label: "Netto periodo", value: data ? fmtEur(data.balance) : "—", icon: Wallet, accent: data && data.balance >= 0 ? "text-accent" : "text-destructive" },
+    { label: "Entrate", value: data ? formatAmount(data.income) : "—", icon: TrendingUp, accent: "text-accent" },
+    { label: "Uscite", value: data ? formatAmount(data.expense) : "—", icon: TrendingDown, accent: "text-destructive" },
+    { label: "Netto periodo", value: data ? formatAmount(data.balance) : "—", icon: Wallet, accent: data && data.balance >= 0 ? "text-accent" : "text-destructive" },
     { label: "% Risparmio", value: data ? `${data.savingsRate.toFixed(1)}%` : "—", icon: PiggyBank, accent: "text-muted-foreground" },
   ];
 
@@ -94,10 +92,10 @@ const Dashboard = () => {
               {isBelowThreshold && <Badge className="text-[10px] bg-amber-500/20 text-amber-600 border-amber-500/30">Sotto soglia</Badge>}
             </div>
             <p className={`text-4xl font-bold font-mono ${heroColor}`}>
-              {saldoConto !== null ? fmtEur(saldoConto) : "—"}
+              {saldoConto !== null ? formatAmount(saldoConto) : "—"}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Saldo iniziale: {fmtEur(openingBalance)} • Netto periodo: {data ? fmtEur(data.balance) : "—"}
+              Saldo iniziale: {formatAmount(openingBalance)} • Netto periodo: {data ? formatAmount(data.balance) : "—"}
             </p>
           </div>
         );
@@ -127,8 +125,8 @@ const Dashboard = () => {
               <BarChart data={barData} barGap={4}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="label" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                <Tooltip formatter={(v: number) => fmtEur(v)} contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
+                <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" hide={isPrivacy} />
+                <Tooltip formatter={(v: number) => formatAmount(v)} contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
                 <Bar dataKey="income" name="Entrate" fill="hsl(160, 60%, 40%)" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="expense" name="Uscite" fill="hsl(0, 72%, 51%)" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -172,10 +170,10 @@ const Dashboard = () => {
                     return (
                       <div className="rounded-lg border bg-card p-2.5 text-xs shadow-md space-y-0.5">
                         <p className="font-medium">{name}</p>
-                        <p>Speso: {fmtEur(amount)}</p>
+                        <p>Speso: {formatAmount(amount)}</p>
                         {b && b.monthly_limit > 0 && (
                           <>
-                            <p>Limite: {fmtEur(b.monthly_limit)}</p>
+                            <p>Limite: {formatAmount(b.monthly_limit)}</p>
                             <p>Utilizzo: {((b.percent ?? 0) * 100).toFixed(0)}%
                               {b.status === "over" && <span className="text-destructive font-semibold"> OVER</span>}
                             </p>
@@ -208,7 +206,7 @@ const Dashboard = () => {
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-medium">{b.category_name}</span>
                       <span className="text-muted-foreground font-mono">
-                        {fmtEur(b.spent)} / {fmtEur(b.monthly_limit)}
+                        {formatAmount(b.spent)} / {formatAmount(b.monthly_limit)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">

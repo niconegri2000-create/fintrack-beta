@@ -18,10 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import type { ForecastMonth, ForecastGranularity } from "@/hooks/useForecast";
-
-function fmtEur(v: number) {
-  return v.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
-}
+import { usePrivacy } from "@/contexts/PrivacyContext";
 
 const PRESET_OPTIONS: { value: string; label: string; months: number }[] = [
   { value: "6m", label: "6 mesi", months: 6 },
@@ -50,6 +47,7 @@ interface ForecastWidgetProps {
 export function ForecastWidget({
   data, isLoading, minBalanceThreshold = 0, granularity, horizonMonths, onHorizonChange,
 }: ForecastWidgetProps) {
+  const { formatAmount, isPrivacy } = usePrivacy();
   const [selectedKey, setSelectedKey] = useState(() => presetKeyFromMonths(horizonMonths));
   const [customValue, setCustomValue] = useState(() => {
     if (presetKeyFromMonths(horizonMonths) === "custom") return String(horizonMonths);
@@ -88,7 +86,6 @@ export function ForecastWidget({
     }
     if (months < 1) months = 1;
     onHorizonChange(months);
-    // remain in custom mode
   };
 
   const isYearly = granularity === "yearly";
@@ -190,9 +187,9 @@ export function ForecastWidget({
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
           <XAxis dataKey="label" tick={{ fontSize: 11 }} className="fill-muted-foreground" interval={isYearly ? 0 : "preserveStartEnd"} />
-          <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+          <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" hide={isPrivacy} />
           <Tooltip
-            formatter={(v: number) => fmtEur(v)}
+            formatter={(v: number) => formatAmount(v)}
             contentStyle={{
               borderRadius: 8,
               border: "1px solid hsl(var(--border))",
@@ -245,17 +242,17 @@ export function ForecastWidget({
                   )}
                 </TableCell>
                 <TableCell className="text-right font-mono text-xs">
-                  {fmtEur(fm.income)}
+                  {formatAmount(fm.income)}
                 </TableCell>
                 <TableCell className="text-right font-mono text-xs">
-                  {fmtEur(fm.expense)}
+                  {formatAmount(fm.expense)}
                 </TableCell>
                 <TableCell
                   className={`text-right font-mono text-xs font-semibold ${
                     isNeg ? "text-destructive" : isBelowThresh ? "text-amber-500" : "text-accent"
                   }`}
                 >
-                  {fmtEur(fm.balance)}
+                  {formatAmount(fm.balance)}
                   {isBelowThresh && (
                     <AlertTriangle className="inline-block h-3 w-3 ml-1 text-amber-500" />
                   )}

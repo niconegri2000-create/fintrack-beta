@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { RecurringRow } from "@/hooks/useRecurringRules";
 import { capitalizeFirst } from "@/lib/normalize";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 
 interface Props {
   data: RecurringRow[];
@@ -16,6 +17,8 @@ interface Props {
 }
 
 export function RecurringTable({ data, isLoading }: Props) {
+  const { isPrivacy } = usePrivacy();
+
   if (isLoading) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">
@@ -63,7 +66,7 @@ export function RecurringTable({ data, isLoading }: Props) {
                 </Badge>
               </TableCell>
               <TableCell className={`text-right font-mono font-medium ${r.type === "income" ? "text-success" : "text-destructive"}`}>
-                €{r.amount.toFixed(2)}
+                {isPrivacy ? "••••" : `€${r.amount.toFixed(2)}`}
               </TableCell>
               <TableCell className="text-muted-foreground">{r.category?.name || "—"}</TableCell>
               <TableCell className="text-center font-mono">{r.day_of_month ?? "—"}</TableCell>
