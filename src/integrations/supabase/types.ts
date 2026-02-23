@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      budget_settings: {
+        Row: {
+          alert_threshold: number
+          alerts_enabled: boolean
+          created_at: string
+          id: string
+          period: string
+          reset_anchor_date: string | null
+          reset_mode: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          alert_threshold?: number
+          alerts_enabled?: boolean
+          created_at?: string
+          id?: string
+          period?: string
+          reset_anchor_date?: string | null
+          reset_mode?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          alert_threshold?: number
+          alerts_enabled?: boolean
+          created_at?: string
+          id?: string
+          period?: string
+          reset_anchor_date?: string | null
+          reset_mode?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_settings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string | null
