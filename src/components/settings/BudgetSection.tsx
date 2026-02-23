@@ -13,35 +13,15 @@ import { Info, RotateCcw } from "lucide-react";
 import { useAllCategories } from "@/hooks/useCategories";
 import { useCategoryBudgets, useCategorySpending } from "@/hooks/useCategoryBudgets";
 import { useBudgetSettings } from "@/hooks/useBudgetSettings";
+import { useBudgetWindow } from "@/hooks/useBudgetWindow";
 import { toast } from "sonner";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 
 export function BudgetSection() {
   const { formatAmount } = usePrivacy();
   const { data: settings } = useBudgetSettings();
-
-  const now = new Date();
-
-  // Always monthly window; manual reset uses anchor date
-  const computeWindow = () => {
-    const resetMode = settings?.reset_mode ?? "auto";
-    const anchor = settings?.reset_anchor_date;
-
-    let windowStart: Date;
-    if (resetMode === "manual" && anchor) {
-      windowStart = new Date(anchor);
-    } else {
-      windowStart = startOfMonth(now);
-    }
-
-    return {
-      start: format(windowStart, "yyyy-MM-dd"),
-      end: format(endOfMonth(now), "yyyy-MM-dd"),
-    };
-  };
-
-  const { start, end } = computeWindow();
+  const { start, end } = useBudgetWindow();
 
   const { data: categories = [] } = useAllCategories();
   const { list, upsert } = useCategoryBudgets();
