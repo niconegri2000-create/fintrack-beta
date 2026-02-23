@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useRecurringRules } from "@/hooks/useRecurringRules";
 import { RecurringTable } from "@/components/recurring/RecurringTable";
 import { RecurringFormDialog } from "@/components/recurring/RecurringFormDialog";
-import { GenerateRecurringDialog } from "@/components/recurring/GenerateRecurringDialog";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
 const Ricorrenti = () => {
@@ -21,7 +20,6 @@ const Ricorrenti = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <GenerateRecurringDialog />
           <RecurringFormDialog />
         </div>
       </div>
