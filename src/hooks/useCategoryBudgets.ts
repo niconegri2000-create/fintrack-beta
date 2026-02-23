@@ -92,7 +92,7 @@ export function useCategorySpending(startDate: string, endDate: string, workspac
     queryFn: async () => {
       const { data, error } = await supabase
         .from("transactions")
-        .select("category_id, amount")
+        .select("category_id, amount, source")
         .eq("workspace_id", workspaceId)
         .eq("type", "expense")
         .gte("date", startDate)
@@ -102,6 +102,8 @@ export function useCategorySpending(startDate: string, endDate: string, workspac
       const map = new Map<string, number>();
       for (const r of data ?? []) {
         if (!r.category_id) continue;
+        // Exclude recurring-generated transactions from budget
+        if (r.source === "recurring_generated") continue;
         map.set(r.category_id, (map.get(r.category_id) ?? 0) + Number(r.amount));
       }
       return Array.from(map.entries()).map(([category_id, total_spent]) => ({
