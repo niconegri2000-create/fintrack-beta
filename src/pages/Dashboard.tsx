@@ -189,7 +189,10 @@ const Dashboard = () => {
                     );
                   }}
                 />
-                <Legend wrapperStyle={{ fontSize: 12, color: "hsl(var(--foreground))", paddingTop: 12 }} />
+                <Legend
+                  wrapperStyle={{ fontSize: 12, paddingTop: 12 }}
+                  formatter={(value) => <span style={{ color: "hsl(var(--foreground))" }}>{value}</span>}
+                />
               </PieChart>
             </ResponsiveContainer>
           )}
