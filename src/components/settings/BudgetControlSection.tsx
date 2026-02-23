@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useBudgetSettings } from "@/hooks/useBudgetSettings";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
@@ -10,6 +11,7 @@ import { format } from "date-fns";
 
 export function BudgetControlSection() {
   const { data: settings, isLoading, update } = useBudgetSettings();
+  const [resetting, setResetting] = useState(false);
 
   if (isLoading || !settings) return null;
 
@@ -21,11 +23,18 @@ export function BudgetControlSection() {
   };
 
   const handleResetPeriod = () => {
+    setResetting(true);
     update.mutate(
       { reset_anchor_date: format(new Date(), "yyyy-MM-dd") },
       {
-        onSuccess: () => toast.success("Periodo resettato da oggi"),
-        onError: () => toast.error("Errore nel reset"),
+        onSuccess: () => {
+          toast.success("Periodo budget resettato");
+          setTimeout(() => setResetting(false), 1000);
+        },
+        onError: () => {
+          toast.error("Errore nel reset");
+          setResetting(false);
+        },
       }
     );
   };
@@ -64,7 +73,7 @@ export function BudgetControlSection() {
 
         {settings.reset_mode === "manual" && (
           <div className="flex items-center gap-3 pt-1">
-            <Button variant="outline" size="sm" onClick={handleResetPeriod}>
+            <Button variant="outline" size="sm" onClick={handleResetPeriod} disabled={resetting}>
               <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
               Reset periodo
             </Button>

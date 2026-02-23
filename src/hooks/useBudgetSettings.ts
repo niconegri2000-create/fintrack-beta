@@ -53,7 +53,12 @@ export function useBudgetSettings(workspaceId: string = DEFAULT_WORKSPACE_ID) {
         .eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: [QUERY_KEY, workspaceId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, workspaceId] });
+      // Also invalidate budget-dependent queries so spending recalculates with new window
+      qc.invalidateQueries({ queryKey: ["category_spending"] });
+      qc.invalidateQueries({ queryKey: ["category_budgets"] });
+    },
   });
 
   return { data: query.data, isLoading: query.isLoading, error: query.error, update };
