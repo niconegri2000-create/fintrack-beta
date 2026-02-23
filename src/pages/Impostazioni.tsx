@@ -17,16 +17,10 @@ const Impostazioni = () => {
       <GeneralPreferencesSection />
       <AccountManagementSection />
 
-      <div className="rounded-xl border bg-card p-6 space-y-4">
-        <div>
-          <p className="text-sm font-medium">Workspace attivo</p>
-          <p className="text-muted-foreground text-sm">Personale</p>
-        </div>
-      </div>
+      <BudgetControlSection />
 
       <CategoriesSection />
 
-      <BudgetControlSection />
       <BudgetSection />
     </div>
   );
