@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { format, subMonths, subYears, startOfMonth, endOfMonth, differenceInCalendarDays } from "date-fns";
+import { format, subYears, startOfMonth, endOfMonth } from "date-fns";
 import { it } from "date-fns/locale";
 import { useReport, type DateRange } from "@/hooks/useReport";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,25 +74,15 @@ function saveStored(s: StoredRanges) {
 
 // ── preset helpers for Periodo B ──
 
-type BPreset = "prev_period" | "year_ago" | "custom";
+type BPreset = "year_ago" | "custom";
 
 const B_PRESETS: { value: BPreset; label: string }[] = [
-  { value: "prev_period", label: "Periodo precedente (stessa durata)" },
   { value: "year_ago", label: "Stesso periodo anno scorso" },
   { value: "custom", label: "Personalizzato" },
 ];
 
-function computeB(preset: BPreset, aFrom: Date, aTo: Date): { from: Date; to: Date } {
-  if (preset === "year_ago") {
-    return { from: subYears(aFrom, 1), to: subYears(aTo, 1) };
-  }
-  // prev_period: shift back by the duration of A
-  const days = differenceInCalendarDays(aTo, aFrom);
-  const to = new Date(aFrom);
-  to.setDate(to.getDate() - 1);
-  const from = new Date(to);
-  from.setDate(from.getDate() - days);
-  return { from, to };
+function computeB(aFrom: Date, aTo: Date): { from: Date; to: Date } {
+  return { from: subYears(aFrom, 1), to: subYears(aTo, 1) };
 }
 
 // ── sub-components ──
@@ -216,15 +206,15 @@ function getDefaults() {
     return {
       aFrom: aF, aTo: aT,
       bFrom: bF, bTo: bT,
-      bPreset: (stored.bPreset || "prev_period") as BPreset,
+      bPreset: (stored.bPreset === "year_ago" ? "year_ago" : "custom") as BPreset,
     };
   }
 
-  const b = computeB("prev_period", defAFrom, defATo);
+  const b = computeB(defAFrom, defATo);
   return {
     aFrom: defAFrom, aTo: defATo,
     bFrom: b.from, bTo: b.to,
-    bPreset: "prev_period" as BPreset,
+    bPreset: "year_ago" as BPreset,
   };
 }
 
@@ -253,7 +243,7 @@ const Report = () => {
   // ── Auto-update B when preset changes or A changes (only for non-custom) ──
   const updateBFromPreset = useCallback((preset: BPreset, fromA: Date, toA: Date) => {
     if (preset === "custom") return;
-    const b = computeB(preset, fromA, toA);
+    const b = computeB(fromA, toA);
     setBFrom(b.from);
     setBTo(b.to);
   }, []);
