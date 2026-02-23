@@ -68,6 +68,38 @@ export function useCreateRecurring(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   });
 }
 
+export function useUpdateRecurring() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...r }: { id: string; name: string; type: string; amount: number; category_id: string | null; day_of_month: number; interval_months: number; end_date: string | null; is_active: boolean; is_fixed: boolean }) => {
+      const { error } = await supabase.from("recurring_rules").update({
+        name: r.name,
+        type: r.type,
+        amount: r.amount,
+        category_id: r.category_id || null,
+        day_of_month: r.day_of_month,
+        interval_months: r.interval_months,
+        end_date: r.end_date || null,
+        is_active: r.is_active,
+        is_fixed: r.is_fixed,
+      }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["recurring_rules"] }),
+  });
+}
+
+export function useDeleteRecurring() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("recurring_rules").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["recurring_rules"] }),
+  });
+}
+
 export function useGenerateRecurring(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
 
