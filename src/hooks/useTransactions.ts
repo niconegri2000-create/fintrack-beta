@@ -61,6 +61,42 @@ export function useCreateTransaction(workspaceId: string = DEFAULT_WORKSPACE_ID)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function useUpdateTransaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...tx }: { id: string; date: string; type: string; amount: number; category_id: string | null; description: string; notes: string }) => {
+      const { error } = await supabase.from("transactions").update({
+        date: tx.date,
+        type: tx.type,
+        amount: tx.amount,
+        category_id: tx.category_id || null,
+        description: tx.description || null,
+        notes: tx.notes || null,
+      }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["transactions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function useDeleteTransaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("transactions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["transactions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }
