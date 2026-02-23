@@ -219,7 +219,8 @@ export function ForecastWidget({
       )}
 
       {/* Table */}
-      <Table>
+      <div className="overflow-x-auto">
+      <Table className="min-w-[500px]">
         <TableHeader>
           <TableRow>
             <TableHead>{isYearly ? "Anno" : "Mese"}</TableHead>
@@ -283,6 +284,7 @@ export function ForecastWidget({
           })}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }

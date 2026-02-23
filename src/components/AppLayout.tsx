@@ -13,7 +13,7 @@ export function AppLayout() {
           <header className="h-14 flex items-center border-b px-4 bg-card">
             <SidebarTrigger />
           </header>
-          <main className="flex-1 p-6 lg:p-8 overflow-auto">
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-hidden overflow-y-auto">
             <Outlet />
           </main>
         </div>

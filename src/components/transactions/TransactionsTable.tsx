@@ -44,8 +44,8 @@ export function TransactionsTable({ data, isLoading }: Props) {
 
   return (
     <>
-      <div className="rounded-xl border bg-card overflow-hidden">
-        <Table>
+      <div className="rounded-xl border bg-card overflow-x-auto">
+        <Table className="min-w-[700px]">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[100px]">Data</TableHead>
