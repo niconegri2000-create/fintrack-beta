@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { TransactionRow } from "@/hooks/useTransactions";
 import { capitalizeFirst } from "@/lib/normalize";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 
 interface Props {
   data: TransactionRow[];
@@ -16,6 +17,8 @@ interface Props {
 }
 
 export function TransactionsTable({ data, isLoading }: Props) {
+  const { formatAmount, isPrivacy } = usePrivacy();
+
   if (isLoading) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">
@@ -72,7 +75,9 @@ export function TransactionsTable({ data, isLoading }: Props) {
                   tx.type === "income" ? "text-success" : "text-destructive"
                 }`}
               >
-                {tx.type === "income" ? "+" : "−"}€{tx.amount.toFixed(2)}
+                {isPrivacy
+                  ? "••••"
+                  : `${tx.type === "income" ? "+" : "−"}€${tx.amount.toFixed(2)}`}
               </TableCell>
               <TableCell className="text-center text-xs text-muted-foreground">
                 {tx.is_fixed ? "Sì" : "No"}

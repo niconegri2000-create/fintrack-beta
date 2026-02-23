@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { differenceInMonths } from "date-fns";
 import { Plus, Minus, Pause, Play, CheckCircle2, AlertTriangle, Archive, RotateCcw, Trash2 } from "lucide-react";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 
 interface Props {
   goal: Goal;
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWithdraw, onTogglePause, onComplete, onArchive, onRestore, onDeletePermanently }: Props) {
+  const { formatAmount, isPrivacy } = usePrivacy();
   const remaining = Math.max(goal.target_amount - goal.saved, 0);
   const progress = goal.target_amount > 0 ? Math.min(Math.max((goal.saved / goal.target_amount) * 100, 0), 100) : 0;
   const reached = goal.saved >= goal.target_amount;
@@ -67,20 +69,20 @@ export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWi
       {/* Progress */}
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="font-mono font-medium">€ {goal.saved.toFixed(2)}</span>
-          <span className="text-muted-foreground">€ {goal.target_amount.toFixed(2)}</span>
+          <span className="font-mono font-medium">{isPrivacy ? "••••" : `€ ${goal.saved.toFixed(2)}`}</span>
+          <span className="text-muted-foreground">{isPrivacy ? "••••" : `€ ${goal.target_amount.toFixed(2)}`}</span>
         </div>
         <Progress value={progress} className="h-2.5" />
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>{progress.toFixed(0)}%</span>
-          <span>Mancano € {remaining.toFixed(2)}</span>
+          <span>Mancano {isPrivacy ? "••••" : `€ ${remaining.toFixed(2)}`}</span>
         </div>
       </div>
 
       {/* Monthly info */}
       {neededPerMonth !== null && monthsLeft !== null && monthsLeft > 0 && (
         <p className="text-xs text-muted-foreground">
-          ~€ {neededPerMonth.toFixed(2)}/mese per {monthsLeft} mesi
+          {isPrivacy ? "••••" : `~€ ${neededPerMonth.toFixed(2)}`}/mese per {monthsLeft} mesi
         </p>
       )}
 

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 
 // ── helpers ──
 
@@ -133,22 +134,23 @@ function computeCompareRange(mode: CompareMode, range: DateRange): DateRange | n
 
 // ── sub-components ──
 
-function DiffBadge({ value }: { value: number }) {
+function DiffBadge({ value, formatter }: { value: number; formatter?: (v: number) => string }) {
+  const f = formatter ?? fmt;
   if (value > 0)
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-950 dark:text-green-400">
-        <TrendingUp className="h-3.5 w-3.5" /> +{fmt(value)}
+        <TrendingUp className="h-3.5 w-3.5" /> +{f(value)}
       </span>
     );
   if (value < 0)
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950 dark:text-red-400">
-        <TrendingDown className="h-3.5 w-3.5" /> {fmt(value)}
+        <TrendingDown className="h-3.5 w-3.5" /> {f(value)}
       </span>
     );
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-      <Minus className="h-3.5 w-3.5" /> {fmt(0)}
+      <Minus className="h-3.5 w-3.5" /> {f(0)}
     </span>
   );
 }
@@ -201,6 +203,7 @@ function MonthInput({ label, value, onChange }: { label: string; value: string; 
 // ── main component ──
 
 const Report = () => {
+  const { formatAmount: fmtAmount } = usePrivacy();
   // ── Period state ──
   const [periodPreset, setPeriodPreset] = useState<string>("3");
   const [customPeriodOpen, setCustomPeriodOpen] = useState(false);
@@ -383,9 +386,9 @@ const Report = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <StatCard label="Entrate" value={fmt(p.income)} colorClass="text-green-600 dark:text-green-400" />
-          <StatCard label="Uscite" value={fmt(p.expense)} colorClass="text-red-600 dark:text-red-400" />
-          <StatCard label="Risparmio netto" value={fmt(p.savings)} sub={<DiffBadge value={p.savings} />} />
+          <StatCard label="Entrate" value={fmtAmount(p.income)} colorClass="text-green-600 dark:text-green-400" />
+          <StatCard label="Uscite" value={fmtAmount(p.expense)} colorClass="text-red-600 dark:text-red-400" />
+          <StatCard label="Risparmio netto" value={fmtAmount(p.savings)} sub={<DiffBadge value={p.savings} formatter={fmtAmount} />} />
           <StatCard label="% Risparmio" value={`${p.savingsRate.toFixed(1)}%`} />
         </CardContent>
       </Card>
@@ -400,10 +403,10 @@ const Report = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <StatCard label="Entrate (confronto)" value={fmt(cmp.income)} colorClass="text-green-600 dark:text-green-400" />
-            <StatCard label="Uscite (confronto)" value={fmt(cmp.expense)} colorClass="text-red-600 dark:text-red-400" />
-            <StatCard label="Risparmio (confronto)" value={fmt(cmp.savings)} />
-            <StatCard label="Differenza risparmio" value={fmt(diff.savings)} sub={<DiffBadge value={diff.savings} />} />
+            <StatCard label="Entrate (confronto)" value={fmtAmount(cmp.income)} colorClass="text-green-600 dark:text-green-400" />
+            <StatCard label="Uscite (confronto)" value={fmtAmount(cmp.expense)} colorClass="text-red-600 dark:text-red-400" />
+            <StatCard label="Risparmio (confronto)" value={fmtAmount(cmp.savings)} />
+            <StatCard label="Differenza risparmio" value={fmtAmount(diff.savings)} sub={<DiffBadge value={diff.savings} formatter={fmtAmount} />} />
           </CardContent>
         </Card>
       )}
@@ -420,9 +423,9 @@ const Report = () => {
           </p>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-6">
-          <StatCard label="Media entrate" value={fmt(avg.income)} colorClass="text-green-600 dark:text-green-400" />
-          <StatCard label="Media uscite" value={fmt(avg.expense)} colorClass="text-red-600 dark:text-red-400" />
-          <StatCard label="Media risparmio" value={fmt(avg.savings)} sub={<DiffBadge value={avg.savings} />} />
+          <StatCard label="Media entrate" value={fmtAmount(avg.income)} colorClass="text-green-600 dark:text-green-400" />
+          <StatCard label="Media uscite" value={fmtAmount(avg.expense)} colorClass="text-red-600 dark:text-red-400" />
+          <StatCard label="Media risparmio" value={fmtAmount(avg.savings)} sub={<DiffBadge value={avg.savings} formatter={fmtAmount} />} />
         </CardContent>
       </Card>
 
