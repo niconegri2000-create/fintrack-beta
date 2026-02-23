@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
 import { useReport, type DateRange } from "@/hooks/useReport";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -8,7 +10,7 @@ import {
   ArrowUpDown,
   BarChart3,
   History,
-  Calendar,
+  Calendar as CalendarIcon,
   SlidersHorizontal,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,7 +31,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 
 // ── helpers ──
@@ -191,11 +199,48 @@ function SectionSkeleton() {
   );
 }
 
-function MonthInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function DateField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: Date | undefined;
+  onChange: (d: Date) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
   return (
     <div className="space-y-1.5">
       <Label className="text-sm">{label}</Label>
-      <Input type="month" value={value} onChange={(e) => onChange(e.target.value)} />
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className={cn(
+              "w-full justify-start text-left font-normal",
+              !value && "text-muted-foreground"
+            )}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {value ? format(value, "dd MMM yyyy", { locale: it }) : "Seleziona data"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
+          <Calendar
+            mode="single"
+            selected={value}
+            onSelect={(d) => {
+              if (d) {
+                onChange(d);
+                setOpen(false);
+              }
+            }}
+            initialFocus
+            className="p-3 pointer-events-auto"
+          />
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
@@ -207,15 +252,15 @@ const Report = () => {
   // ── Period state ──
   const [periodPreset, setPeriodPreset] = useState<string>("3");
   const [customPeriodOpen, setCustomPeriodOpen] = useState(false);
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
+  const [draftFrom, setDraftFrom] = useState<Date | undefined>(undefined);
+  const [draftTo, setDraftTo] = useState<Date | undefined>(undefined);
   const [appliedCustomRange, setAppliedCustomRange] = useState<DateRange | null>(null);
 
   // ── Compare state ──
   const [compareMode, setCompareMode] = useState<CompareMode>("prev_month");
   const [customCompareOpen, setCustomCompareOpen] = useState(false);
-  const [customCmpFrom, setCustomCmpFrom] = useState("");
-  const [customCmpTo, setCustomCmpTo] = useState("");
+  const [draftCmpFrom, setDraftCmpFrom] = useState<Date | undefined>(undefined);
+  const [draftCmpTo, setDraftCmpTo] = useState<Date | undefined>(undefined);
   const [appliedCustomCompare, setAppliedCustomCompare] = useState<DateRange | null>(null);
 
   // ── Computed range ──
@@ -229,7 +274,7 @@ const Report = () => {
 
   // ── Auto-correct compare mode when period changes ──
   useEffect(() => {
-    if (compareMode === "custom") return; // never override custom
+    if (compareMode === "custom") return;
     if (compareMode === "none") return;
     const valid = availableModes.some((m) => m.value === compareMode);
     if (!valid) {
@@ -253,8 +298,8 @@ const Report = () => {
   function handlePeriodPreset(v: string) {
     if (!v) return;
     if (v === "custom") {
-      setCustomFrom(range.startDate.slice(0, 7));
-      setCustomTo(range.endDate.slice(0, 7));
+      setDraftFrom(new Date(range.startDate));
+      setDraftTo(new Date(range.endDate));
       setCustomPeriodOpen(true);
     } else {
       setPeriodPreset(v);
@@ -262,12 +307,12 @@ const Report = () => {
   }
 
   function applyCustomPeriod() {
-    if (!customFrom || !customTo) return;
-    const [fy, fm] = customFrom.split("-").map(Number);
-    const [ty, tm] = customTo.split("-").map(Number);
+    if (!draftFrom || !draftTo) return;
+    const s = draftFrom <= draftTo ? draftFrom : draftTo;
+    const e = draftFrom <= draftTo ? draftTo : draftFrom;
     setAppliedCustomRange({
-      startDate: monthStart(fy, fm),
-      endDate: monthEnd(ty, tm),
+      startDate: format(s, "yyyy-MM-dd"),
+      endDate: format(e, "yyyy-MM-dd"),
     });
     setPeriodPreset("custom");
     setCustomPeriodOpen(false);
@@ -277,20 +322,20 @@ const Report = () => {
     const mode = v as CompareMode;
     if (mode === "custom") {
       const cr = compareRange ?? range;
-      setCustomCmpFrom(cr.startDate.slice(0, 7));
-      setCustomCmpTo(cr.endDate.slice(0, 7));
+      setDraftCmpFrom(new Date(cr.startDate));
+      setDraftCmpTo(new Date(cr.endDate));
       setCustomCompareOpen(true);
     }
     setCompareMode(mode);
   }
 
   function applyCustomCompare() {
-    if (!customCmpFrom || !customCmpTo) return;
-    const [fy, fm] = customCmpFrom.split("-").map(Number);
-    const [ty, tm] = customCmpTo.split("-").map(Number);
+    if (!draftCmpFrom || !draftCmpTo) return;
+    const s = draftCmpFrom <= draftCmpTo ? draftCmpFrom : draftCmpTo;
+    const e = draftCmpFrom <= draftCmpTo ? draftCmpTo : draftCmpFrom;
     setAppliedCustomCompare({
-      startDate: monthStart(fy, fm),
-      endDate: monthEnd(ty, tm),
+      startDate: format(s, "yyyy-MM-dd"),
+      endDate: format(e, "yyyy-MM-dd"),
     });
     setCustomCompareOpen(false);
   }
@@ -341,7 +386,7 @@ const Report = () => {
                   value="custom"
                   className="text-xs px-3 rounded-md data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:font-semibold data-[state=on]:shadow-sm data-[state=off]:text-muted-foreground data-[state=off]:hover:text-foreground"
                 >
-                  <Calendar className="h-3.5 w-3.5 mr-1" />Personalizza
+                  <CalendarIcon className="h-3.5 w-3.5 mr-1" />Personalizza
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>
@@ -431,30 +476,30 @@ const Report = () => {
 
       {/* ── Custom Period Dialog ── */}
       <Dialog open={customPeriodOpen} onOpenChange={setCustomPeriodOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader><DialogTitle>Periodo personalizzato</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-4">
-            <MonthInput label="Da" value={customFrom} onChange={setCustomFrom} />
-            <MonthInput label="A" value={customTo} onChange={setCustomTo} />
+          <div className="space-y-4 pt-2">
+            <DateField label="Da" value={draftFrom} onChange={(d) => { setDraftFrom(d); if (draftTo && d > draftTo) setDraftTo(d); }} />
+            <DateField label="A" value={draftTo} onChange={(d) => { setDraftTo(d); if (draftFrom && d < draftFrom) setDraftFrom(d); }} />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCustomPeriodOpen(false)}>Annulla</Button>
-            <Button onClick={applyCustomPeriod} disabled={!customFrom || !customTo || customFrom > customTo}>Applica</Button>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setCustomPeriodOpen(false)}>Annulla</Button>
+            <Button onClick={applyCustomPeriod} disabled={!draftFrom || !draftTo}>Applica</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* ── Custom Compare Dialog ── */}
       <Dialog open={customCompareOpen} onOpenChange={setCustomCompareOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader><DialogTitle>Periodo di confronto personalizzato</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-4">
-            <MonthInput label="Da" value={customCmpFrom} onChange={setCustomCmpFrom} />
-            <MonthInput label="A" value={customCmpTo} onChange={setCustomCmpTo} />
+          <div className="space-y-4 pt-2">
+            <DateField label="Da" value={draftCmpFrom} onChange={(d) => { setDraftCmpFrom(d); if (draftCmpTo && d > draftCmpTo) setDraftCmpTo(d); }} />
+            <DateField label="A" value={draftCmpTo} onChange={(d) => { setDraftCmpTo(d); if (draftCmpFrom && d < draftCmpFrom) setDraftCmpFrom(d); }} />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCustomCompareOpen(false)}>Annulla</Button>
-            <Button onClick={applyCustomCompare} disabled={!customCmpFrom || !customCmpTo || customCmpFrom > customCmpTo}>Applica</Button>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setCustomCompareOpen(false)}>Annulla</Button>
+            <Button onClick={applyCustomCompare} disabled={!draftCmpFrom || !draftCmpTo}>Applica</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
