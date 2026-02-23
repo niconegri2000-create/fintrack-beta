@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
+import { DateRangeProvider } from "@/contexts/DateRangeContext";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Transazioni from "./pages/Transazioni";
@@ -20,23 +21,25 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <PrivacyProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route element={<AppLayout />}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/transazioni" element={<Transazioni />} />
-                <Route path="/ricorrenti" element={<Ricorrenti />} />
-                <Route path="/obiettivi" element={<Obiettivi />} />
-                <Route path="/report" element={<Report />} />
-                <Route path="/impostazioni" element={<Impostazioni />} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+        <DateRangeProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route element={<AppLayout />}>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/transazioni" element={<Transazioni />} />
+                  <Route path="/ricorrenti" element={<Ricorrenti />} />
+                  <Route path="/obiettivi" element={<Obiettivi />} />
+                  <Route path="/report" element={<Report />} />
+                  <Route path="/impostazioni" element={<Impostazioni />} />
+                </Route>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </DateRangeProvider>
       </PrivacyProvider>
     </ThemeProvider>
   </QueryClientProvider>

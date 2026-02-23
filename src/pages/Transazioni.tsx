@@ -1,18 +1,14 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useTransactions } from "@/hooks/useTransactions";
-import { MonthPicker } from "@/components/transactions/MonthPicker";
+import { useDateRange } from "@/contexts/DateRangeContext";
+import { PeriodPicker } from "@/components/dashboard/PeriodPicker";
 import { TransactionsTable } from "@/components/transactions/TransactionsTable";
 import { TransactionFormDialog } from "@/components/transactions/TransactionFormDialog";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
-function currentMonth() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
 const Transazioni = () => {
-  const [month, setMonth] = useState(currentMonth);
-  const { data = [], isLoading } = useTransactions(month);
+  const { dateRange } = useDateRange();
+  const { data = [], isLoading } = useTransactions(dateRange.from, dateRange.to);
 
   const income = useMemo(() => data.filter((t) => t.type === "income"), [data]);
   const expense = useMemo(() => data.filter((t) => t.type === "expense"), [data]);
@@ -26,15 +22,15 @@ const Transazioni = () => {
             Gestisci le tue entrate e uscite
           </p>
         </div>
-        <TransactionFormDialog />
+        <div className="flex items-center gap-2">
+          <PeriodPicker />
+          <TransactionFormDialog />
+        </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <MonthPicker value={month} onChange={setMonth} />
-        <p className="text-sm text-muted-foreground">
-          {data.length} moviment{data.length === 1 ? "o" : "i"}
-        </p>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        {data.length} moviment{data.length === 1 ? "o" : "i"}
+      </p>
 
       {/* Entrate */}
       <section className="space-y-2">

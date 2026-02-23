@@ -1,14 +1,16 @@
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { startOfMonth, endOfMonth, format } from "date-fns";
+import { useDateRange } from "@/contexts/DateRangeContext";
 
 /**
- * Returns the current budget window {start, end} — always the calendar month.
- * No manual reset logic; budget is purely monthly.
+ * Returns the budget window based on the global date range's "from" month.
+ * Budget is always calculated on a monthly basis.
  */
 export function useBudgetWindow() {
-  const now = new Date();
+  const { dateRange } = useDateRange();
+  const fromDate = new Date(dateRange.from);
   return {
-    start: format(startOfMonth(now), "yyyy-MM-dd"),
-    end: format(endOfMonth(now), "yyyy-MM-dd"),
+    start: format(startOfMonth(fromDate), "yyyy-MM-dd"),
+    end: format(endOfMonth(fromDate), "yyyy-MM-dd"),
     isLoading: false,
   };
 }
