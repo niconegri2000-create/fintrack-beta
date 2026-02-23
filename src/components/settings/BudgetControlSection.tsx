@@ -30,7 +30,6 @@ export function BudgetControlSection() {
     );
   };
 
-  const periodLabel = settings.period === "monthly" ? "Mensile" : "Annuale";
   const resetLabel = settings.reset_mode === "auto" ? "Automatico" : "Manuale";
   const alertsLabel = settings.alerts_enabled
     ? `ON (${settings.alert_threshold}%)`
@@ -43,25 +42,6 @@ export function BudgetControlSection() {
         <p className="text-muted-foreground text-sm">
           Imposta limiti e avvisi per tenere sotto controllo le spese.
         </p>
-      </div>
-
-      {/* Metodo budget */}
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Metodo budget</p>
-        <RadioGroup
-          value={settings.period}
-          onValueChange={(v) => handleUpdate("period", v)}
-          className="flex gap-6"
-        >
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="monthly" id="period-monthly" />
-            <Label htmlFor="period-monthly" className="text-sm cursor-pointer">Mensile</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="yearly" id="period-yearly" />
-            <Label htmlFor="period-yearly" className="text-sm cursor-pointer">Annuale</Label>
-          </div>
-        </RadioGroup>
       </div>
 
       {/* Reset budget */}
@@ -137,8 +117,7 @@ export function BudgetControlSection() {
       {/* Riepilogo */}
       <div className="rounded-lg bg-muted/50 px-4 py-2.5">
         <p className="text-xs text-muted-foreground">
-          Periodo: <span className="font-medium text-foreground">{periodLabel}</span>
-          {" | "}Reset: <span className="font-medium text-foreground">{resetLabel}</span>
+          Reset: <span className="font-medium text-foreground">{resetLabel}</span>
           {" | "}Avvisi: <span className="font-medium text-foreground">{alertsLabel}</span>
         </p>
       </div>
