@@ -14,7 +14,7 @@ import { useAllCategories } from "@/hooks/useCategories";
 import { useCategoryBudgets, useCategorySpending } from "@/hooks/useCategoryBudgets";
 import { useBudgetSettings } from "@/hooks/useBudgetSettings";
 import { toast } from "sonner";
-import { format, startOfMonth, endOfMonth, startOfYear } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 
 export function BudgetSection() {
@@ -23,17 +23,14 @@ export function BudgetSection() {
 
   const now = new Date();
 
-  // Compute date window based on period + reset anchor
+  // Always monthly window; manual reset uses anchor date
   const computeWindow = () => {
-    const period = settings?.period ?? "monthly";
     const resetMode = settings?.reset_mode ?? "auto";
     const anchor = settings?.reset_anchor_date;
 
     let windowStart: Date;
     if (resetMode === "manual" && anchor) {
       windowStart = new Date(anchor);
-    } else if (period === "yearly") {
-      windowStart = startOfYear(now);
     } else {
       windowStart = startOfMonth(now);
     }
@@ -125,7 +122,7 @@ export function BudgetSection() {
     return <Badge variant="secondary" className="text-[11px]">OK</Badge>;
   };
 
-  const periodLabel = settings?.period === "yearly" ? "anno" : "mese";
+  const periodLabel = "mese";
 
   return (
     <div className="rounded-xl border bg-card p-6 space-y-4">
@@ -178,18 +175,25 @@ export function BudgetSection() {
                   <TableRow key={cat.id}>
                     <TableCell className="font-medium">{cat.name}</TableCell>
                     <TableCell>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={10}
-                        className="h-8 w-[120px] font-mono text-sm"
-                        value={displayLimit}
-                        onChange={(e) =>
-                          setEdits((prev) => ({ ...prev, [cat.id]: e.target.value }))
-                        }
-                        onBlur={() => { if (isDirty) handleSave(cat.id); }}
-                        onKeyDown={(e) => { if (e.key === "Enter" && isDirty) handleSave(cat.id); }}
-                      />
+                      <div>
+                        <Input
+                          type="number"
+                          min={0}
+                          step={10}
+                          className="h-8 w-[120px] font-mono text-sm"
+                          value={displayLimit}
+                          onChange={(e) =>
+                            setEdits((prev) => ({ ...prev, [cat.id]: e.target.value }))
+                          }
+                          onBlur={() => { if (isDirty) handleSave(cat.id); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" && isDirty) handleSave(cat.id); }}
+                        />
+                        {limit > 0 && (
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            ≈ {formatAmount(limit * 12)}/anno
+                          </p>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
                       <Switch checked={isActive} onCheckedChange={(v) => handleToggle(cat.id, v)} />
