@@ -1,17 +1,11 @@
-import { useState } from "react";
 import { useBudgetSettings } from "@/hooks/useBudgetSettings";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "sonner";
-import { RotateCcw } from "lucide-react";
-import { format } from "date-fns";
 
 export function BudgetControlSection() {
   const { data: settings, isLoading, update } = useBudgetSettings();
-  const [resetting, setResetting] = useState(false);
 
   if (isLoading || !settings) return null;
 
@@ -22,24 +16,6 @@ export function BudgetControlSection() {
     );
   };
 
-  const handleResetPeriod = () => {
-    setResetting(true);
-    update.mutate(
-      { reset_anchor_date: format(new Date(), "yyyy-MM-dd") },
-      {
-        onSuccess: () => {
-          toast.success("Periodo budget resettato");
-          setTimeout(() => setResetting(false), 1000);
-        },
-        onError: () => {
-          toast.error("Errore nel reset");
-          setResetting(false);
-        },
-      }
-    );
-  };
-
-  const resetLabel = settings.reset_mode === "auto" ? "Automatico" : "Manuale";
   const alertsLabel = settings.alerts_enabled
     ? `ON (${settings.alert_threshold}%)`
     : "OFF";
@@ -51,39 +27,6 @@ export function BudgetControlSection() {
         <p className="text-muted-foreground text-sm">
           Imposta limiti e avvisi per tenere sotto controllo le spese.
         </p>
-      </div>
-
-      {/* Reset budget */}
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Reset budget</p>
-        <RadioGroup
-          value={settings.reset_mode}
-          onValueChange={(v) => handleUpdate("reset_mode", v)}
-          className="flex gap-6"
-        >
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="auto" id="reset-auto" />
-            <Label htmlFor="reset-auto" className="text-sm cursor-pointer">Automatico</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="manual" id="reset-manual" />
-            <Label htmlFor="reset-manual" className="text-sm cursor-pointer">Manuale</Label>
-          </div>
-        </RadioGroup>
-
-        {settings.reset_mode === "manual" && (
-          <div className="flex items-center gap-3 pt-1">
-            <Button variant="outline" size="sm" onClick={handleResetPeriod} disabled={resetting}>
-              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-              Reset periodo
-            </Button>
-            {settings.reset_anchor_date && (
-              <span className="text-xs text-muted-foreground">
-                Dal {format(new Date(settings.reset_anchor_date), "dd/MM/yyyy")}
-              </span>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Avvisi */}
@@ -126,7 +69,7 @@ export function BudgetControlSection() {
       {/* Riepilogo */}
       <div className="rounded-lg bg-muted/50 px-4 py-2.5">
         <p className="text-xs text-muted-foreground">
-          Reset: <span className="font-medium text-foreground">{resetLabel}</span>
+          Budget: <span className="font-medium text-foreground">Mensile</span>
           {" | "}Avvisi: <span className="font-medium text-foreground">{alertsLabel}</span>
         </p>
       </div>

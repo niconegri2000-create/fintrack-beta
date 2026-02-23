@@ -45,7 +45,7 @@ export function useBudgetSettings(workspaceId: string = DEFAULT_WORKSPACE_ID) {
 
   const update = useMutation({
     mutationFn: async (
-      input: Partial<Pick<BudgetSettings, "period" | "reset_mode" | "alerts_enabled" | "alert_threshold" | "reset_anchor_date">>
+      input: Partial<Pick<BudgetSettings, "period" | "alerts_enabled" | "alert_threshold">>
     ) => {
       const { error } = await supabase
         .from("budget_settings")
