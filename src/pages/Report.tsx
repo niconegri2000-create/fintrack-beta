@@ -9,7 +9,6 @@ import {
   Minus,
   ArrowUpDown,
   BarChart3,
-  History,
   Calendar as CalendarIcon,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,11 +44,6 @@ function fmtLabel(d: Date) {
   return format(d, "dd MMM yyyy", { locale: it });
 }
 
-function countMonths(startDate: string, endDate: string): number {
-  const [sy, sm] = startDate.split("-").map(Number);
-  const [ey, em] = endDate.split("-").map(Number);
-  return Math.max((ey - sy) * 12 + (em - sm) + 1, 1);
-}
 
 // ── persistence ──
 
@@ -351,7 +345,7 @@ const Report = () => {
     );
   }
 
-  const { period: p, avgMonths: avg, compare: cmp, diff } = data;
+  const { period: p, compare: cmp, diff } = data;
 
   return (
     <div className="space-y-6">
@@ -366,7 +360,7 @@ const Report = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Periodo A */}
             <div className="space-y-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 h-7">
                 <BarChart3 className="h-4 w-4 text-primary" />
                 <span className="text-sm font-semibold">Periodo A</span>
               </div>
@@ -381,7 +375,7 @@ const Report = () => {
 
             {/* Periodo B */}
             <div className="space-y-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 h-7">
                 <ArrowUpDown className="h-4 w-4 text-primary" />
                 <span className="text-sm font-semibold">Periodo B</span>
                 <Select value={bPreset} onValueChange={handleBPresetChange}>
@@ -453,23 +447,6 @@ const Report = () => {
         </Card>
       )}
 
-      {/* ── Card 3 – Media mensile (su Periodo A) ── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <History className="h-4 w-4 text-primary" />
-            Media mensile
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Calcolata su Periodo A ({avg.monthCount} {avg.monthCount === 1 ? "mese" : "mesi"})
-          </p>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-6">
-          <StatCard label="Media entrate" value={fmtAmount(avg.income)} colorClass="text-green-600 dark:text-green-400" />
-          <StatCard label="Media uscite" value={fmtAmount(avg.expense)} colorClass="text-red-600 dark:text-red-400" />
-          <StatCard label="Media risparmio" value={fmtAmount(avg.savings)} sub={<DiffBadge value={avg.savings} formatter={fmtAmount} />} />
-        </CardContent>
-      </Card>
     </div>
   );
 };
