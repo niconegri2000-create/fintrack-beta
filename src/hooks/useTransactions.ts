@@ -66,7 +66,7 @@ export function useCreateTransaction(workspaceId: string = DEFAULT_WORKSPACE_ID)
   });
 }
 
-export function useUpdateTransaction() {
+export function useUpdateTransaction(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...tx }: { id: string; date: string; type: string; amount: number; category_id: string | null; description: string; notes: string }) => {
@@ -77,7 +77,7 @@ export function useUpdateTransaction() {
         category_id: tx.category_id || null,
         description: tx.description || null,
         notes: tx.notes || null,
-      }).eq("id", id);
+      }).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -87,11 +87,11 @@ export function useUpdateTransaction() {
   });
 }
 
-export function useDeleteTransaction() {
+export function useDeleteTransaction(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("transactions").delete().eq("id", id);
+      const { error } = await supabase.from("transactions").delete().eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
     onSuccess: () => {
