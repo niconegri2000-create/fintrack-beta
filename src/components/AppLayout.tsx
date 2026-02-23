@@ -1,8 +1,10 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet } from "react-router-dom";
+import { useAutoGenerateRecurring } from "@/hooks/useAutoGenerateRecurring";
 
 export function AppLayout() {
+  useAutoGenerateRecurring();
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
