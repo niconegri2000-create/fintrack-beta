@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounts: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_default: boolean
+          min_balance_threshold: number | null
+          name: string
+          opening_balance: number
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_default?: boolean
+          min_balance_threshold?: number | null
+          name: string
+          opening_balance?: number
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_default?: boolean
+          min_balance_threshold?: number | null
+          name?: string
+          opening_balance?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budget_settings: {
         Row: {
           alert_threshold: number
@@ -225,6 +263,7 @@ export type Database = {
       }
       recurring_rules: {
         Row: {
+          account_id: string | null
           amount: number
           category_id: string | null
           created_at: string | null
@@ -242,6 +281,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          account_id?: string | null
           amount: number
           category_id?: string | null
           created_at?: string | null
@@ -259,6 +299,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          account_id?: string | null
           amount?: number
           category_id?: string | null
           created_at?: string | null
@@ -277,6 +318,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "recurring_rules_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "recurring_rules_category_id_fkey"
             columns: ["category_id"]
             isOneToOne: false
@@ -294,6 +342,7 @@ export type Database = {
       }
       transactions: {
         Row: {
+          account_id: string | null
           amount: number
           category_id: string | null
           created_at: string | null
@@ -308,6 +357,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          account_id?: string | null
           amount: number
           category_id?: string | null
           created_at?: string | null
@@ -322,6 +372,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          account_id?: string | null
           amount?: number
           category_id?: string | null
           created_at?: string | null
@@ -336,6 +387,13 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "transactions_category_id_fkey"
             columns: ["category_id"]
