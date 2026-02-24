@@ -84,8 +84,9 @@ const Dashboard = () => {
 
       {/* Hero: Saldo conto */}
       {(() => {
+        const isMaster = !selectedAccountId;
         const isNegative = saldoConto !== null && saldoConto < 0;
-        const isBelowThreshold = saldoConto !== null && !isNegative && minThreshold > 0 && saldoConto < minThreshold;
+        const isBelowThreshold = saldoConto !== null && !isNegative && !isMaster && minThreshold > 0 && saldoConto < minThreshold;
         const heroColor = isNegative ? "text-destructive" : "text-foreground";
         const iconColor = isNegative ? "text-destructive" : isBelowThreshold ? "text-amber-500" : "text-accent";
         return (
@@ -96,7 +97,14 @@ const Dashboard = () => {
               ) : (
                 <Landmark className={`h-5 w-5 ${iconColor}`} />
               )}
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Saldo conto</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                {isMaster ? "Saldo Master" : "Saldo conto"}
+              </p>
+              {isMaster && (
+                <span className="text-[10px] text-muted-foreground" title="Vista aggregata di tutti i conti">
+                  (tutti i conti)
+                </span>
+              )}
               {isNegative && <Badge variant="destructive" className="text-[10px]">Negativo</Badge>}
               {isBelowThreshold && <Badge className="text-[10px] bg-amber-500/20 text-amber-600 border-amber-500/30">Sotto soglia</Badge>}
             </div>
@@ -104,7 +112,7 @@ const Dashboard = () => {
               {saldoConto !== null ? formatAmount(saldoConto) : "—"}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Saldo iniziale: {formatAmount(openingBalance)} • Netto periodo: {data ? formatAmount(data.balance) : "—"}
+              {isMaster ? "Saldo iniziale aggregato" : "Saldo iniziale"}: {formatAmount(openingBalance)} • Netto periodo: {data ? formatAmount(data.balance) : "—"}
             </p>
           </div>
         );
