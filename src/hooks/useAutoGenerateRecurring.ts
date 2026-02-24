@@ -75,7 +75,7 @@ export function useAutoGenerateRecurring(workspaceId: string = DEFAULT_WORKSPACE
           is_fixed: boolean;
           source: string;
           recurring_rule_id: string;
-          account_id: string | null;
+          account_id: string;
         }> = [];
 
         const ruleIds = eligible.map((r: any) => r.id);

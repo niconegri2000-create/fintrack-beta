@@ -14,7 +14,7 @@ export interface RecurringRow {
   category_id: string | null;
   interval_months: number;
   end_date: string | null;
-  account_id: string | null;
+  account_id: string;
 }
 
 export interface NewRecurring {
@@ -79,7 +79,7 @@ export function useCreateRecurring(workspaceId: string = DEFAULT_WORKSPACE_ID) {
 export function useUpdateRecurring(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...r }: { id: string; name: string; type: string; amount: number; category_id: string | null; day_of_month: number; interval_months: number; end_date: string | null; is_active: boolean; is_fixed: boolean; account_id?: string }) => {
+    mutationFn: async ({ id, ...r }: { id: string; name: string; type: string; amount: number; category_id: string | null; day_of_month: number; interval_months: number; end_date: string | null; is_active: boolean; is_fixed: boolean; account_id: string }) => {
       const { error } = await supabase.from("recurring_rules").update({
         name: r.name,
         type: r.type,
@@ -90,7 +90,7 @@ export function useUpdateRecurring(workspaceId: string = DEFAULT_WORKSPACE_ID) {
         end_date: r.end_date || null,
         is_active: r.is_active,
         is_fixed: r.is_fixed,
-        ...(r.account_id ? { account_id: r.account_id } : {}),
+        account_id: r.account_id,
       }).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
