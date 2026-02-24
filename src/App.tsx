@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
 import { DateRangeProvider } from "@/contexts/DateRangeContext";
+import { AccountProvider } from "@/contexts/AccountContext";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Transazioni from "./pages/Transazioni";
@@ -21,8 +22,9 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <PrivacyProvider>
-        <DateRangeProvider>
-          <TooltipProvider>
+        <AccountProvider>
+          <DateRangeProvider>
+            <TooltipProvider>
             <Toaster />
             <Sonner />
             <BrowserRouter>
@@ -38,8 +40,9 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
-          </TooltipProvider>
-        </DateRangeProvider>
+            </TooltipProvider>
+          </DateRangeProvider>
+        </AccountProvider>
       </PrivacyProvider>
     </ThemeProvider>
   </QueryClientProvider>

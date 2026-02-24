@@ -2,8 +2,13 @@ import { OpeningBalanceSection } from "./OpeningBalanceSection";
 import { MinBalanceThresholdSection } from "./MinBalanceThresholdSection";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff } from "lucide-react";
-import { useState, useCallback } from "react";
+import { Eye, EyeOff, Save } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { useAccountContext } from "@/contexts/AccountContext";
+import { useUpdateAccount } from "@/hooks/useAccounts";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 
 interface Alerts {
   belowThreshold: boolean;
@@ -119,31 +124,27 @@ export function AccountManagementSection() {
   );
 }
 
-/* Inline variants that reuse hook logic but render only the input row */
-import { useWorkspace, useUpdateWorkspace } from "@/hooks/useWorkspace";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
-import { Save } from "lucide-react";
-import { useEffect } from "react";
+/* Inline variants that use accounts table */
 
 function OpeningBalanceInline() {
   const [value, setValue] = useState("");
-  const { data: workspace } = useWorkspace();
-  const mutation = useUpdateWorkspace();
+  const { selectedAccount, accounts } = useAccountContext();
+  const account = selectedAccount ?? accounts.find((a) => a.is_default) ?? accounts[0];
+  const mutation = useUpdateAccount();
 
   useEffect(() => {
-    if (workspace) setValue(String(workspace.opening_balance ?? 0));
-  }, [workspace]);
+    if (account) setValue(String(account.opening_balance ?? 0));
+  }, [account]);
 
   const handleSave = () => {
+    if (!account) return;
     const num = parseFloat(value) || 0;
     if (num < 0) {
       toast({ title: "Il saldo iniziale non può essere negativo", variant: "destructive" });
       return;
     }
     mutation.mutate(
-      { opening_balance: num },
+      { id: account.id, opening_balance: num },
       {
         onSuccess: () => toast({ title: "Saldo iniziale aggiornato" }),
         onError: () => toast({ title: "Errore nel salvataggio", variant: "destructive" }),
@@ -167,21 +168,23 @@ function OpeningBalanceInline() {
 
 function ThresholdInline() {
   const [value, setValue] = useState("");
-  const { data: workspace } = useWorkspace();
-  const mutation = useUpdateWorkspace();
+  const { selectedAccount, accounts } = useAccountContext();
+  const account = selectedAccount ?? accounts.find((a) => a.is_default) ?? accounts[0];
+  const mutation = useUpdateAccount();
 
   useEffect(() => {
-    if (workspace) setValue(String(workspace.min_balance_threshold ?? 0));
-  }, [workspace]);
+    if (account) setValue(String(account.min_balance_threshold ?? 0));
+  }, [account]);
 
   const handleSave = () => {
+    if (!account) return;
     const num = parseFloat(value) || 0;
     if (num < 0) {
       toast({ title: "La soglia non può essere negativa", variant: "destructive" });
       return;
     }
     mutation.mutate(
-      { min_balance_threshold: num },
+      { id: account.id, min_balance_threshold: num },
       {
         onSuccess: () => toast({ title: "Soglia salvata correttamente" }),
         onError: () => toast({ title: "Errore nel salvataggio", variant: "destructive" }),

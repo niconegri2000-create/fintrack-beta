@@ -49,9 +49,13 @@ function countMonths(startDate: string, endDate: string): number {
   return (ey - sy) * 12 + (em - sm) + 1;
 }
 
+/**
+ * @param accountId — null = MASTER, string = filter
+ */
 export function useReport(
   range: DateRange,
   compareRange: DateRange | null,
+  accountId: string | null = null,
   workspaceId: string = DEFAULT_WORKSPACE_ID,
 ) {
   return useQuery({
@@ -59,10 +63,9 @@ export function useReport(
       "report",
       range.startDate, range.endDate,
       compareRange?.startDate ?? null, compareRange?.endDate ?? null,
-      workspaceId,
+      accountId, workspaceId,
     ],
     queryFn: async (): Promise<ReportData> => {
-      // determine full date span needed
       let earliest = range.startDate;
       let latest = range.endDate;
       if (compareRange) {
@@ -70,24 +73,24 @@ export function useReport(
         if (compareRange.endDate > latest) latest = compareRange.endDate;
       }
 
-      const { data, error } = await supabase
+      let q = supabase
         .from("transactions")
         .select("date, amount, type")
         .eq("workspace_id", workspaceId)
         .gte("date", earliest)
         .lte("date", latest);
+      if (accountId) q = q.eq("account_id", accountId);
+      const { data, error } = await q;
 
       if (error) throw error;
 
       const rows = (data ?? []) as { date: string; amount: number; type: string | null }[];
 
-      // period totals
       const periodRows = rows.filter((r) => r.date >= range.startDate && r.date <= range.endDate);
       const pTotals = sumByType(periodRows);
       const pSavings = pTotals.income - pTotals.expense;
       const monthCount = Math.max(countMonths(range.startDate, range.endDate), 1);
 
-      // compare totals (only if compareRange provided)
       let compare: ReportData["compare"] = null;
       let diff: ReportData["diff"] = null;
 

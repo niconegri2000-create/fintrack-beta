@@ -1,11 +1,13 @@
 import { useMemo } from "react";
 import { useRecurringRules } from "@/hooks/useRecurringRules";
+import { useAccountContext } from "@/contexts/AccountContext";
 import { RecurringTable } from "@/components/recurring/RecurringTable";
 import { RecurringFormDialog } from "@/components/recurring/RecurringFormDialog";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
 const Ricorrenti = () => {
-  const { data = [], isLoading } = useRecurringRules();
+  const { selectedAccountId } = useAccountContext();
+  const { data = [], isLoading } = useRecurringRules(selectedAccountId);
 
   const income = useMemo(() => data.filter((r) => r.type === "income"), [data]);
   const expense = useMemo(() => data.filter((r) => r.type === "expense"), [data]);

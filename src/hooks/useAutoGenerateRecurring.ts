@@ -42,7 +42,7 @@ export function useAutoGenerateRecurring(workspaceId: string = DEFAULT_WORKSPACE
         // 1. Fetch active rules with category
         const { data: rules, error: rErr } = await supabase
           .from("recurring_rules")
-          .select("id, name, type, amount, category_id, is_fixed, day_of_month, start_date, interval_months, end_date, category:categories(id, name, is_active)")
+          .select("id, name, type, amount, category_id, is_fixed, day_of_month, start_date, interval_months, end_date, account_id, category:categories(id, name, is_active)")
           .eq("workspace_id", workspaceId)
           .eq("is_active", true);
         if (rErr || !rules || rules.length === 0) return;
@@ -75,6 +75,7 @@ export function useAutoGenerateRecurring(workspaceId: string = DEFAULT_WORKSPACE
           is_fixed: boolean;
           source: string;
           recurring_rule_id: string;
+          account_id: string | null;
         }> = [];
 
         const ruleIds = eligible.map((r: any) => r.id);
@@ -134,6 +135,7 @@ export function useAutoGenerateRecurring(workspaceId: string = DEFAULT_WORKSPACE
                     is_fixed: rule.is_fixed,
                     source: "recurring_generated",
                     recurring_rule_id: rule.id,
+                    account_id: rule.account_id,
                   });
                 }
               }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useWorkspace, useUpdateWorkspace } from "@/hooks/useWorkspace";
+import { useAccountContext } from "@/contexts/AccountContext";
+import { useUpdateAccount } from "@/hooks/useAccounts";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -7,23 +8,25 @@ import { Save } from "lucide-react";
 
 export function MinBalanceThresholdSection() {
   const [value, setValue] = useState("");
-  const { data: workspace } = useWorkspace();
-  const mutation = useUpdateWorkspace();
+  const { selectedAccount, accounts } = useAccountContext();
+  const account = selectedAccount ?? accounts.find((a) => a.is_default) ?? accounts[0];
+  const mutation = useUpdateAccount();
 
   useEffect(() => {
-    if (workspace) {
-      setValue(String(workspace.min_balance_threshold ?? 0));
+    if (account) {
+      setValue(String(account.min_balance_threshold ?? 0));
     }
-  }, [workspace]);
+  }, [account]);
 
   const handleSave = () => {
+    if (!account) return;
     const num = parseFloat(value) || 0;
     if (num < 0) {
       toast({ title: "La soglia non può essere negativa", variant: "destructive" });
       return;
     }
     mutation.mutate(
-      { min_balance_threshold: num },
+      { id: account.id, min_balance_threshold: num },
       {
         onSuccess: () => toast({ title: "Soglia salvata correttamente" }),
         onError: () => toast({ title: "Errore nel salvataggio", variant: "destructive" }),

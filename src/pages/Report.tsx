@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { format, subYears, startOfMonth, endOfMonth } from "date-fns";
 import { it } from "date-fns/locale";
 import { useReport, type DateRange } from "@/hooks/useReport";
+import { useAccountContext } from "@/contexts/AccountContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   TrendingUp,
@@ -220,6 +221,7 @@ function getDefaults() {
 
 const Report = () => {
   const { formatAmount: fmtAmount, isPrivacy } = usePrivacy();
+  const { selectedAccountId } = useAccountContext();
 
   const defaults = useMemo(getDefaults, []);
 
@@ -318,7 +320,7 @@ const Report = () => {
   }, []);
 
   // ── Data ──
-  const { data, isLoading } = useReport(appliedA, appliedB);
+  const { data, isLoading } = useReport(appliedA, appliedB, selectedAccountId);
 
   // ── Loading ──
   if (isLoading || !data) {

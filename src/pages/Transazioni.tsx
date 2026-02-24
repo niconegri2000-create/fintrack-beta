@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useDateRange } from "@/contexts/DateRangeContext";
+import { useAccountContext } from "@/contexts/AccountContext";
 import { PeriodPicker } from "@/components/dashboard/PeriodPicker";
 import { TransactionsTable } from "@/components/transactions/TransactionsTable";
 import { TransactionFormDialog } from "@/components/transactions/TransactionFormDialog";
@@ -8,7 +9,8 @@ import { TrendingUp, TrendingDown } from "lucide-react";
 
 const Transazioni = () => {
   const { dateRange } = useDateRange();
-  const { data = [], isLoading } = useTransactions(dateRange.from, dateRange.to);
+  const { selectedAccountId } = useAccountContext();
+  const { data = [], isLoading } = useTransactions(dateRange.from, dateRange.to, selectedAccountId);
 
   const income = useMemo(() => data.filter((t) => t.type === "income"), [data]);
   const expense = useMemo(() => data.filter((t) => t.type === "expense"), [data]);

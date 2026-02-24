@@ -11,17 +11,22 @@ export interface DashboardData {
   byMonth: { month: string; income: number; expense: number }[];
 }
 
-export function useDashboardData(startDate: string, endDate: string, workspaceId: string = DEFAULT_WORKSPACE_ID) {
+/**
+ * @param accountId — null = MASTER (no filter), string = filter by account
+ */
+export function useDashboardData(startDate: string, endDate: string, accountId: string | null = null, workspaceId: string = DEFAULT_WORKSPACE_ID) {
   return useQuery({
-    queryKey: ["dashboard", startDate, endDate, workspaceId],
+    queryKey: ["dashboard", startDate, endDate, accountId, workspaceId],
     queryFn: async (): Promise<DashboardData> => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("transactions")
         .select("date, amount, type, category:categories(name)")
         .eq("workspace_id", workspaceId)
         .gte("date", startDate)
         .lte("date", endDate)
         .order("date", { ascending: true });
+      if (accountId) q = q.eq("account_id", accountId);
+      const { data, error } = await q;
 
       if (error) throw error;
 

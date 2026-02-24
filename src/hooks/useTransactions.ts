@@ -11,6 +11,7 @@ export interface TransactionRow {
   is_fixed: boolean;
   source: string;
   notes: string | null;
+  account_id: string | null;
   category: { id: string; name: string } | null;
 }
 
@@ -22,19 +23,25 @@ export interface NewTransaction {
   description: string;
   is_fixed: boolean;
   notes: string;
+  account_id: string;
 }
 
-export function useTransactions(from: string, to: string, workspaceId: string = DEFAULT_WORKSPACE_ID) {
+/**
+ * @param accountId — null = MASTER (no filter), string = filter by account
+ */
+export function useTransactions(from: string, to: string, accountId: string | null = null, workspaceId: string = DEFAULT_WORKSPACE_ID) {
   return useQuery({
-    queryKey: ["transactions", from, to, workspaceId],
+    queryKey: ["transactions", from, to, accountId, workspaceId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("transactions")
-        .select("id, date, description, amount, type, is_fixed, source, notes, category:categories(id, name)")
+        .select("id, date, description, amount, type, is_fixed, source, notes, account_id, category:categories(id, name)")
         .eq("workspace_id", workspaceId)
         .gte("date", from)
         .lte("date", to)
         .order("date", { ascending: false });
+      if (accountId) q = q.eq("account_id", accountId);
+      const { data, error } = await q;
       if (error) throw error;
       return data as unknown as TransactionRow[];
     },
@@ -56,6 +63,7 @@ export function useCreateTransaction(workspaceId: string = DEFAULT_WORKSPACE_ID)
         is_fixed: tx.is_fixed,
         notes: tx.notes || null,
         source: "manual",
+        account_id: tx.account_id,
       });
       if (error) throw error;
     },

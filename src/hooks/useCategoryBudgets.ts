@@ -86,17 +86,22 @@ export interface CategorySpending {
   total_spent: number;
 }
 
-export function useCategorySpending(startDate: string, endDate: string, workspaceId: string = DEFAULT_WORKSPACE_ID) {
+/**
+ * @param accountId — null = MASTER, string = filter
+ */
+export function useCategorySpending(startDate: string, endDate: string, accountId: string | null = null, workspaceId: string = DEFAULT_WORKSPACE_ID) {
   return useQuery({
-    queryKey: ["category_spending", workspaceId, startDate, endDate],
+    queryKey: ["category_spending", workspaceId, accountId, startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("transactions")
         .select("category_id, amount, source")
         .eq("workspace_id", workspaceId)
         .eq("type", "expense")
         .gte("date", startDate)
         .lte("date", endDate);
+      if (accountId) q = q.eq("account_id", accountId);
+      const { data, error } = await q;
       if (error) throw error;
 
       const map = new Map<string, number>();
@@ -127,9 +132,12 @@ export interface BudgetSummaryRow {
   status: BudgetStatus;
 }
 
-export function useBudgetSummary(startDate: string, endDate: string, workspaceId: string = DEFAULT_WORKSPACE_ID) {
+/**
+ * @param accountId — null = MASTER, string = filter
+ */
+export function useBudgetSummary(startDate: string, endDate: string, accountId: string | null = null, workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const { list } = useCategoryBudgets(workspaceId);
-  const spending = useCategorySpending(startDate, endDate, workspaceId);
+  const spending = useCategorySpending(startDate, endDate, accountId, workspaceId);
 
   const isLoading = list.isLoading || spending.isLoading;
   const error = list.error || spending.error;
