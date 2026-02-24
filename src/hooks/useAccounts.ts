@@ -42,6 +42,21 @@ export function useDefaultAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   return { data: defaultAccount, accounts, ...rest };
 }
 
+export function useCreateAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ name, is_default = false }: { name: string; is_default?: boolean }) => {
+      const { error } = await supabase
+        .from("accounts")
+        .insert({ workspace_id: workspaceId, name, is_default } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
+    },
+  });
+}
+
 export function useUpdateAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
   return useMutation({
