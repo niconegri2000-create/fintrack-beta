@@ -37,6 +37,7 @@ export function RecurringFormDialog() {
   const [name, setName] = useState("");
   const [type, setType] = useState("expense");
   const [amount, setAmount] = useState("");
+  const [accountId, setAccountId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [dayOfMonth, setDayOfMonth] = useState("1");
   const [intervalMonths, setIntervalMonths] = useState("1");
@@ -50,10 +51,17 @@ export function RecurringFormDialog() {
   const defaultAccount = accounts.find((a) => a.is_default) ?? accounts[0];
   const create = useCreateRecurring();
 
+  const resolvedDefault = selectedAccountId ?? defaultAccount?.id ?? "";
+  const handleOpenChange = (v: boolean) => {
+    if (v) setAccountId(resolvedDefault);
+    setOpen(v);
+  };
+
   const reset = () => {
     setName("");
     setType("expense");
     setAmount("");
+    setAccountId(resolvedDefault);
     setCategoryId("");
     setDayOfMonth("1");
     setIntervalMonths("1");
@@ -83,9 +91,8 @@ export function RecurringFormDialog() {
       return;
     }
 
-    const accountId = selectedAccountId ?? defaultAccount?.id;
     if (!accountId) {
-      toast.error("Nessun conto disponibile");
+      toast.error("Seleziona un conto");
       return;
     }
 
@@ -115,7 +122,7 @@ export function RecurringFormDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button size="sm" className="gap-1.5">
           <Plus className="h-4 w-4" />
@@ -130,6 +137,18 @@ export function RecurringFormDialog() {
           <div className="space-y-1.5">
             <Label>Nome</Label>
             <Input maxLength={100} value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Affitto" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Conto</Label>
+            <Select value={accountId} onValueChange={setAccountId}>
+              <SelectTrigger><SelectValue placeholder="Seleziona conto" /></SelectTrigger>
+              <SelectContent>
+                {accounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">

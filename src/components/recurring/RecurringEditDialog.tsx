@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/popover";
 import { useCategories } from "@/hooks/useCategories";
 import { useUpdateRecurring, RecurringRow } from "@/hooks/useRecurringRules";
+import { useAccountContext } from "@/contexts/AccountContext";
 import { toast } from "sonner";
 import { capitalizeFirst } from "@/lib/normalize";
 
@@ -40,6 +41,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
   const [name, setName] = useState(rule.name || "");
   const [type, setType] = useState(rule.type);
   const [amount, setAmount] = useState(String(rule.amount));
+  const [accountId, setAccountId] = useState(rule.account_id || "");
   const [categoryId, setCategoryId] = useState(rule.category?.id || "");
   const [dayOfMonth, setDayOfMonth] = useState(String(rule.day_of_month || 1));
   const [intervalMonths, setIntervalMonths] = useState(String(rule.interval_months));
@@ -48,6 +50,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
   const [endDate, setEndDate] = useState<Date | undefined>(rule.end_date ? new Date(rule.end_date) : undefined);
 
   const { data: categories = [] } = useCategories();
+  const { accounts } = useAccountContext();
   const update = useUpdateRecurring();
 
   useEffect(() => {
@@ -55,6 +58,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
       setName(rule.name || "");
       setType(rule.type);
       setAmount(String(rule.amount));
+      setAccountId(rule.account_id || "");
       setCategoryId(rule.category?.id || "");
       setDayOfMonth(String(rule.day_of_month || 1));
       setIntervalMonths(String(rule.interval_months));
@@ -70,6 +74,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
     if (!num || num <= 0) { toast.error("Importo deve essere maggiore di 0"); return; }
     const day = parseInt(dayOfMonth);
     if (isNaN(day) || day < 1 || day > 31) { toast.error("Giorno non valido (1–31)"); return; }
+    if (!accountId) { toast.error("Seleziona un conto"); return; }
 
     update.mutate(
       {
@@ -83,6 +88,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
         end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
         is_active: isActive,
         is_fixed: true,
+        account_id: accountId,
       },
       {
         onSuccess: () => { toast.success("Ricorrenza aggiornata"); onOpenChange(false); },
@@ -99,6 +105,18 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
           <div className="space-y-1.5">
             <Label>Nome</Label>
             <Input maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Conto</Label>
+            <Select value={accountId} onValueChange={setAccountId}>
+              <SelectTrigger><SelectValue placeholder="Seleziona conto" /></SelectTrigger>
+              <SelectContent>
+                {accounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">
