@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -13,6 +13,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { RecurringRow } from "@/hooks/useRecurringRules";
 import { capitalizeFirst } from "@/lib/normalize";
 import { usePrivacy } from "@/contexts/PrivacyContext";
+import { useAccountContext } from "@/contexts/AccountContext";
 import { RecurringEditDialog } from "./RecurringEditDialog";
 import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
 
@@ -23,6 +24,8 @@ interface Props {
 
 export function RecurringTable({ data, isLoading }: Props) {
   const { isPrivacy } = usePrivacy();
+  const { accounts, selectedAccountId } = useAccountContext();
+  const accountMap = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a.name])), [accounts]);
   const [editRule, setEditRule] = useState<RecurringRow | null>(null);
   const [deleteRuleId, setDeleteRuleId] = useState<string | null>(null);
 
@@ -56,6 +59,7 @@ export function RecurringTable({ data, isLoading }: Props) {
               <TableHead className="w-[120px]">Frequenza</TableHead>
               <TableHead className="w-[100px]">Fine</TableHead>
               <TableHead className="w-[80px] text-center">Attiva</TableHead>
+              {!selectedAccountId && <TableHead className="w-[110px]">Conto</TableHead>}
               <TableHead className="w-[80px] text-center">Azioni</TableHead>
             </TableRow>
           </TableHeader>
@@ -82,6 +86,9 @@ export function RecurringTable({ data, isLoading }: Props) {
                 <TableCell className="text-center">
                   <span className={`inline-block h-2 w-2 rounded-full ${r.is_active ? "bg-success" : "bg-muted-foreground"}`} />
                 </TableCell>
+                {!selectedAccountId && (
+                  <TableCell className="text-xs text-muted-foreground">{r.account_id ? accountMap[r.account_id] || "—" : "—"}</TableCell>
+                )}
                 <TableCell className="text-center">
                   <div className="flex items-center justify-center gap-1">
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditRule(r)}>
