@@ -24,9 +24,19 @@ const MONTH_LABELS: Record<string, string> = {
   "09": "Set", "10": "Ott", "11": "Nov", "12": "Dic",
 };
 
-export function useForecast(baseMonth: string, horizonMonths: number = 6, workspaceId: string = DEFAULT_WORKSPACE_ID) {
+/**
+ * @param accountId — null = MASTER, string = filter
+ * @param openingBalance — pre-computed from AccountContext
+ */
+export function useForecast(
+  baseMonth: string,
+  horizonMonths: number = 6,
+  accountId: string | null = null,
+  openingBalance: number = 0,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+) {
   return useQuery({
-    queryKey: ["forecast", baseMonth, horizonMonths, workspaceId],
+    queryKey: ["forecast", baseMonth, horizonMonths, accountId, openingBalance, workspaceId],
     queryFn: async (): Promise<ForecastResult> => {
       const [baseY, baseM] = baseMonth.split("-").map(Number);
 
@@ -34,12 +44,14 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6, worksp
       const lastDay = new Date(baseY, baseM, 0).getDate();
       const endDate = `${baseMonth}-${String(lastDay).padStart(2, "0")}`;
 
-      const { data: txns, error: tErr } = await supabase
+      let txQ = supabase
         .from("transactions")
         .select("amount, type")
         .eq("workspace_id", workspaceId)
         .gte("date", startDate)
         .lte("date", endDate);
+      if (accountId) txQ = txQ.eq("account_id", accountId);
+      const { data: txns, error: tErr } = await txQ;
       if (tErr) throw tErr;
 
       let baseIncome = 0;
@@ -50,11 +62,13 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6, worksp
         else baseExpense += amt;
       }
 
-      const { data: rules, error: rErr } = await supabase
+      let rulesQ = supabase
         .from("recurring_rules")
         .select("id, name, type, amount, category_id, day_of_month, start_date, interval_months, end_date, category:categories(name, is_active)")
         .eq("workspace_id", workspaceId)
         .eq("is_active", true);
+      if (accountId) rulesQ = rulesQ.eq("account_id", accountId);
+      const { data: rules, error: rErr } = await rulesQ;
       if (rErr) throw rErr;
 
       const monthlyResults: ForecastMonth[] = [];
@@ -101,15 +115,6 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6, worksp
 
         monthlyResults.push({ month: monthKey, label, income, expense, balance: income - expense, warnings: [...new Set(warnings)] });
       }
-
-      // Fetch opening_balance for this workspace
-      const { data: ws, error: wErr } = await supabase
-        .from("workspaces")
-        .select("opening_balance")
-        .eq("id", workspaceId)
-        .single();
-      if (wErr) throw wErr;
-      const openingBalance = Number((ws as any)?.opening_balance ?? 0);
 
       let cumulative = openingBalance;
       for (const fm of monthlyResults) {

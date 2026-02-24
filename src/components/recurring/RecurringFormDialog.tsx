@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/popover";
 import { useCategories } from "@/hooks/useCategories";
 import { useCreateRecurring } from "@/hooks/useRecurringRules";
+import { useAccountContext } from "@/contexts/AccountContext";
 import { toast } from "sonner";
 import { capitalizeFirst } from "@/lib/normalize";
 
@@ -45,6 +46,8 @@ export function RecurringFormDialog() {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   const { data: categories = [] } = useCategories();
+  const { selectedAccountId, accounts } = useAccountContext();
+  const defaultAccount = accounts.find((a) => a.is_default) ?? accounts[0];
   const create = useCreateRecurring();
 
   const reset = () => {
@@ -80,6 +83,12 @@ export function RecurringFormDialog() {
       return;
     }
 
+    const accountId = selectedAccountId ?? defaultAccount?.id;
+    if (!accountId) {
+      toast.error("Nessun conto disponibile");
+      return;
+    }
+
     create.mutate(
       {
         name: capitalizeFirst(name),
@@ -92,6 +101,7 @@ export function RecurringFormDialog() {
         is_active: isActive,
         interval_months: parseInt(intervalMonths) || 1,
         end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
+        account_id: accountId,
       },
       {
         onSuccess: () => {

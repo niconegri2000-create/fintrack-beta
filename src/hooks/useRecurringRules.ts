@@ -14,6 +14,7 @@ export interface RecurringRow {
   category_id: string | null;
   interval_months: number;
   end_date: string | null;
+  account_id: string | null;
 }
 
 export interface NewRecurring {
@@ -27,17 +28,23 @@ export interface NewRecurring {
   is_active: boolean;
   interval_months: number;
   end_date: string | null;
+  account_id: string;
 }
 
-export function useRecurringRules(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+/**
+ * @param accountId — null = MASTER (no filter), string = filter by account
+ */
+export function useRecurringRules(accountId: string | null = null, workspaceId: string = DEFAULT_WORKSPACE_ID) {
   return useQuery({
-    queryKey: ["recurring_rules", workspaceId],
+    queryKey: ["recurring_rules", accountId, workspaceId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("recurring_rules")
-        .select("id, name, type, amount, day_of_month, is_fixed, is_active, category_id, interval_months, end_date, category:categories(id, name)")
+        .select("id, name, type, amount, day_of_month, is_fixed, is_active, category_id, interval_months, end_date, account_id, category:categories(id, name)")
         .eq("workspace_id", workspaceId)
         .order("name");
+      if (accountId) q = q.eq("account_id", accountId);
+      const { data, error } = await q;
       if (error) throw error;
       return data as unknown as RecurringRow[];
     },
@@ -61,6 +68,7 @@ export function useCreateRecurring(workspaceId: string = DEFAULT_WORKSPACE_ID) {
         frequency: "monthly",
         interval_months: r.interval_months,
         end_date: r.end_date || null,
+        account_id: r.account_id,
       });
       if (error) throw error;
     },

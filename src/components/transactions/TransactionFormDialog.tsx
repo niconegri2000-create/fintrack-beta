@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/popover";
 import { useCategories } from "@/hooks/useCategories";
 import { useCreateTransaction } from "@/hooks/useTransactions";
+import { useAccountContext } from "@/contexts/AccountContext";
 import { toast } from "sonner";
 import { capitalizeFirst } from "@/lib/normalize";
 
@@ -42,6 +43,8 @@ export function TransactionFormDialog() {
   const [notes, setNotes] = useState("");
 
   const { data: categories = [] } = useCategories();
+  const { selectedAccountId, accounts } = useAccountContext();
+  const defaultAccount = accounts.find((a) => a.is_default) ?? accounts[0];
   const createTx = useCreateTransaction();
 
   const resetForm = () => {
@@ -61,6 +64,12 @@ export function TransactionFormDialog() {
       return;
     }
 
+    const accountId = selectedAccountId ?? defaultAccount?.id;
+    if (!accountId) {
+      toast.error("Nessun conto disponibile");
+      return;
+    }
+
     createTx.mutate(
       {
         date: format(date, "yyyy-MM-dd"),
@@ -70,6 +79,7 @@ export function TransactionFormDialog() {
         description: capitalizeFirst(description),
         is_fixed: false,
         notes,
+        account_id: accountId,
       },
       {
         onSuccess: () => {

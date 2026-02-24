@@ -5,6 +5,7 @@ import {
 } from "recharts";
 import { PeriodPicker } from "@/components/dashboard/PeriodPicker";
 import { useDateRange } from "@/contexts/DateRangeContext";
+import { useAccountContext } from "@/contexts/AccountContext";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useBudgetSummary, type BudgetSummaryRow } from "@/hooks/useCategoryBudgets";
 import { useForecast } from "@/hooks/useForecast";
@@ -28,28 +29,30 @@ const PIE_COLORS = [
 
 const Dashboard = () => {
   const { dateRange } = useDateRange();
-  const { data, isLoading } = useDashboardData(dateRange.from, dateRange.to);
+  const { selectedAccountId, openingBalance, minBalanceThreshold } = useAccountContext();
+  const { data, isLoading } = useDashboardData(dateRange.from, dateRange.to, selectedAccountId);
 
   // Budget always on the month of "from"
   const budgetMonthStart = format(startOfMonth(new Date(dateRange.from)), "yyyy-MM-dd");
   const budgetMonthEnd = format(endOfMonth(new Date(dateRange.from)), "yyyy-MM-dd");
-  const { data: budgetRows } = useBudgetSummary(budgetMonthStart, budgetMonthEnd);
+  const { data: budgetRows } = useBudgetSummary(budgetMonthStart, budgetMonthEnd, selectedAccountId);
 
   const { data: workspace } = useWorkspace();
   const updateWorkspace = useUpdateWorkspace();
   const { formatAmount, isPrivacy, renderSensitiveChart } = usePrivacy();
 
-  const openingBalance = workspace?.opening_balance ?? 0;
-  const minThreshold = workspace?.min_balance_threshold ?? 0;
   const forecastHorizon = workspace?.forecast_horizon_months ?? 6;
 
   const currentMonth = dateRange.from.slice(0, 7);
-  const { data: forecastResult, isLoading: forecastLoading } = useForecast(currentMonth, forecastHorizon);
+  const { data: forecastResult, isLoading: forecastLoading } = useForecast(
+    currentMonth, forecastHorizon, selectedAccountId, openingBalance,
+  );
 
   const budgetMap = new Map<string, BudgetSummaryRow>();
   for (const b of budgetRows) budgetMap.set(b.category_name, b);
 
   const saldoConto = data ? openingBalance + data.balance : null;
+  const minThreshold = minBalanceThreshold;
 
   const kpis = [
     { label: "Entrate", value: data ? formatAmount(data.income) : "—", icon: TrendingUp, accent: "text-accent" },
@@ -78,7 +81,7 @@ const Dashboard = () => {
       {/* Hero: Saldo conto */}
       {(() => {
         const isNegative = saldoConto !== null && saldoConto < 0;
-        const isBelowThreshold = saldoConto !== null && !isNegative && saldoConto < minThreshold;
+        const isBelowThreshold = saldoConto !== null && !isNegative && minThreshold > 0 && saldoConto < minThreshold;
         const heroColor = isNegative ? "text-destructive" : "text-foreground";
         const iconColor = isNegative ? "text-destructive" : isBelowThreshold ? "text-amber-500" : "text-accent";
         return (
