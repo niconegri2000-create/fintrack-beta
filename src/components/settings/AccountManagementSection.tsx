@@ -2,13 +2,20 @@ import { OpeningBalanceSection } from "./OpeningBalanceSection";
 import { MinBalanceThresholdSection } from "./MinBalanceThresholdSection";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Save } from "lucide-react";
+import { Eye, EyeOff, Save, Check, Pencil } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
 import { useAccountContext } from "@/contexts/AccountContext";
-import { useUpdateAccount } from "@/hooks/useAccounts";
+import { useUpdateAccount, useCreateAccount } from "@/hooks/useAccounts";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Alerts {
   belowThreshold: boolean;
@@ -16,6 +23,7 @@ interface Alerts {
 }
 
 const STORAGE_KEY = "account_management_prefs";
+const MAX_ACCOUNTS = 5;
 
 function loadPrefs(): { privacyMode: boolean; alerts: Alerts } {
   try {
@@ -27,6 +35,8 @@ function loadPrefs(): { privacyMode: boolean; alerts: Alerts } {
 
 export function AccountManagementSection() {
   const [prefs, setPrefs] = useState(loadPrefs);
+  const { accounts, setSelectedAccountId, selectedAccountId } = useAccountContext();
+  const createAccount = useCreateAccount();
 
   const persist = useCallback((next: typeof prefs) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -37,16 +47,77 @@ export function AccountManagementSection() {
     persist({ ...prefs, alerts: { ...prefs.alerts, [key]: !prefs.alerts[key] } });
   };
 
+  const handleCountChange = async (newCount: string) => {
+    const target = parseInt(newCount, 10);
+    const current = accounts.length;
+    if (target <= current) {
+      toast({
+        title: "Nota",
+        description: "Ridurre il numero non elimina i conti esistenti. Puoi rinominarli o lasciarli inutilizzati.",
+      });
+      return;
+    }
+    // Create missing accounts
+    for (let i = current + 1; i <= target; i++) {
+      await createAccount.mutateAsync({ name: `Conto ${i}`, is_default: false });
+    }
+    toast({ title: `${target - current} conto/i creato/i` });
+  };
+
+  // If selected account no longer in visible list, fallback
+  useEffect(() => {
+    if (selectedAccountId && !accounts.some((a) => a.id === selectedAccountId)) {
+      setSelectedAccountId(null);
+    }
+  }, [accounts, selectedAccountId, setSelectedAccountId]);
+
   return (
     <div className="rounded-xl border bg-card p-6 space-y-6">
       <div>
-        <h2 className="text-base font-semibold">Gestione conto</h2>
+        <h2 className="text-base font-semibold">Gestione conti</h2>
         <p className="text-muted-foreground text-sm">
-          Configura come viene calcolato e monitorato il tuo saldo.
+          Configura i tuoi conti e come vengono monitorati.
         </p>
       </div>
 
-      {/* Saldo iniziale — embedded */}
+      {/* Numero conti */}
+      <div className="space-y-3">
+        <div>
+          <p className="text-sm font-medium">Numero di conti</p>
+          <p className="text-muted-foreground text-xs">
+            Scegli quanti conti gestire (max {MAX_ACCOUNTS}). Il Conto Master è una vista aggregata e non conta.
+          </p>
+        </div>
+        <Select value={String(accounts.length)} onValueChange={handleCountChange}>
+          <SelectTrigger className="w-24">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Array.from({ length: MAX_ACCOUNTS }, (_, i) => i + 1).map((n) => (
+              <SelectItem key={n} value={String(n)} disabled={n < accounts.length}>
+                {n}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Lista conti con rename */}
+      <div className="space-y-3">
+        <div>
+          <p className="text-sm font-medium">Nomi conti</p>
+          <p className="text-muted-foreground text-xs">
+            Rinomina i conti esistenti. Il primo conto è quello predefinito.
+          </p>
+        </div>
+        <div className="space-y-2">
+          {accounts.map((account) => (
+            <AccountRenameRow key={account.id} accountId={account.id} currentName={account.name} isDefault={account.is_default} />
+          ))}
+        </div>
+      </div>
+
+      {/* Saldo iniziale — per conto selezionato o default */}
       <div className="space-y-3">
         <div>
           <p className="text-sm font-medium">Saldo iniziale</p>
@@ -57,7 +128,7 @@ export function AccountManagementSection() {
         <OpeningBalanceInline />
       </div>
 
-      {/* Soglia minima — embedded */}
+      {/* Soglia minima */}
       <div className="space-y-3">
         <div>
           <p className="text-sm font-medium">Soglia minima conto</p>
@@ -120,6 +191,67 @@ export function AccountManagementSection() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* --- Account rename row --- */
+
+function AccountRenameRow({ accountId, currentName, isDefault }: { accountId: string; currentName: string; isDefault: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(currentName);
+  const mutation = useUpdateAccount();
+
+  useEffect(() => { setName(currentName); }, [currentName]);
+
+  const handleSave = () => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      toast({ title: "Il nome non può essere vuoto", variant: "destructive" });
+      setName(currentName);
+      setEditing(false);
+      return;
+    }
+    if (trimmed === currentName) {
+      setEditing(false);
+      return;
+    }
+    mutation.mutate(
+      { id: accountId, name: trimmed },
+      {
+        onSuccess: () => {
+          toast({ title: "Nome aggiornato" });
+          setEditing(false);
+        },
+        onError: () => toast({ title: "Errore nel salvataggio", variant: "destructive" }),
+      }
+    );
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      {editing ? (
+        <>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="h-9 flex-1 max-w-[200px]"
+            autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") { setName(currentName); setEditing(false); } }}
+          />
+          <Button size="sm" variant="ghost" onClick={handleSave} disabled={mutation.isPending}>
+            <Check className="h-4 w-4" />
+          </Button>
+        </>
+      ) : (
+        <>
+          <span className="text-sm flex-1">{currentName}</span>
+          {isDefault && <span className="text-[10px] text-muted-foreground uppercase tracking-wide">default</span>}
+          <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+        </>
+      )}
     </div>
   );
 }
