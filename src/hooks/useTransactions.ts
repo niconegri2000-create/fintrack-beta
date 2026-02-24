@@ -11,7 +11,7 @@ export interface TransactionRow {
   is_fixed: boolean;
   source: string;
   notes: string | null;
-  account_id: string | null;
+  account_id: string;
   category: { id: string; name: string } | null;
 }
 
@@ -77,7 +77,7 @@ export function useCreateTransaction(workspaceId: string = DEFAULT_WORKSPACE_ID)
 export function useUpdateTransaction(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...tx }: { id: string; date: string; type: string; amount: number; category_id: string | null; description: string; notes: string; account_id?: string }) => {
+    mutationFn: async ({ id, ...tx }: { id: string; date: string; type: string; amount: number; category_id: string | null; description: string; notes: string; account_id: string }) => {
       const { error } = await supabase.from("transactions").update({
         date: tx.date,
         type: tx.type,
@@ -85,7 +85,7 @@ export function useUpdateTransaction(workspaceId: string = DEFAULT_WORKSPACE_ID)
         category_id: tx.category_id || null,
         description: tx.description || null,
         notes: tx.notes || null,
-        ...(tx.account_id ? { account_id: tx.account_id } : {}),
+        account_id: tx.account_id,
       }).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
