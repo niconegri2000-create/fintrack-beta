@@ -4,6 +4,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { PeriodPicker } from "@/components/dashboard/PeriodPicker";
+import { AccountSwitcher } from "@/components/dashboard/AccountSwitcher";
 import { useDateRange } from "@/contexts/DateRangeContext";
 import { useAccountContext } from "@/contexts/AccountContext";
 import { useDashboardData } from "@/hooks/useDashboardData";
@@ -75,7 +76,10 @@ const Dashboard = () => {
             Panoramica delle tue finanze personali
           </p>
         </div>
-        <PeriodPicker />
+        <div className="flex items-center gap-2">
+          <AccountSwitcher />
+          <PeriodPicker />
+        </div>
       </div>
 
       {/* Hero: Saldo conto */}
