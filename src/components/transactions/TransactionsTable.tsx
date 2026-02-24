@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -13,6 +13,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { TransactionRow } from "@/hooks/useTransactions";
 import { capitalizeFirst } from "@/lib/normalize";
 import { usePrivacy } from "@/contexts/PrivacyContext";
+import { useAccountContext } from "@/contexts/AccountContext";
 import { TransactionEditDialog } from "./TransactionEditDialog";
 import { TransactionDeleteDialog } from "./TransactionDeleteDialog";
 
@@ -23,6 +24,8 @@ interface Props {
 
 export function TransactionsTable({ data, isLoading }: Props) {
   const { formatAmount, isPrivacy } = usePrivacy();
+  const { accounts, selectedAccountId } = useAccountContext();
+  const accountMap = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a.name])), [accounts]);
   const [editTx, setEditTx] = useState<TransactionRow | null>(null);
   const [deleteTxId, setDeleteTxId] = useState<string | null>(null);
 
@@ -54,6 +57,7 @@ export function TransactionsTable({ data, isLoading }: Props) {
               <TableHead className="w-[90px]">Tipo</TableHead>
               <TableHead className="text-right w-[110px]">Importo</TableHead>
               <TableHead className="w-[70px] text-center">Fisso</TableHead>
+              {!selectedAccountId && <TableHead className="w-[110px]">Conto</TableHead>}
               <TableHead className="w-[90px]">Fonte</TableHead>
               <TableHead className="w-[80px] text-center">Azioni</TableHead>
             </TableRow>
@@ -73,6 +77,9 @@ export function TransactionsTable({ data, isLoading }: Props) {
                   {isPrivacy ? "••••" : `${tx.type === "income" ? "+" : "−"}€${tx.amount.toFixed(2)}`}
                 </TableCell>
                 <TableCell className="text-center text-xs text-muted-foreground">{tx.is_fixed ? "Sì" : "No"}</TableCell>
+                {!selectedAccountId && (
+                  <TableCell className="text-xs text-muted-foreground">{tx.account_id ? accountMap[tx.account_id] || "—" : "—"}</TableCell>
+                )}
                 <TableCell className="text-xs text-muted-foreground capitalize">
                   {tx.source === "manual" ? "Manuale" : tx.source === "recurring_generated" ? "Ricorrente" : tx.source}
                 </TableCell>
