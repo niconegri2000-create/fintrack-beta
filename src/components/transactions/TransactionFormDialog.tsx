@@ -38,6 +38,7 @@ export function TransactionFormDialog() {
   const [date, setDate] = useState<Date>(new Date());
   const [type, setType] = useState<string>("expense");
   const [amount, setAmount] = useState("");
+  const [accountId, setAccountId] = useState<string>("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
@@ -47,13 +48,20 @@ export function TransactionFormDialog() {
   const defaultAccount = accounts.find((a) => a.is_default) ?? accounts[0];
   const createTx = useCreateTransaction();
 
+  // Set default accountId when dialog opens
+  const resolvedDefault = selectedAccountId ?? defaultAccount?.id ?? "";
+  const handleOpenChange = (v: boolean) => {
+    if (v) setAccountId(resolvedDefault);
+    setOpen(v);
+  };
+
   const resetForm = () => {
     setDate(new Date());
     setType("expense");
     setAmount("");
+    setAccountId(resolvedDefault);
     setCategoryId("");
     setDescription("");
-    setNotes("");
     setNotes("");
   };
 
@@ -64,9 +72,8 @@ export function TransactionFormDialog() {
       return;
     }
 
-    const accountId = selectedAccountId ?? defaultAccount?.id;
     if (!accountId) {
-      toast.error("Nessun conto disponibile");
+      toast.error("Seleziona un conto");
       return;
     }
 
@@ -95,7 +102,7 @@ export function TransactionFormDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button size="sm" className="gap-1.5">
           <Plus className="h-4 w-4" />
@@ -133,6 +140,21 @@ export function TransactionFormDialog() {
                 />
               </PopoverContent>
             </Popover>
+          </div>
+
+          {/* Account */}
+          <div className="space-y-1.5">
+            <Label>Conto</Label>
+            <Select value={accountId} onValueChange={setAccountId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona conto" />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Type */}

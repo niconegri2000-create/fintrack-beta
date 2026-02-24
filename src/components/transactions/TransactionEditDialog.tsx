@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/popover";
 import { useCategories } from "@/hooks/useCategories";
 import { useUpdateTransaction, TransactionRow } from "@/hooks/useTransactions";
+import { useAccountContext } from "@/contexts/AccountContext";
 import { toast } from "sonner";
 import { capitalizeFirst } from "@/lib/normalize";
 
@@ -40,11 +41,13 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
   const [date, setDate] = useState<Date>(new Date(transaction.date));
   const [type, setType] = useState(transaction.type);
   const [amount, setAmount] = useState(String(transaction.amount));
+  const [accountId, setAccountId] = useState(transaction.account_id || "");
   const [categoryId, setCategoryId] = useState(transaction.category?.id || "");
   const [description, setDescription] = useState(transaction.description || "");
   const [notes, setNotes] = useState(transaction.notes || "");
 
   const { data: categories = [] } = useCategories();
+  const { accounts } = useAccountContext();
   const update = useUpdateTransaction();
 
   useEffect(() => {
@@ -52,6 +55,7 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
       setDate(new Date(transaction.date));
       setType(transaction.type);
       setAmount(String(transaction.amount));
+      setAccountId(transaction.account_id || "");
       setCategoryId(transaction.category?.id || "");
       setDescription(transaction.description || "");
       setNotes(transaction.notes || "");
@@ -64,6 +68,10 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
       toast.error("Importo deve essere maggiore di 0");
       return;
     }
+    if (!accountId) {
+      toast.error("Seleziona un conto");
+      return;
+    }
 
     update.mutate(
       {
@@ -74,6 +82,7 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
         category_id: categoryId || null,
         description: capitalizeFirst(description),
         notes,
+        account_id: accountId,
       },
       {
         onSuccess: () => {
@@ -105,6 +114,18 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
                 <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus className="p-3 pointer-events-auto" />
               </PopoverContent>
             </Popover>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Conto</Label>
+            <Select value={accountId} onValueChange={setAccountId}>
+              <SelectTrigger><SelectValue placeholder="Seleziona conto" /></SelectTrigger>
+              <SelectContent>
+                {accounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">
