@@ -263,7 +263,7 @@ export type Database = {
       }
       recurring_rules: {
         Row: {
-          account_id: string | null
+          account_id: string
           amount: number
           category_id: string | null
           created_at: string | null
@@ -281,7 +281,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
-          account_id?: string | null
+          account_id: string
           amount: number
           category_id?: string | null
           created_at?: string | null
@@ -299,7 +299,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
-          account_id?: string | null
+          account_id?: string
           amount?: number
           category_id?: string | null
           created_at?: string | null
@@ -342,7 +342,7 @@ export type Database = {
       }
       transactions: {
         Row: {
-          account_id: string | null
+          account_id: string
           amount: number
           category_id: string | null
           created_at: string | null
@@ -357,7 +357,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
-          account_id?: string | null
+          account_id: string
           amount: number
           category_id?: string | null
           created_at?: string | null
@@ -372,7 +372,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
-          account_id?: string | null
+          account_id?: string
           amount?: number
           category_id?: string | null
           created_at?: string | null
