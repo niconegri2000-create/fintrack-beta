@@ -128,6 +128,17 @@ export function AccountManagementSection() {
         <OpeningBalanceInline />
       </div>
 
+      {/* Conto predefinito all'avvio */}
+      <div className="space-y-3">
+        <div>
+          <p className="text-sm font-medium">Conto predefinito all'avvio</p>
+          <p className="text-muted-foreground text-xs">
+            Se non selezioni nulla, verrà usato Conto Master. Se invece hai già selezionato un conto di recente, l'app manterrà l'ultimo conto usato.
+          </p>
+        </div>
+        <DefaultStartupAccountPicker />
+      </div>
+
       {/* Soglia minima */}
       <div className="space-y-3">
         <div>
@@ -335,5 +346,38 @@ function ThresholdInline() {
         Salva
       </Button>
     </div>
+  );
+}
+
+const DEFAULT_STARTUP_KEY = "fintrack_default_startup_account";
+
+function DefaultStartupAccountPicker() {
+  const { accounts } = useAccountContext();
+  const [value, setValue] = useState(() => {
+    try {
+      return localStorage.getItem(DEFAULT_STARTUP_KEY) || "MASTER";
+    } catch {
+      return "MASTER";
+    }
+  });
+
+  const handleChange = (v: string) => {
+    setValue(v);
+    localStorage.setItem(DEFAULT_STARTUP_KEY, v);
+    toast({ title: "Preferenza salvata" });
+  };
+
+  return (
+    <Select value={value} onValueChange={handleChange}>
+      <SelectTrigger className="w-48">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="MASTER">Conto Master</SelectItem>
+        {accounts.map((a) => (
+          <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

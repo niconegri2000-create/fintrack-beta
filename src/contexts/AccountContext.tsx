@@ -22,11 +22,22 @@ interface AccountContextValue {
 const AccountContext = createContext<AccountContextValue | undefined>(undefined);
 
 const STORAGE_PREFIX = "selected_account_";
+const DEFAULT_STARTUP_KEY = "fintrack_default_startup_account";
 
 function loadStoredAccountId(workspaceId: string): SelectedAccountId {
   try {
     const raw = localStorage.getItem(STORAGE_PREFIX + workspaceId);
     if (raw === "MASTER" || raw === null) return null;
+    return raw;
+  } catch {
+    return null;
+  }
+}
+
+function loadDefaultStartupAccountId(): SelectedAccountId {
+  try {
+    const raw = localStorage.getItem(DEFAULT_STARTUP_KEY);
+    if (!raw || raw === "MASTER") return null;
     return raw;
   } catch {
     return null;
@@ -43,13 +54,42 @@ export function AccountProvider({ children, workspaceId = DEFAULT_WORKSPACE_ID }
   const { data: accounts = [], isLoading } = useAccounts(workspaceId);
   const [selectedAccountId, setSelectedAccountIdRaw] = useState<SelectedAccountId>(() => loadStoredAccountId(workspaceId));
 
-  // Validate: if stored account no longer exists, fallback to MASTER
+  // On first load: if no lastSelected, apply default startup preference
+  // Also validate stored account still exists
   useEffect(() => {
-    if (!isLoading && accounts.length > 0 && selectedAccountId !== null) {
+    if (isLoading || accounts.length === 0) return;
+
+    // Check if current selection is valid
+    if (selectedAccountId !== null) {
       const exists = accounts.some((a) => a.id === selectedAccountId);
       if (!exists) {
-        setSelectedAccountIdRaw(null);
-        saveStoredAccountId(workspaceId, null);
+        // Try default startup fallback
+        const defaultId = loadDefaultStartupAccountId();
+        const defaultValid = defaultId !== null && accounts.some((a) => a.id === defaultId);
+        const resolved = defaultValid ? defaultId : null;
+        setSelectedAccountIdRaw(resolved);
+        saveStoredAccountId(workspaceId, resolved);
+        // Clean up invalid default
+        if (defaultId !== null && !defaultValid) {
+          localStorage.setItem(DEFAULT_STARTUP_KEY, "MASTER");
+        }
+      }
+      return;
+    }
+
+    // selectedAccountId is null — check if we have a stored lastSelected
+    const storedRaw = localStorage.getItem(STORAGE_PREFIX + workspaceId);
+    if (storedRaw !== null) return; // Explicit MASTER choice, keep it
+
+    // No stored selection at all → apply default startup
+    const defaultId = loadDefaultStartupAccountId();
+    if (defaultId !== null) {
+      const exists = accounts.some((a) => a.id === defaultId);
+      if (exists) {
+        setSelectedAccountIdRaw(defaultId);
+        saveStoredAccountId(workspaceId, defaultId);
+      } else {
+        localStorage.setItem(DEFAULT_STARTUP_KEY, "MASTER");
       }
     }
   }, [accounts, isLoading, selectedAccountId, workspaceId]);
