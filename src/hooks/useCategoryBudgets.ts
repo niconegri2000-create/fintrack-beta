@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
+import { getLimits } from "@/lib/categoryBudgets";
 
 export interface CategoryBudget {
   id: string;
@@ -136,31 +137,49 @@ export interface BudgetSummaryRow {
  * @param accountId — null = MASTER, string = filter
  */
 export function useBudgetSummary(startDate: string, endDate: string, accountId: string | null = null, workspaceId: string = DEFAULT_WORKSPACE_ID) {
-  const { list } = useCategoryBudgets(workspaceId);
   const spending = useCategorySpending(startDate, endDate, accountId, workspaceId);
 
-  const isLoading = list.isLoading || spending.isLoading;
-  const error = list.error || spending.error;
+  // Fetch category names for display
+  const categoriesQuery = useQuery({
+    queryKey: ["categories_names", workspaceId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name")
+        .eq("workspace_id", workspaceId);
+      if (error) throw error;
+      return new Map((data ?? []).map((c) => [c.id, c.name]));
+    },
+  });
+
+  const isLoading = spending.isLoading || categoriesQuery.isLoading;
+  const error = spending.error || categoriesQuery.error;
 
   const rows: BudgetSummaryRow[] = [];
 
-  if (list.data && spending.data) {
+  if (spending.data && categoriesQuery.data) {
+    const limitsMap = getLimits(accountId);
+    const catNames = categoriesQuery.data;
     const spendMap = new Map<string, number>();
     for (const s of spending.data) spendMap.set(s.category_id, s.total_spent);
 
-    for (const b of list.data) {
-      if (!b.is_active) continue;
-      const spent = spendMap.get(b.category_id) ?? 0;
-      const percent = b.monthly_limit > 0 ? spent / b.monthly_limit : null;
+    // Show categories that have a budget limit set
+    const allCatIds = new Set([...limitsMap.keys(), ...spendMap.keys()]);
+
+    for (const catId of allCatIds) {
+      const limit = limitsMap.get(catId) ?? 0;
+      if (limit <= 0) continue;
+      const spent = spendMap.get(catId) ?? 0;
+      const percent = limit > 0 ? spent / limit : null;
       let status: BudgetStatus = "ok";
       if (percent !== null) {
         if (percent > 1) status = "over";
         else if (percent >= 0.8) status = "warn";
       }
       rows.push({
-        category_id: b.category_id,
-        category_name: b.category_name,
-        monthly_limit: b.monthly_limit,
+        category_id: catId,
+        category_name: catNames.get(catId) ?? "—",
+        monthly_limit: limit,
         spent,
         percent,
         status,
