@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { resolveActiveAccounts, getActiveAccountIds } from "@/lib/activeAccounts";
 
 interface Alerts {
   belowThreshold: boolean;
@@ -21,7 +22,8 @@ interface Alerts {
 }
 
 const STORAGE_KEY = "account_management_prefs";
-const MAX_ACCOUNTS = 5;
+const MAX_ACCOUNTS = 20;
+const DEFAULT_STARTUP_KEY = "fintrack_default_startup_account";
 
 function loadPrefs(): { privacyMode: boolean; alerts: Alerts } {
   try {
@@ -33,8 +35,12 @@ function loadPrefs(): { privacyMode: boolean; alerts: Alerts } {
 
 export function AccountManagementSection() {
   const [prefs, setPrefs] = useState(loadPrefs);
-  const { accounts, setSelectedAccountId, selectedAccountId } = useAccountContext();
+  const { accounts, allAccounts, setSelectedAccountId, selectedAccountId } = useAccountContext();
   const createAccount = useCreateAccount();
+
+  // Desired active count — stored locally to handle async creation
+  const [desiredCount, setDesiredCount] = useState<number | null>(null);
+  const activeCount = accounts.length;
 
   const persist = useCallback((next: typeof prefs) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -47,22 +53,45 @@ export function AccountManagementSection() {
 
   const handleCountChange = async (newCount: string) => {
     const target = parseInt(newCount, 10);
-    const current = accounts.length;
-    if (target <= current) {
-      toast({
-        title: "Nota",
-        description: "Ridurre il numero non elimina i conti esistenti. Puoi rinominarli o lasciarli inutilizzati.",
-      });
-      return;
+    const allIds = allAccounts.map((a) => a.id);
+
+    // Create missing DB accounts if needed
+    if (target > allAccounts.length) {
+      setDesiredCount(target);
+      const toCreate = target - allAccounts.length;
+      for (let i = 0; i < toCreate; i++) {
+        await createAccount.mutateAsync({ name: `Conto ${allAccounts.length + i + 1}`, is_default: false });
+      }
+      toast({ title: `${toCreate} conto/i creato/i` });
+      return; // the effect below will resolve active accounts once allAccounts updates
     }
-    // Create missing accounts
-    for (let i = current + 1; i <= target; i++) {
-      await createAccount.mutateAsync({ name: `Conto ${i}`, is_default: false });
-    }
-    toast({ title: `${target - current} conto/i creato/i` });
+
+    // Target <= allAccounts.length: just update active list (soft-hide)
+    resolveActiveAccounts(allIds, target);
+    setDesiredCount(null);
+    toast({ title: target < activeCount ? "Conti nascosti (non eliminati)" : "Conti aggiornati" });
+    window.dispatchEvent(new Event("active-accounts-changed"));
   };
 
-  // If selected account no longer in visible list, fallback
+  // Sync active accounts list whenever allAccounts changes (e.g. after creation)
+  useEffect(() => {
+    if (allAccounts.length === 0) return;
+    const allIds = allAccounts.map((a) => a.id);
+    const activeIds = getActiveAccountIds();
+
+    if (activeIds.length === 0) {
+      // First use: initialize with all
+      resolveActiveAccounts(allIds, allAccounts.length);
+      window.dispatchEvent(new Event("active-accounts-changed"));
+    } else if (desiredCount !== null && allAccounts.length >= desiredCount) {
+      // New accounts were created, expand active list to desired count
+      resolveActiveAccounts(allIds, desiredCount);
+      setDesiredCount(null);
+      window.dispatchEvent(new Event("active-accounts-changed"));
+    }
+  }, [allAccounts, desiredCount]);
+
+  // If selected account no longer in active list, fallback
   useEffect(() => {
     if (selectedAccountId && !accounts.some((a) => a.id === selectedAccountId)) {
       setSelectedAccountId(null);
@@ -86,13 +115,13 @@ export function AccountManagementSection() {
             Scegli quanti conti gestire (max {MAX_ACCOUNTS}). Il Conto Master è una vista aggregata e non conta.
           </p>
         </div>
-        <Select value={String(accounts.length)} onValueChange={handleCountChange}>
+        <Select value={String(activeCount)} onValueChange={handleCountChange}>
           <SelectTrigger className="w-24">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {Array.from({ length: MAX_ACCOUNTS }, (_, i) => i + 1).map((n) => (
-              <SelectItem key={n} value={String(n)} disabled={n < accounts.length}>
+              <SelectItem key={n} value={String(n)}>
                 {n}
               </SelectItem>
             ))}
@@ -123,6 +152,17 @@ export function AccountManagementSection() {
             <AccountDetailRow key={account.id} account={account} />
           ))}
         </div>
+      </div>
+
+      {/* Conto predefinito all'avvio */}
+      <div className="space-y-3">
+        <div>
+          <p className="text-sm font-medium">Conto predefinito all'avvio</p>
+          <p className="text-muted-foreground text-xs">
+            Se non selezioni nulla, verrà usato Conto Master. Se invece hai già selezionato un conto di recente, l'app manterrà l'ultimo conto usato.
+          </p>
+        </div>
+        <DefaultStartupAccountPicker />
       </div>
 
       {/* Privacy */}
@@ -270,8 +310,6 @@ function AccountDetailRow({ account }: { account: AccountRow }) {
     </div>
   );
 }
-
-const DEFAULT_STARTUP_KEY = "fintrack_default_startup_account";
 
 function DefaultStartupAccountPicker() {
   const { accounts } = useAccountContext();

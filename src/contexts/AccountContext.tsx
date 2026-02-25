@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react";
 import { useAccounts, type AccountRow } from "@/hooks/useAccounts";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
+import { getActiveAccountIds, resolveActiveAccounts } from "@/lib/activeAccounts";
 
 /** null = MASTER (aggregated view) */
 type SelectedAccountId = string | null;
@@ -10,9 +11,11 @@ interface AccountContextValue {
   setSelectedAccountId: (id: SelectedAccountId) => void;
   /** The selected account row, or null if MASTER */
   selectedAccount: AccountRow | null;
-  /** All accounts for the workspace */
+  /** Active accounts only (filtered by active list) — used everywhere */
   accounts: AccountRow[];
-  /** Aggregated opening balance (sum of all if MASTER, single if account selected) */
+  /** ALL accounts from DB (including inactive) — used in settings */
+  allAccounts: AccountRow[];
+  /** Aggregated opening balance (sum of active if MASTER, single if account selected) */
   openingBalance: number;
   /** min_balance_threshold for selected account, 0 for MASTER */
   minBalanceThreshold: number;
@@ -51,25 +54,44 @@ function saveStoredAccountId(workspaceId: string, id: SelectedAccountId) {
 }
 
 export function AccountProvider({ children, workspaceId = DEFAULT_WORKSPACE_ID }: { children: ReactNode; workspaceId?: string }) {
-  const { data: accounts = [], isLoading } = useAccounts(workspaceId);
+  const { data: allAccounts = [], isLoading } = useAccounts(workspaceId);
   const [selectedAccountId, setSelectedAccountIdRaw] = useState<SelectedAccountId>(() => loadStoredAccountId(workspaceId));
+  const [activeRevision, setActiveRevision] = useState(0);
 
-  // On first load: if no lastSelected, apply default startup preference
-  // Also validate stored account still exists
+  // Listen for custom event to re-derive active accounts without reload
+  useEffect(() => {
+    const handler = () => setActiveRevision((r) => r + 1);
+    window.addEventListener("active-accounts-changed", handler);
+    return () => window.removeEventListener("active-accounts-changed", handler);
+  }, []);
+
+  // Derive active accounts from the stored active list
+  const accounts = useMemo(() => {
+    // activeRevision used as dependency to force re-derive
+    void activeRevision;
+    if (allAccounts.length === 0) return [];
+    const activeIds = getActiveAccountIds();
+    if (activeIds.length === 0) return allAccounts;
+    const mapped: AccountRow[] = [];
+    for (const id of activeIds) {
+      const acc = allAccounts.find((a) => a.id === id);
+      if (acc) mapped.push(acc);
+    }
+    return mapped;
+  }, [allAccounts, activeRevision]);
+
+  // On first load: validate selection against ACTIVE accounts
   useEffect(() => {
     if (isLoading || accounts.length === 0) return;
 
-    // Check if current selection is valid
     if (selectedAccountId !== null) {
       const exists = accounts.some((a) => a.id === selectedAccountId);
       if (!exists) {
-        // Try default startup fallback
         const defaultId = loadDefaultStartupAccountId();
         const defaultValid = defaultId !== null && accounts.some((a) => a.id === defaultId);
         const resolved = defaultValid ? defaultId : null;
         setSelectedAccountIdRaw(resolved);
         saveStoredAccountId(workspaceId, resolved);
-        // Clean up invalid default
         if (defaultId !== null && !defaultValid) {
           localStorage.setItem(DEFAULT_STARTUP_KEY, "MASTER");
         }
@@ -77,11 +99,9 @@ export function AccountProvider({ children, workspaceId = DEFAULT_WORKSPACE_ID }
       return;
     }
 
-    // selectedAccountId is null — check if we have a stored lastSelected
     const storedRaw = localStorage.getItem(STORAGE_PREFIX + workspaceId);
-    if (storedRaw !== null) return; // Explicit MASTER choice, keep it
+    if (storedRaw !== null) return;
 
-    // No stored selection at all → apply default startup
     const defaultId = loadDefaultStartupAccountId();
     if (defaultId !== null) {
       const exists = accounts.some((a) => a.id === defaultId);
@@ -111,7 +131,7 @@ export function AccountProvider({ children, workspaceId = DEFAULT_WORKSPACE_ID }
 
   const minBalanceThreshold = useMemo(() => {
     if (selectedAccount) return selectedAccount.min_balance_threshold ?? 0;
-    return 0; // MASTER: no threshold
+    return 0;
   }, [selectedAccount]);
 
   return (
@@ -121,6 +141,7 @@ export function AccountProvider({ children, workspaceId = DEFAULT_WORKSPACE_ID }
         setSelectedAccountId,
         selectedAccount,
         accounts,
+        allAccounts,
         openingBalance,
         minBalanceThreshold,
         isLoading,
@@ -136,4 +157,3 @@ export function useAccountContext() {
   if (!ctx) throw new Error("useAccountContext must be used within AccountProvider");
   return ctx;
 }
-
