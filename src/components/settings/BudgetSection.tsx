@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { getBudgetStatus, getThresholds, type BudgetStatusType } from "@/lib/budgetThresholds";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -51,7 +52,7 @@ export function BudgetSection() {
   const limitsMap = getLimits(selectedAccountId);
 
   const alertsEnabled = settings?.alerts_enabled ?? true;
-  const alertThreshold = (settings?.alert_threshold ?? 100) / 100;
+  const thresholds = getThresholds();
 
   const handleSave = (categoryId: string) => {
     if (isMaster) return;
@@ -79,21 +80,19 @@ export function BudgetSection() {
     setEdits({});
   }, [selectedAccountId]);
 
-  const getStatus = (spent: number, limit: number): "ok" | "warn" | "over" | "nd" => {
-    if (limit === 0) return "nd";
-    if (!alertsEnabled) return "nd";
-    const pct = spent / limit;
-    if (pct >= 1) return "over";
-    if (pct >= alertThreshold) return "warn";
-    return "ok";
+  const getStatus = (spent: number, limit: number): BudgetStatusType => {
+    if (!alertsEnabled) return "none";
+    return getBudgetStatus(spent, limit, thresholds).status;
   };
 
-  const statusBadge = (status: string) => {
+  const statusBadge = (status: BudgetStatusType) => {
     if (status === "over")
       return <Badge variant="destructive" className="text-[11px]">OVER</Badge>;
-    if (status === "warn")
+    if (status === "warn2")
       return <Badge className="text-[11px] bg-amber-500/20 text-amber-600 border-amber-500/30">WARN</Badge>;
-    if (status === "nd")
+    if (status === "warn1")
+      return <Badge className="text-[11px] bg-yellow-500/20 text-yellow-600 border-yellow-500/30">WARN</Badge>;
+    if (status === "none")
       return <span className="text-xs text-muted-foreground">N/D</span>;
     return <Badge variant="secondary" className="text-[11px]">OK</Badge>;
   };

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
 import { getLimits } from "@/lib/categoryBudgets";
+import { getBudgetStatus } from "@/lib/budgetThresholds";
 
 export interface CategoryBudget {
   id: string;
@@ -87,9 +88,6 @@ export interface CategorySpending {
   total_spent: number;
 }
 
-/**
- * @param accountId — null = MASTER, string = filter
- */
 export function useCategorySpending(startDate: string, endDate: string, accountId: string | null = null, workspaceId: string = DEFAULT_WORKSPACE_ID) {
   return useQuery({
     queryKey: ["category_spending", workspaceId, accountId, startDate, endDate],
@@ -108,7 +106,6 @@ export function useCategorySpending(startDate: string, endDate: string, accountI
       const map = new Map<string, number>();
       for (const r of data ?? []) {
         if (!r.category_id) continue;
-        // Exclude recurring-generated transactions from budget
         if (r.source === "recurring_generated") continue;
         map.set(r.category_id, (map.get(r.category_id) ?? 0) + Number(r.amount));
       }
@@ -122,7 +119,7 @@ export function useCategorySpending(startDate: string, endDate: string, accountI
 
 /* ── Combined: budget + spending → UI-ready rows ── */
 
-export type BudgetStatus = "ok" | "warn" | "over";
+export type BudgetStatus = "ok" | "warn1" | "warn2" | "over";
 
 export interface BudgetSummaryRow {
   category_id: string;
@@ -133,13 +130,9 @@ export interface BudgetSummaryRow {
   status: BudgetStatus;
 }
 
-/**
- * @param accountId — null = MASTER, string = filter
- */
 export function useBudgetSummary(startDate: string, endDate: string, accountId: string | null = null, workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const spending = useCategorySpending(startDate, endDate, accountId, workspaceId);
 
-  // Fetch category names for display
   const categoriesQuery = useQuery({
     queryKey: ["categories_names", workspaceId],
     queryFn: async () => {
@@ -163,7 +156,6 @@ export function useBudgetSummary(startDate: string, endDate: string, accountId: 
     const spendMap = new Map<string, number>();
     for (const s of spending.data) spendMap.set(s.category_id, s.total_spent);
 
-    // Show categories that have a budget limit set
     const allCatIds = new Set([...limitsMap.keys(), ...spendMap.keys()]);
 
     for (const catId of allCatIds) {
@@ -171,11 +163,8 @@ export function useBudgetSummary(startDate: string, endDate: string, accountId: 
       if (limit <= 0) continue;
       const spent = spendMap.get(catId) ?? 0;
       const percent = limit > 0 ? spent / limit : null;
-      let status: BudgetStatus = "ok";
-      if (percent !== null) {
-        if (percent > 1) status = "over";
-        else if (percent >= 0.8) status = "warn";
-      }
+      const { status: budgetStatus } = getBudgetStatus(spent, limit);
+      const status: BudgetStatus = budgetStatus === "none" ? "ok" : budgetStatus;
       rows.push({
         category_id: catId,
         category_name: catNames.get(catId) ?? "—",

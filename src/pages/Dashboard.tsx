@@ -228,7 +228,7 @@ const Dashboard = () => {
             {budgetRows
               .filter((b) => b.monthly_limit > 0)
               .sort((a, b) => {
-                const statusOrder = { over: 3, warn: 2, ok: 1 };
+                const statusOrder: Record<string, number> = { over: 4, warn2: 3, warn1: 2, ok: 1 };
                 const sa = statusOrder[a.status] ?? 0;
                 const sb = statusOrder[b.status] ?? 0;
                 if (sb !== sa) return sb - sa;
@@ -256,18 +256,21 @@ const Dashboard = () => {
                         className={`h-2 flex-1 ${
                           b.status === "over"
                             ? "[&>div]:bg-destructive"
-                            : b.status === "warn"
+                            : b.status === "warn2"
                             ? "[&>div]:bg-amber-500"
+                            : b.status === "warn1"
+                            ? "[&>div]:bg-yellow-500"
                             : ""
                         }`}
                       />
                       <Badge
                         variant={b.status === "over" ? "destructive" : "secondary"}
-                        className={`text-[10px] w-12 justify-center ${
-                          b.status === "warn" ? "bg-amber-500/20 text-amber-600 border-amber-500/30" : ""
+                        className={`text-[10px] w-14 justify-center ${
+                          b.status === "warn2" ? "bg-amber-500/20 text-amber-600 border-amber-500/30" :
+                          b.status === "warn1" ? "bg-yellow-500/20 text-yellow-600 border-yellow-500/30" : ""
                         }`}
                       >
-                        {b.status === "over" ? "OVER" : b.status === "warn" ? "WARN" : "OK"}
+                        {b.status === "over" ? "OVER" : b.status === "warn2" ? "WARN" : b.status === "warn1" ? "WARN" : "OK"}
                       </Badge>
                     </div>
                   </div>

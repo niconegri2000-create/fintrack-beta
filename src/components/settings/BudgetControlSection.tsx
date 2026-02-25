@@ -1,11 +1,22 @@
+import { useState, useEffect } from "react";
 import { useBudgetSettings } from "@/hooks/useBudgetSettings";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { getThresholds, saveBudgetThresholds, validateThresholds } from "@/lib/budgetThresholds";
 
 export function BudgetControlSection() {
   const { data: settings, isLoading, update } = useBudgetSettings();
+  const [thresholds, setThresholds] = useState(getThresholds);
+  const [w1, setW1] = useState(String(thresholds.warning1Percent));
+  const [w2, setW2] = useState(String(thresholds.warning2Percent));
+
+  useEffect(() => {
+    const t = getThresholds();
+    setThresholds(t);
+    setW1(String(t.warning1Percent));
+    setW2(String(t.warning2Percent));
+  }, []);
 
   if (isLoading || !settings) return null;
 
@@ -16,8 +27,25 @@ export function BudgetControlSection() {
     );
   };
 
+  const handleSaveThresholds = () => {
+    const v1 = parseInt(w1);
+    const v2 = parseInt(w2);
+    if (isNaN(v1) || isNaN(v2)) {
+      toast.error("Inserisci valori numerici validi");
+      return;
+    }
+    const validated = validateThresholds({ warning1Percent: v1, warning2Percent: v2 });
+    saveBudgetThresholds(validated);
+    setThresholds(validated);
+    setW1(String(validated.warning1Percent));
+    setW2(String(validated.warning2Percent));
+    toast.success("Soglie salvate");
+    // Force dashboard to re-render with new thresholds
+    window.dispatchEvent(new Event("budget-thresholds-changed"));
+  };
+
   const alertsLabel = settings.alerts_enabled
-    ? `ON (${settings.alert_threshold}%)`
+    ? `ON (${thresholds.warning1Percent}% / ${thresholds.warning2Percent}%)`
     : "OFF";
 
   return (
@@ -29,7 +57,7 @@ export function BudgetControlSection() {
         </p>
       </div>
 
-      {/* Avvisi */}
+      {/* Avvisi toggle */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div>
@@ -44,25 +72,42 @@ export function BudgetControlSection() {
           />
         </div>
 
-        {/* Soglia avviso */}
-        <div className="space-y-1.5">
-          <p className="text-sm font-medium">Soglia avviso</p>
-          <ToggleGroup
-            type="single"
-            value={String(settings.alert_threshold)}
-            onValueChange={(v) => {
-              if (v) handleUpdate("alert_threshold", parseInt(v));
-            }}
-            disabled={!settings.alerts_enabled}
-            className="justify-start"
-          >
-            <ToggleGroupItem value="80" className="text-sm px-4">80%</ToggleGroupItem>
-            <ToggleGroupItem value="90" className="text-sm px-4">90%</ToggleGroupItem>
-            <ToggleGroupItem value="100" className="text-sm px-4">100%</ToggleGroupItem>
-          </ToggleGroup>
+        {/* Soglie personalizzabili */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Soglie avvisi budget</p>
           <p className="text-muted-foreground text-xs">
-            Gli avvisi si basano sulla percentuale di budget speso per categoria.
+            OVER scatta sempre a 100%. Imposta 2 soglie crescenti (es. 60 e 85).
           </p>
+          <div className="flex items-center gap-3">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Primo avviso (%)</p>
+              <Input
+                type="number"
+                min={1}
+                max={98}
+                className="h-8 w-20 font-mono text-sm"
+                value={w1}
+                onChange={(e) => setW1(e.target.value)}
+                onBlur={handleSaveThresholds}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSaveThresholds(); }}
+                disabled={!settings.alerts_enabled}
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Secondo avviso (%)</p>
+              <Input
+                type="number"
+                min={2}
+                max={99}
+                className="h-8 w-20 font-mono text-sm"
+                value={w2}
+                onChange={(e) => setW2(e.target.value)}
+                onBlur={handleSaveThresholds}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSaveThresholds(); }}
+                disabled={!settings.alerts_enabled}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
