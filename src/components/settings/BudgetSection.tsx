@@ -160,7 +160,7 @@ export function BudgetSection() {
                     <TableCell>
                       {isMaster ? (
                         <div>
-                          <span className="font-mono text-sm text-muted-foreground">
+                          <span className="ft-number text-sm text-muted-foreground">
                             {formatAmount(limit)}
                           </span>
                           {limit > 0 && (
@@ -175,7 +175,7 @@ export function BudgetSection() {
                             type="number"
                             min={0}
                             step={10}
-                            className="h-8 w-[120px] font-mono text-sm"
+                            className="h-8 w-[120px] ft-number text-sm"
                             value={displayLimit}
                             onChange={(e) =>
                               setEdits((prev) => ({ ...prev, [cat.id]: e.target.value }))
@@ -191,7 +191,7 @@ export function BudgetSection() {
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-mono text-sm">
+                    <TableCell className="text-right ft-number text-sm">
                       {formatAmount(spent)}
                     </TableCell>
                     <TableCell className="text-center">
