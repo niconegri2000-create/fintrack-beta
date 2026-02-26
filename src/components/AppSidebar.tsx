@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -17,6 +19,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 const navItems = [
@@ -29,6 +32,13 @@ const navItems = [
 ];
 
 export function AppSidebar() {
+  const { isMobile, setOpenMobile } = useSidebar();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false);
+  }, [location.pathname, isMobile, setOpenMobile]);
+
   return (
     <Sidebar className="border-r-0">
       <SidebarHeader className="px-5 py-6">
