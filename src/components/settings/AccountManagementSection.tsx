@@ -1,6 +1,6 @@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Save, Check, Pencil, ChevronUp, ChevronDown, Archive, RotateCcw, Plus } from "lucide-react";
+import { Eye, EyeOff, Save, Check, Pencil, ChevronUp, ChevronDown, Archive, RotateCcw, Plus, Trash2 } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
 import { useAccountContext } from "@/contexts/AccountContext";
 import {
@@ -9,6 +9,8 @@ import {
   useReorderAccounts,
   useArchiveAccount,
   useRestoreAccount,
+  useDeleteAccount,
+  checkAccountHasLinkedData,
   type AccountRow,
 } from "@/hooks/useAccounts";
 import { Input } from "@/components/ui/input";
@@ -358,40 +360,118 @@ function AccountDetailRow({
 
 function ArchivedAccountsSection({ accounts }: { accounts: AccountRow[] }) {
   const restoreMutation = useRestoreAccount();
+  const deleteMutation = useDeleteAccount();
   const [open, setOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AccountRow | null>(null);
+  const [linkedDataMap, setLinkedDataMap] = useState<Record<string, boolean>>({});
+
+  // Check linked data for all archived accounts when section opens
+  useEffect(() => {
+    if (!open) return;
+    accounts.forEach((a) => {
+      if (linkedDataMap[a.id] !== undefined) return;
+      checkAccountHasLinkedData(a.id).then((has) =>
+        setLinkedDataMap((prev) => ({ ...prev, [a.id]: has }))
+      );
+    });
+  }, [open, accounts]);
+
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    deleteMutation.mutate(target.id, {
+      onSuccess: () => {
+        toast({ title: "Conto eliminato" });
+        setLinkedDataMap((prev) => { const n = { ...prev }; delete n[target.id]; return n; });
+      },
+      onError: (err) => {
+        if (err.message === "HAS_LINKED_DATA") {
+          toast({ title: "Il conto ha dati collegati e non può essere eliminato", variant: "destructive" });
+        } else {
+          toast({ title: "Errore nell'eliminazione", variant: "destructive" });
+        }
+      },
+    });
+  };
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-          <Archive className="h-3.5 w-3.5" />
-          Conti archiviati ({accounts.length})
-          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
-        </Button>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-2 mt-2">
-        {accounts.map((a) => (
-          <div key={a.id} className="rounded-lg border border-dashed p-3 flex items-center justify-between opacity-60">
-            <span className="text-sm">{a.name}</span>
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5 h-8"
-              disabled={restoreMutation.isPending}
-              onClick={() =>
-                restoreMutation.mutate(a.id, {
-                  onSuccess: () => toast({ title: `"${a.name}" ripristinato` }),
-                  onError: () => toast({ title: "Errore nel ripristino", variant: "destructive" }),
-                })
-              }
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Ripristina
-            </Button>
-          </div>
-        ))}
-      </CollapsibleContent>
-    </Collapsible>
+    <>
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+            <Archive className="h-3.5 w-3.5" />
+            Conti archiviati ({accounts.length})
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-2 mt-2">
+          {accounts.map((a) => {
+            const hasLinked = linkedDataMap[a.id];
+            const canDelete = hasLinked === false && !a.is_default;
+            return (
+              <div key={a.id} className="rounded-lg border border-dashed p-3 flex items-center justify-between opacity-60">
+                <span className="text-sm">{a.name}</span>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 h-8"
+                    disabled={restoreMutation.isPending}
+                    onClick={() =>
+                      restoreMutation.mutate(a.id, {
+                        onSuccess: () => toast({ title: `"${a.name}" ripristinato` }),
+                        onError: () => toast({ title: "Errore nel ripristino", variant: "destructive" }),
+                      })
+                    }
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Ripristina
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 h-8 text-destructive border-destructive/30 hover:bg-destructive/10"
+                    disabled={!canDelete || deleteMutation.isPending}
+                    title={
+                      hasLinked === undefined
+                        ? "Verifica in corso…"
+                        : hasLinked
+                          ? "Non eliminabile: contiene transazioni o ricorrenti collegati"
+                          : a.is_default
+                            ? "Non puoi eliminare il conto predefinito"
+                            : "Elimina definitivamente"
+                    }
+                    onClick={() => setDeleteTarget(a)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Elimina
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminare definitivamente "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Questa azione è irreversibile. Il conto verrà rimosso definitivamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
