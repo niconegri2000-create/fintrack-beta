@@ -244,14 +244,14 @@ export function ForecastWidget({
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell className="text-right font-mono text-xs">
+                <TableCell className="text-right ft-number text-xs">
                   {formatAmount(fm.income)}
                 </TableCell>
-                <TableCell className="text-right font-mono text-xs">
+                <TableCell className="text-right ft-number text-xs">
                   {formatAmount(fm.expense)}
                 </TableCell>
                 <TableCell
-                  className={`text-right font-mono text-xs font-semibold ${
+                  className={`text-right ft-number text-xs font-semibold ${
                     isNeg ? "text-destructive" : isBelowThresh ? "text-amber-500" : "text-accent"
                   }`}
                 >

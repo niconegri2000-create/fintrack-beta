@@ -72,11 +72,11 @@ export function RecurringTable({ data, isLoading }: Props) {
                     {r.type === "income" ? "Entrata" : "Uscita"}
                   </Badge>
                 </TableCell>
-                <TableCell className={`text-right font-mono font-medium ${r.type === "income" ? "text-success" : "text-destructive"}`}>
+                <TableCell className={`text-right ft-number font-medium ${r.type === "income" ? "text-success" : "text-destructive"}`}>
                   {isPrivacy ? "••••" : `€${r.amount.toFixed(2)}`}
                 </TableCell>
                 <TableCell className="text-muted-foreground">{r.category?.name || "—"}</TableCell>
-                <TableCell className="text-center font-mono">{r.day_of_month ?? "—"}</TableCell>
+                <TableCell className="text-center ft-number">{r.day_of_month ?? "—"}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {(r.interval_months ?? 1) === 1 ? "Mensile" : `Ogni ${r.interval_months} mesi`}
                 </TableCell>

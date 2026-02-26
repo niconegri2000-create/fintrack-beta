@@ -108,7 +108,7 @@ const Dashboard = () => {
               {isNegative && <Badge variant="destructive" className="text-[10px]">Negativo</Badge>}
               {isBelowThreshold && <Badge className="text-[10px] bg-amber-500/20 text-amber-600 border-amber-500/30">Sotto soglia</Badge>}
             </div>
-            <p className={`text-4xl font-bold font-mono ${heroColor}`}>
+            <p className={`text-4xl font-bold ft-number ${heroColor}`}>
               {saldoConto !== null ? formatAmount(saldoConto) : "—"}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
@@ -126,7 +126,7 @@ const Dashboard = () => {
               <p className="text-xs text-muted-foreground uppercase tracking-wide">{kpi.label}</p>
               <kpi.icon className={`h-4 w-4 ${kpi.accent}`} />
             </div>
-            <p className="text-2xl font-semibold font-mono">{kpi.value}</p>
+            <p className="text-2xl font-semibold ft-number">{kpi.value}</p>
           </div>
         ))}
       </div>
@@ -242,10 +242,10 @@ const Dashboard = () => {
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-medium">{b.category_name}</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground font-mono">
+                        <span className="text-muted-foreground ft-number">
                           {formatAmount(b.spent)} / {formatAmount(b.monthly_limit)}
                         </span>
-                        <span className="font-mono font-semibold w-12 text-right">
+                        <span className="ft-number font-semibold w-12 text-right">
                           {isPrivacy ? "••" : `${rawPct.toFixed(0)}%`}
                         </span>
                       </div>

@@ -65,7 +65,7 @@ export function TransactionsTable({ data, isLoading }: Props) {
           <TableBody>
             {data.map((tx) => (
               <TableRow key={tx.id}>
-                <TableCell className="font-mono text-xs">{tx.date}</TableCell>
+                <TableCell className="text-xs">{tx.date}</TableCell>
                 <TableCell>{capitalizeFirst(tx.description) || "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{tx.category?.name || "—"}</TableCell>
                 <TableCell>
@@ -73,7 +73,7 @@ export function TransactionsTable({ data, isLoading }: Props) {
                     {tx.type === "income" ? "Entrata" : "Uscita"}
                   </Badge>
                 </TableCell>
-                <TableCell className={`text-right font-mono font-medium ${tx.type === "income" ? "text-success" : "text-destructive"}`}>
+                <TableCell className={`text-right ft-number font-medium ${tx.type === "income" ? "text-success" : "text-destructive"}`}>
                   {isPrivacy ? "••••" : `${tx.type === "income" ? "+" : "−"}€${tx.amount.toFixed(2)}`}
                 </TableCell>
                 <TableCell className="text-center text-xs text-muted-foreground">{tx.is_fixed ? "Sì" : "No"}</TableCell>
