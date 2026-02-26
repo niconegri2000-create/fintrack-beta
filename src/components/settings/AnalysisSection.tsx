@@ -2,9 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useHealthScoreEnabled } from "@/hooks/useHealthScoreEnabled";
+import { useSmartInsightsEnabled } from "@/hooks/useSmartInsightsEnabled";
 
 export function AnalysisSection() {
-  const { enabled, setEnabled } = useHealthScoreEnabled();
+  const { enabled: healthEnabled, setEnabled: setHealthEnabled } = useHealthScoreEnabled();
+  const { enabled: insightsEnabled, setEnabled: setInsightsEnabled } = useSmartInsightsEnabled();
 
   return (
     <Card>
@@ -12,7 +14,7 @@ export function AnalysisSection() {
         <CardTitle className="text-lg">Analisi avanzate</CardTitle>
         <CardDescription>Funzionalità di analisi e punteggi derivati</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         <div className="flex items-center justify-between gap-4">
           <div className="space-y-0.5">
             <Label htmlFor="health-score-toggle" className="text-sm font-medium">
@@ -24,8 +26,23 @@ export function AnalysisSection() {
           </div>
           <Switch
             id="health-score-toggle"
-            checked={enabled}
-            onCheckedChange={setEnabled}
+            checked={healthEnabled}
+            onCheckedChange={setHealthEnabled}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <Label htmlFor="smart-insights-toggle" className="text-sm font-medium">
+              Smart Insights automatici
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Mostra fino a 3 suggerimenti basati su budget, spese e andamento del periodo.
+            </p>
+          </div>
+          <Switch
+            id="smart-insights-toggle"
+            checked={insightsEnabled}
+            onCheckedChange={setInsightsEnabled}
           />
         </div>
       </CardContent>
