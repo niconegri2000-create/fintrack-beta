@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect, useCallback } from "react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -52,63 +53,112 @@ export function CategoriesSection() {
       ) : categories.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">Nessuna categoria</p>
       ) : (
-        <div className="rounded-lg border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Priorità</TableHead>
-                <TableHead className="text-center w-[100px]">Default fissi</TableHead>
-                <TableHead className="text-center w-[80px]">Attiva</TableHead>
-                <TableHead className="text-right w-[120px]">Azioni</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {categories.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.name}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="text-[11px]">
-                      {priorityLabel[c.priority] ?? c.priority}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-center text-xs text-muted-foreground">
-                    {c.is_fixed_default ? "Sì" : "No"}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className={`inline-block h-2 w-2 rounded-full ${c.is_active ? "bg-success" : "bg-muted-foreground"}`} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <CategoryEditDialog category={c} />
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleToggle(c.id, c.is_active)}>
-                        <span className="text-xs">{c.is_active ? "Off" : "On"}</span>
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Eliminare "{c.name}"?</AlertDialogTitle>
-                            <AlertDialogDescription>Questa azione è irreversibile.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Annulla</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(c.id)}>Elimina</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <SyncedScrollTable categories={categories} onToggle={handleToggle} onDelete={handleDelete} />
       )}
+    </div>
+  );
+}
+
+function SyncedScrollTable({ categories, onToggle, onDelete }: {
+  categories: any[];
+  onToggle: (id: string, current: boolean) => void;
+  onDelete: (id: string) => void;
+}) {
+  const topRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const isSyncing = useRef(false);
+  const [spacerWidth, setSpacerWidth] = useState(0);
+
+  const measure = useCallback(() => {
+    if (bottomRef.current) setSpacerWidth(bottomRef.current.scrollWidth);
+  }, []);
+
+  useEffect(() => {
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (bottomRef.current) ro.observe(bottomRef.current);
+    return () => ro.disconnect();
+  }, [measure, categories.length]);
+
+  const handleTopScroll = () => {
+    if (isSyncing.current) { isSyncing.current = false; return; }
+    if (topRef.current && bottomRef.current) {
+      isSyncing.current = true;
+      bottomRef.current.scrollLeft = topRef.current.scrollLeft;
+    }
+  };
+  const handleBottomScroll = () => {
+    if (isSyncing.current) { isSyncing.current = false; return; }
+    if (topRef.current && bottomRef.current) {
+      isSyncing.current = true;
+      topRef.current.scrollLeft = bottomRef.current.scrollLeft;
+    }
+  };
+
+  return (
+    <div className="rounded-lg border overflow-hidden">
+      {/* Top scrollbar */}
+      <div ref={topRef} onScroll={handleTopScroll} className="overflow-x-auto" style={{ height: 12 }}>
+        <div style={{ width: spacerWidth, height: 1 }} />
+      </div>
+
+      {/* Table with bottom scrollbar */}
+      <div ref={bottomRef} onScroll={handleBottomScroll} className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>Priorità</TableHead>
+              <TableHead className="text-center w-[100px]">Default fissi</TableHead>
+              <TableHead className="text-center w-[80px]">Attiva</TableHead>
+              <TableHead className="text-right w-[120px]">Azioni</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {categories.map((c) => (
+              <TableRow key={c.id}>
+                <TableCell className="font-medium">{c.name}</TableCell>
+                <TableCell>
+                  <Badge variant="secondary" className="text-[11px]">
+                    {priorityLabel[c.priority] ?? c.priority}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-center text-xs text-muted-foreground">
+                  {c.is_fixed_default ? "Sì" : "No"}
+                </TableCell>
+                <TableCell className="text-center">
+                  <span className={`inline-block h-2 w-2 rounded-full ${c.is_active ? "bg-success" : "bg-muted-foreground"}`} />
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <CategoryEditDialog category={c} />
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onToggle(c.id, c.is_active)}>
+                      <span className="text-xs">{c.is_active ? "Off" : "On"}</span>
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Eliminare "{c.name}"?</AlertDialogTitle>
+                          <AlertDialogDescription>Questa azione è irreversibile.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annulla</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => onDelete(c.id)}>Elimina</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
