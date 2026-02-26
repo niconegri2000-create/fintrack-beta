@@ -102,9 +102,20 @@ export function useDeleteRecurring(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      // Detach linked transactions first to avoid FK constraint violation
+      const { error: unlinkError } = await supabase
+        .from("transactions")
+        .update({ recurring_rule_id: null })
+        .eq("recurring_rule_id", id)
+        .eq("workspace_id", workspaceId);
+      if (unlinkError) throw unlinkError;
+
       const { error } = await supabase.from("recurring_rules").delete().eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["recurring_rules"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["recurring_rules"] });
+      qc.invalidateQueries({ queryKey: ["transactions"] });
+    },
   });
 }
