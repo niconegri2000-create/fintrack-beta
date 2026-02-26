@@ -3,10 +3,12 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useHealthScoreEnabled } from "@/hooks/useHealthScoreEnabled";
 import { useSmartInsightsEnabled } from "@/hooks/useSmartInsightsEnabled";
+import { useSnapshotEnabled } from "@/hooks/useSnapshotEnabled";
 
 export function AnalysisSection() {
   const { enabled: healthEnabled, setEnabled: setHealthEnabled } = useHealthScoreEnabled();
   const { enabled: insightsEnabled, setEnabled: setInsightsEnabled } = useSmartInsightsEnabled();
+  const { enabled: snapshotEnabled, setEnabled: setSnapshotEnabled } = useSnapshotEnabled();
 
   return (
     <Card>
@@ -43,6 +45,21 @@ export function AnalysisSection() {
             id="smart-insights-toggle"
             checked={insightsEnabled}
             onCheckedChange={setInsightsEnabled}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <Label htmlFor="snapshot-toggle" className="text-sm font-medium">
+              Snapshot mensile automatico
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Genera e salva un riepilogo del mese precedente con trend e categorie.
+            </p>
+          </div>
+          <Switch
+            id="snapshot-toggle"
+            checked={snapshotEnabled}
+            onCheckedChange={setSnapshotEnabled}
           />
         </div>
       </CardContent>
