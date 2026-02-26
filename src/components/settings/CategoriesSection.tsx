@@ -100,16 +100,16 @@ function SyncedScrollTable({ categories, onToggle, onDelete }: {
   };
 
   return (
-    <div className="rounded-lg border overflow-hidden">
-      {/* Top scrollbar */}
+    <div className="rounded-lg border">
+      {/* Top scrollbar — outside overflow-hidden so it's never clipped */}
       {hasOverflow && (
-        <div ref={topRef} onScroll={handleTopScroll} className="overflow-x-auto overflow-y-hidden" style={{ height: 12 }}>
+        <div ref={topRef} onScroll={handleTopScroll} className="overflow-x-auto overflow-y-hidden block pointer-events-auto mb-2" style={{ height: 14 }}>
           <div style={{ width: spacerWidth, height: 1 }} />
         </div>
       )}
 
-      {/* Table with bottom scrollbar */}
-      <div ref={bottomRef} onScroll={handleBottomScroll} className="overflow-x-auto">
+      {/* Table with bottom scrollbar — overflow-hidden here for rounded corners */}
+      <div ref={bottomRef} onScroll={handleBottomScroll} className="overflow-x-auto overflow-hidden rounded-b-lg">
         <Table>
           <TableHeader>
             <TableRow>
