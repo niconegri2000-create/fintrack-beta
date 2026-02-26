@@ -162,3 +162,33 @@ export function useRestoreAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
     },
   });
 }
+
+/** Check if an account has linked transactions or recurring rules */
+export async function checkAccountHasLinkedData(accountId: string): Promise<boolean> {
+  const [txRes, rrRes] = await Promise.all([
+    supabase.from("transactions").select("id", { count: "exact", head: true }).eq("account_id", accountId),
+    supabase.from("recurring_rules").select("id", { count: "exact", head: true }).eq("account_id", accountId),
+  ]);
+  return ((txRes.count ?? 0) + (rrRes.count ?? 0)) > 0;
+}
+
+/** Hard-delete an archived account (only if no linked data) */
+export function useDeleteAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const hasData = await checkAccountHasLinkedData(id);
+      if (hasData) throw new Error("HAS_LINKED_DATA");
+      const { error } = await supabase
+        .from("accounts")
+        .delete()
+        .eq("id", id)
+        .eq("workspace_id", workspaceId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
+      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
+    },
+  });
+}
