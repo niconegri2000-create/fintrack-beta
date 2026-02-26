@@ -153,6 +153,19 @@
 }
 
 /* ── Fintech number reset: clean zeros, no "coder" look ── */
+
+/* Global: kill slashed zero on ALL elements */
+*, *::before, *::after {
+  font-feature-settings: "zero" 0;
+}
+
+input, select, textarea, button, label, td, th,
+[class*="popover"], [class*="dialog"], [class*="card"],
+[class*="toast"], [class*="dropdown"], [class*="sidebar"] {
+  font-variant-numeric: normal !important;
+  font-feature-settings: "zero" 0, "tnum" 0, "ss01" 0, "ss02" 0 !important;
+}
+
 .ft-number {
   font-family: var(--font-sans) !important;
   font-variant-numeric: normal !important;
