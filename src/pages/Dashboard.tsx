@@ -16,9 +16,7 @@ import { HealthScoreCard } from "@/components/dashboard/HealthScoreCard";
 import { SmartInsightsCard } from "@/components/dashboard/SmartInsightsCard";
 import { useHealthScoreEnabled } from "@/hooks/useHealthScoreEnabled";
 import { useSmartInsightsEnabled } from "@/hooks/useSmartInsightsEnabled";
-import { useSnapshotEnabled } from "@/hooks/useSnapshotEnabled";
-import { SnapshotCard } from "@/components/dashboard/SnapshotCard";
-import { SnapshotDetailModal } from "@/components/dashboard/SnapshotDetailModal";
+import { KpiDetailModal } from "@/components/dashboard/KpiDetailModal";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { usePrivacy } from "@/contexts/PrivacyContext";
@@ -38,7 +36,7 @@ const PIE_COLORS = [
 
 const Dashboard = () => {
   const { dateRange } = useDateRange();
-  const { selectedAccountId, openingBalance, minBalanceThreshold } = useAccountContext();
+  const { selectedAccountId, selectedAccount, openingBalance, minBalanceThreshold } = useAccountContext();
   const { data, isLoading } = useDashboardData(dateRange.from, dateRange.to, selectedAccountId);
 
   // Budget always on the month of "from"
@@ -48,8 +46,7 @@ const Dashboard = () => {
 
   const { enabled: healthScoreEnabled } = useHealthScoreEnabled();
   const { enabled: smartInsightsEnabled } = useSmartInsightsEnabled();
-  const { enabled: snapshotEnabled } = useSnapshotEnabled();
-  const [snapshotDetailOpen, setSnapshotDetailOpen] = useState(false);
+  const [kpiDetailOpen, setKpiDetailOpen] = useState(false);
   const { data: workspace } = useWorkspace();
   const updateWorkspace = useUpdateWorkspace();
   const { formatAmount, isPrivacy, renderSensitiveChart } = usePrivacy();
@@ -143,19 +140,30 @@ const Dashboard = () => {
         ))}
       </div>
 
+      {/* Dettagli CTA */}
+      <div className="flex justify-end -mt-2">
+        <button
+          onClick={() => setKpiDetailOpen(true)}
+          className="text-xs text-primary hover:underline cursor-pointer"
+        >
+          Dettagli periodo →
+        </button>
+      </div>
+
+      <KpiDetailModal
+        open={kpiDetailOpen}
+        onOpenChange={setKpiDetailOpen}
+        data={data}
+        budgetRows={budgetRows}
+        accountLabel={selectedAccount?.name ?? "Master"}
+        periodLabel={`${dateRange.from} — ${dateRange.to}`}
+      />
+
       {/* Health Score */}
       {healthScoreEnabled && <HealthScoreCard />}
 
       {/* Smart Insights */}
       {smartInsightsEnabled && <SmartInsightsCard />}
-
-      {/* Monthly Snapshot */}
-      {snapshotEnabled && (
-        <>
-          <SnapshotCard onViewDetails={() => setSnapshotDetailOpen(true)} />
-          <SnapshotDetailModal open={snapshotDetailOpen} onOpenChange={setSnapshotDetailOpen} />
-        </>
-      )}
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
