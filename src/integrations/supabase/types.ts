@@ -18,28 +18,34 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_active: boolean
           is_default: boolean
           min_balance_threshold: number | null
           name: string
           opening_balance: number
+          sort_order: number
           workspace_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
+          is_active?: boolean
           is_default?: boolean
           min_balance_threshold?: number | null
           name: string
           opening_balance?: number
+          sort_order?: number
           workspace_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
+          is_active?: boolean
           is_default?: boolean
           min_balance_threshold?: number | null
           name?: string
           opening_balance?: number
+          sort_order?: number
           workspace_id?: string
         }
         Relationships: [

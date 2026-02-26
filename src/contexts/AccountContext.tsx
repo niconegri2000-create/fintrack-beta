@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react";
-import { useAccounts, type AccountRow } from "@/hooks/useAccounts";
+import { useAccounts, useAllAccounts, type AccountRow } from "@/hooks/useAccounts";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
-import { getActiveAccountIds, resolveActiveAccounts } from "@/lib/activeAccounts";
 
 /** null = MASTER (aggregated view) */
 type SelectedAccountId = string | null;
@@ -9,15 +8,12 @@ type SelectedAccountId = string | null;
 interface AccountContextValue {
   selectedAccountId: SelectedAccountId;
   setSelectedAccountId: (id: SelectedAccountId) => void;
-  /** The selected account row, or null if MASTER */
   selectedAccount: AccountRow | null;
-  /** Active accounts only (filtered by active list) — used everywhere */
+  /** Active accounts only — used everywhere */
   accounts: AccountRow[];
-  /** ALL accounts from DB (including inactive) — used in settings */
+  /** ALL accounts from DB (including archived) — used in settings */
   allAccounts: AccountRow[];
-  /** Aggregated opening balance (sum of active if MASTER, single if account selected) */
   openingBalance: number;
-  /** min_balance_threshold for selected account, 0 for MASTER */
   minBalanceThreshold: number;
   isLoading: boolean;
 }
@@ -54,31 +50,10 @@ function saveStoredAccountId(workspaceId: string, id: SelectedAccountId) {
 }
 
 export function AccountProvider({ children, workspaceId = DEFAULT_WORKSPACE_ID }: { children: ReactNode; workspaceId?: string }) {
-  const { data: allAccounts = [], isLoading } = useAccounts(workspaceId);
+  const { data: accounts = [], isLoading: loadingActive } = useAccounts(workspaceId);
+  const { data: allAccounts = [], isLoading: loadingAll } = useAllAccounts(workspaceId);
+  const isLoading = loadingActive || loadingAll;
   const [selectedAccountId, setSelectedAccountIdRaw] = useState<SelectedAccountId>(() => loadStoredAccountId(workspaceId));
-  const [activeRevision, setActiveRevision] = useState(0);
-
-  // Listen for custom event to re-derive active accounts without reload
-  useEffect(() => {
-    const handler = () => setActiveRevision((r) => r + 1);
-    window.addEventListener("active-accounts-changed", handler);
-    return () => window.removeEventListener("active-accounts-changed", handler);
-  }, []);
-
-  // Derive active accounts from the stored active list
-  const accounts = useMemo(() => {
-    // activeRevision used as dependency to force re-derive
-    void activeRevision;
-    if (allAccounts.length === 0) return [];
-    const activeIds = getActiveAccountIds();
-    if (activeIds.length === 0) return allAccounts;
-    const mapped: AccountRow[] = [];
-    for (const id of activeIds) {
-      const acc = allAccounts.find((a) => a.id === id);
-      if (acc) mapped.push(acc);
-    }
-    return mapped;
-  }, [allAccounts, activeRevision]);
 
   // On first load: validate selection against ACTIVE accounts
   useEffect(() => {
