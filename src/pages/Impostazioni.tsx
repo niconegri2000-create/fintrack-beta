@@ -3,6 +3,7 @@ import { BudgetSection } from "@/components/settings/BudgetSection";
 import { BudgetControlSection } from "@/components/settings/BudgetControlSection";
 import { GeneralPreferencesSection } from "@/components/settings/GeneralPreferencesSection";
 import { AccountManagementSection } from "@/components/settings/AccountManagementSection";
+import { AnalysisSection } from "@/components/settings/AnalysisSection";
 
 const Impostazioni = () => {
   return (
@@ -16,6 +17,8 @@ const Impostazioni = () => {
 
       <GeneralPreferencesSection />
       <AccountManagementSection />
+
+      <AnalysisSection />
 
       <BudgetControlSection />
 
