@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Apple-like system font stack — no external download needed */
 
 @layer base {
   :root {
@@ -52,8 +52,8 @@
     --sidebar-ring: 160 60% 45%;
     --sidebar-muted: 215 14% 50%;
 
-    --font-sans: 'DM Sans', system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, "Segoe UI Mono", Menlo, monospace;
   }
 
   .dark {
@@ -117,9 +117,19 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply tracking-tight font-semibold;
+    letter-spacing: -0.015em;
+  }
+
+  /* Tabular numerals for all mono/numeric contexts */
+  .font-mono, [class*="font-mono"] {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+    font-weight: 600;
   }
 }
