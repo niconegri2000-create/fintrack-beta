@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { useCreateGoal } from "@/hooks/useGoals";
+import { useAccountContext } from "@/contexts/AccountContext";
 import { toast } from "sonner";
 
 interface Props {
@@ -16,13 +20,25 @@ interface Props {
 }
 
 export default function GoalFormDialog({ open, onOpenChange, workspaceId }: Props) {
+  const { accounts, selectedAccountId } = useAccountContext();
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
+  const [accountId, setAccountId] = useState("");
   const create = useCreateGoal(workspaceId);
 
-  const reset = () => { setName(""); setTarget(""); setDate(""); setNote(""); };
+  // Set default account when dialog opens
+  const handleOpenChange = (v: boolean) => {
+    if (v && !accountId) {
+      // Pre-select current account or first available
+      const defaultId = selectedAccountId ?? accounts[0]?.id ?? "";
+      setAccountId(defaultId);
+    }
+    onOpenChange(v);
+  };
+
+  const reset = () => { setName(""); setTarget(""); setDate(""); setNote(""); setAccountId(""); };
 
   const handleSubmit = () => {
     const t = parseFloat(target);
@@ -30,20 +46,37 @@ export default function GoalFormDialog({ open, onOpenChange, workspaceId }: Prop
       toast.error("Inserisci nome e importo valido");
       return;
     }
+    if (!accountId) {
+      toast.error("Seleziona un conto");
+      return;
+    }
     create.mutate(
-      { name: name.trim(), target_amount: t, target_date: date || null, note: note.trim() || null },
+      { name: name.trim(), target_amount: t, target_date: date || null, note: note.trim() || null, account_id: accountId },
       { onSuccess: () => { toast.success("Obiettivo creato"); reset(); onOpenChange(false); } }
     );
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Nuovo obiettivo</DialogTitle>
           <DialogDescription>Definisci il tuo obiettivo di risparmio</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Conto associato *</Label>
+            <Select value={accountId} onValueChange={setAccountId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona conto" />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-1.5">
             <Label>Nome *</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Vacanza estiva" />

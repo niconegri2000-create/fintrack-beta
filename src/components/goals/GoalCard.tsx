@@ -3,7 +3,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { differenceInMonths } from "date-fns";
-import { Plus, Minus, Pause, Play, CheckCircle2, AlertTriangle, Archive, RotateCcw, Trash2 } from "lucide-react";
+import { Plus, Minus, Pause, Play, CheckCircle2, AlertTriangle, Archive, RotateCcw, Trash2, Landmark } from "lucide-react";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 
 interface Props {
@@ -16,9 +16,11 @@ interface Props {
   onArchive?: (g: Goal) => void;
   onRestore?: (g: Goal) => void;
   onDeletePermanently?: (g: Goal) => void;
+  /** Show account badge (Master view) */
+  accountName?: string;
 }
 
-export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWithdraw, onTogglePause, onComplete, onArchive, onRestore, onDeletePermanently }: Props) {
+export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWithdraw, onTogglePause, onComplete, onArchive, onRestore, onDeletePermanently, accountName }: Props) {
   const { formatAmount, isPrivacy } = usePrivacy();
   const remaining = Math.max(goal.target_amount - goal.saved, 0);
   const progress = goal.target_amount > 0 ? Math.min(Math.max((goal.saved / goal.target_amount) * 100, 0), 100) : 0;
@@ -53,6 +55,16 @@ export default function GoalCard({ goal, minBalanceThreshold, onContribute, onWi
 
   return (
     <div className="rounded-xl border bg-card p-5 space-y-4">
+      {/* Account badge - only in Master view */}
+      {accountName && (
+        <div className="flex items-center gap-1.5">
+          <Badge variant="outline" className="gap-1 text-xs font-normal">
+            <Landmark className="h-3 w-3" />
+            {accountName}
+          </Badge>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
