@@ -16,6 +16,7 @@ const STATUS_STYLE: Record<HealthStatus, string> = {
   buono: "text-primary",
   attenzione: "text-amber-500",
   critico: "text-destructive",
+  insufficiente: "text-muted-foreground",
 };
 
 const BADGE_STYLE: Record<HealthStatus, string> = {
@@ -23,10 +24,11 @@ const BADGE_STYLE: Record<HealthStatus, string> = {
   buono: "bg-primary/15 text-primary border-primary/30",
   attenzione: "bg-amber-500/15 text-amber-600 border-amber-500/30",
   critico: "bg-destructive/15 text-destructive border-destructive/30",
+  insufficiente: "bg-muted/40 text-muted-foreground border-muted",
 };
 
 export function HealthScoreCard() {
-  const { score, status, label, pills, isLoading } = useHealthScore();
+  const { score, status, label, pills, isLoading, insufficientData } = useHealthScore();
   const { isPrivacy } = usePrivacy();
   const [infoOpen, setInfoOpen] = useState(false);
 
@@ -56,26 +58,37 @@ export function HealthScoreCard() {
           </button>
         </div>
 
-        <div className="flex items-baseline gap-3 mb-3">
-          <p className={`text-4xl font-bold ft-number ${STATUS_STYLE[status]}`}>
-            {isPrivacy ? "••" : score}
-            <span className="text-lg text-muted-foreground font-normal">/100</span>
-          </p>
-          <Badge variant="secondary" className={`text-xs ${BADGE_STYLE[status]}`}>
-            {label}
-          </Badge>
-        </div>
+        {insufficientData ? (
+          <div className="py-2">
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {pills.length > 0 ? pills[0] : "Aggiungi entrate e uscite per calcolare il punteggio."}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-baseline gap-3 mb-3">
+              <p className={`text-4xl font-bold ft-number ${STATUS_STYLE[status]}`}>
+                {isPrivacy ? "••" : score}
+                <span className="text-lg text-muted-foreground font-normal">/100</span>
+              </p>
+              <Badge variant="secondary" className={`text-xs ${BADGE_STYLE[status]}`}>
+                {label}
+              </Badge>
+            </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          {pills.map((pill) => (
-            <span
-              key={pill}
-              className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground ft-number"
-            >
-              {isPrivacy ? "••••" : pill}
-            </span>
-          ))}
-        </div>
+            <div className="flex flex-wrap gap-1.5">
+              {pills.map((pill) => (
+                <span
+                  key={pill}
+                  className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground ft-number"
+                >
+                  {isPrivacy ? "••••" : pill}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
