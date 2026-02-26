@@ -1,1 +1,20 @@
 /* App global styles — keep minimal, use Tailwind */
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  [role="dialog"],
+  [role="dialog"] * {
+    visibility: visible;
+  }
+  [role="dialog"] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}

@@ -16,10 +16,14 @@ import { HealthScoreCard } from "@/components/dashboard/HealthScoreCard";
 import { SmartInsightsCard } from "@/components/dashboard/SmartInsightsCard";
 import { useHealthScoreEnabled } from "@/hooks/useHealthScoreEnabled";
 import { useSmartInsightsEnabled } from "@/hooks/useSmartInsightsEnabled";
+import { useSnapshotEnabled } from "@/hooks/useSnapshotEnabled";
+import { SnapshotCard } from "@/components/dashboard/SnapshotCard";
+import { SnapshotDetailModal } from "@/components/dashboard/SnapshotDetailModal";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { startOfMonth, endOfMonth, format } from "date-fns";
+import { useState } from "react";
 
 const MONTH_LABELS: Record<string, string> = {
   "01": "Gen", "02": "Feb", "03": "Mar", "04": "Apr",
@@ -44,6 +48,8 @@ const Dashboard = () => {
 
   const { enabled: healthScoreEnabled } = useHealthScoreEnabled();
   const { enabled: smartInsightsEnabled } = useSmartInsightsEnabled();
+  const { enabled: snapshotEnabled } = useSnapshotEnabled();
+  const [snapshotDetailOpen, setSnapshotDetailOpen] = useState(false);
   const { data: workspace } = useWorkspace();
   const updateWorkspace = useUpdateWorkspace();
   const { formatAmount, isPrivacy, renderSensitiveChart } = usePrivacy();
@@ -142,6 +148,14 @@ const Dashboard = () => {
 
       {/* Smart Insights */}
       {smartInsightsEnabled && <SmartInsightsCard />}
+
+      {/* Monthly Snapshot */}
+      {snapshotEnabled && (
+        <>
+          <SnapshotCard onViewDetails={() => setSnapshotDetailOpen(true)} />
+          <SnapshotDetailModal open={snapshotDetailOpen} onOpenChange={setSnapshotDetailOpen} />
+        </>
+      )}
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

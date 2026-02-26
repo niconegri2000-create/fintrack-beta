@@ -277,6 +277,59 @@ export type Database = {
           },
         ]
       }
+      monthly_snapshots: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          critical_categories: Json
+          expense_total: number
+          id: string
+          income_total: number
+          month: string
+          net_total: number
+          notes: Json
+          savings_rate: number
+          top_categories: Json
+          workspace_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          critical_categories?: Json
+          expense_total?: number
+          id?: string
+          income_total?: number
+          month: string
+          net_total?: number
+          notes?: Json
+          savings_rate?: number
+          top_categories?: Json
+          workspace_id: string
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          critical_categories?: Json
+          expense_total?: number
+          id?: string
+          income_total?: number
+          month?: string
+          net_total?: number
+          notes?: Json
+          savings_rate?: number
+          top_categories?: Json
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_snapshots_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recurring_rules: {
         Row: {
           account_id: string
