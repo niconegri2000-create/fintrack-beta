@@ -68,9 +68,13 @@ function SyncedScrollTable({ categories, onToggle, onDelete }: {
   const bottomRef = useRef<HTMLDivElement>(null);
   const isSyncing = useRef(false);
   const [spacerWidth, setSpacerWidth] = useState(0);
+  const [hasOverflow, setHasOverflow] = useState(false);
 
   const measure = useCallback(() => {
-    if (bottomRef.current) setSpacerWidth(bottomRef.current.scrollWidth);
+    if (bottomRef.current) {
+      setSpacerWidth(bottomRef.current.scrollWidth);
+      setHasOverflow(bottomRef.current.scrollWidth > bottomRef.current.clientWidth);
+    }
   }, []);
 
   useEffect(() => {
@@ -98,9 +102,11 @@ function SyncedScrollTable({ categories, onToggle, onDelete }: {
   return (
     <div className="rounded-lg border overflow-hidden">
       {/* Top scrollbar */}
-      <div ref={topRef} onScroll={handleTopScroll} className="overflow-x-auto" style={{ height: 12 }}>
-        <div style={{ width: spacerWidth, height: 1 }} />
-      </div>
+      {hasOverflow && (
+        <div ref={topRef} onScroll={handleTopScroll} className="overflow-x-auto overflow-y-hidden" style={{ height: 12 }}>
+          <div style={{ width: spacerWidth, height: 1 }} />
+        </div>
+      )}
 
       {/* Table with bottom scrollbar */}
       <div ref={bottomRef} onScroll={handleBottomScroll} className="overflow-x-auto">
