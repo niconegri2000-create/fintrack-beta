@@ -12,6 +12,8 @@ import { useBudgetSummary, type BudgetSummaryRow } from "@/hooks/useCategoryBudg
 import { useForecast } from "@/hooks/useForecast";
 import { useWorkspace, useUpdateWorkspace } from "@/hooks/useWorkspace";
 import { ForecastWidget } from "@/components/dashboard/ForecastWidget";
+import { HealthScoreCard } from "@/components/dashboard/HealthScoreCard";
+import { useHealthScoreEnabled } from "@/hooks/useHealthScoreEnabled";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { usePrivacy } from "@/contexts/PrivacyContext";
@@ -38,6 +40,7 @@ const Dashboard = () => {
   const budgetMonthEnd = format(endOfMonth(new Date(dateRange.from)), "yyyy-MM-dd");
   const { data: budgetRows } = useBudgetSummary(budgetMonthStart, budgetMonthEnd, selectedAccountId);
 
+  const { enabled: healthScoreEnabled } = useHealthScoreEnabled();
   const { data: workspace } = useWorkspace();
   const updateWorkspace = useUpdateWorkspace();
   const { formatAmount, isPrivacy, renderSensitiveChart } = usePrivacy();
@@ -130,6 +133,9 @@ const Dashboard = () => {
           </div>
         ))}
       </div>
+
+      {/* Health Score */}
+      {healthScoreEnabled && <HealthScoreCard />}
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
