@@ -225,6 +225,7 @@ export type Database = {
       }
       goals: {
         Row: {
+          account_id: string
           created_at: string | null
           id: string
           name: string
@@ -236,6 +237,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          account_id: string
           created_at?: string | null
           id?: string
           name: string
@@ -247,6 +249,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          account_id?: string
           created_at?: string | null
           id?: string
           name?: string
@@ -258,6 +261,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "goals_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "goals_workspace_id_fkey"
             columns: ["workspace_id"]

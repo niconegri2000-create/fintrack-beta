@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useGoals, Goal, useUpdateGoalStatus, useDeleteGoal } from "@/hooks/useGoals";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useAccountContext } from "@/contexts/AccountContext";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Target, Plus, ChevronDown } from "lucide-react";
@@ -9,21 +10,17 @@ import GoalFormDialog from "@/components/goals/GoalFormDialog";
 import ContributionDialog from "@/components/goals/ContributionDialog";
 import { toast } from "sonner";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const workspaceId = DEFAULT_WORKSPACE_ID;
 
 const Obiettivi = () => {
-  const { data: goals = [], isLoading } = useGoals(workspaceId);
+  const { selectedAccountId, accounts } = useAccountContext();
+  // Pass accountId to filter: null = Master (all), string = specific account
+  const { data: goals = [], isLoading } = useGoals(workspaceId, selectedAccountId);
   const { data: ws } = useWorkspace(workspaceId);
   const updateStatus = useUpdateGoalStatus(workspaceId);
   const deleteGoal = useDeleteGoal(workspaceId);
@@ -34,6 +31,15 @@ const Obiettivi = () => {
   const [archiveGoal, setArchiveGoal] = useState<Goal | null>(null);
   const [deleteGoalTarget, setDeleteGoalTarget] = useState<Goal | null>(null);
   const [archivedOpen, setArchivedOpen] = useState(false);
+
+  const isMaster = selectedAccountId === null;
+
+  // Build account name map for Master view badges
+  const accountNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    accounts.forEach((a) => { map[a.id] = a.name; });
+    return map;
+  }, [accounts]);
 
   const handleTogglePause = (g: Goal) => {
     const next = g.status === "paused" ? "active" : "paused";
@@ -51,10 +57,7 @@ const Obiettivi = () => {
   const handleArchiveConfirm = () => {
     if (!archiveGoal) return;
     updateStatus.mutate({ id: archiveGoal.id, status: "archived" }, {
-      onSuccess: () => {
-        toast.success("Obiettivo archiviato");
-        setArchiveGoal(null);
-      },
+      onSuccess: () => { toast.success("Obiettivo archiviato"); setArchiveGoal(null); },
     });
   };
 
@@ -67,10 +70,7 @@ const Obiettivi = () => {
   const handleDeleteConfirm = () => {
     if (!deleteGoalTarget) return;
     deleteGoal.mutate(deleteGoalTarget.id, {
-      onSuccess: () => {
-        toast.success("Obiettivo eliminato definitivamente");
-        setDeleteGoalTarget(null);
-      },
+      onSuccess: () => { toast.success("Obiettivo eliminato definitivamente"); setDeleteGoalTarget(null); },
     });
   };
 
@@ -91,6 +91,7 @@ const Obiettivi = () => {
     onArchive: setArchiveGoal,
     onRestore: handleRestore,
     onDeletePermanently: setDeleteGoalTarget,
+    accountName: isMaster ? accountNameMap[g.account_id] : undefined,
   });
 
   return (
