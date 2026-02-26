@@ -85,7 +85,7 @@ export function BudgetControlSection() {
                 type="number"
                 min={1}
                 max={98}
-                className="h-8 w-20 font-mono text-sm"
+                className="h-8 w-20 ft-number text-sm"
                 value={w1}
                 onChange={(e) => setW1(e.target.value)}
                 onBlur={handleSaveThresholds}
@@ -99,7 +99,7 @@ export function BudgetControlSection() {
                 type="number"
                 min={2}
                 max={99}
-                className="h-8 w-20 font-mono text-sm"
+                className="h-8 w-20 ft-number text-sm"
                 value={w2}
                 onChange={(e) => setW2(e.target.value)}
                 onBlur={handleSaveThresholds}
