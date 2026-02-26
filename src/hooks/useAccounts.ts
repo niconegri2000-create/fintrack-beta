@@ -9,9 +9,26 @@ export interface AccountRow {
   opening_balance: number;
   min_balance_threshold: number | null;
   is_default: boolean;
+  sort_order: number;
+  is_active: boolean;
   created_at: string;
 }
 
+function mapRow(a: any): AccountRow {
+  return {
+    id: a.id,
+    workspace_id: a.workspace_id,
+    name: a.name,
+    opening_balance: Number(a.opening_balance ?? 0),
+    min_balance_threshold: a.min_balance_threshold != null ? Number(a.min_balance_threshold) : null,
+    is_default: a.is_default,
+    sort_order: a.sort_order ?? 0,
+    is_active: a.is_active ?? true,
+    created_at: a.created_at,
+  };
+}
+
+/** Active accounts ordered by sort_order */
 export function useAccounts(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   return useQuery({
     queryKey: ["accounts", workspaceId],
@@ -20,18 +37,28 @@ export function useAccounts(workspaceId: string = DEFAULT_WORKSPACE_ID) {
         .from("accounts")
         .select("*")
         .eq("workspace_id", workspaceId)
-        .order("is_default", { ascending: false })
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
         .order("name");
       if (error) throw error;
-      return (data ?? []).map((a: any) => ({
-        id: a.id,
-        workspace_id: a.workspace_id,
-        name: a.name,
-        opening_balance: Number(a.opening_balance ?? 0),
-        min_balance_threshold: a.min_balance_threshold != null ? Number(a.min_balance_threshold) : null,
-        is_default: a.is_default,
-        created_at: a.created_at,
-      })) as AccountRow[];
+      return (data ?? []).map(mapRow);
+    },
+  });
+}
+
+/** ALL accounts including archived, ordered by sort_order */
+export function useAllAccounts(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+  return useQuery({
+    queryKey: ["accounts-all", workspaceId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("accounts")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .order("sort_order", { ascending: true })
+        .order("name");
+      if (error) throw error;
+      return (data ?? []).map(mapRow);
     },
   });
 }
@@ -45,14 +72,15 @@ export function useDefaultAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
 export function useCreateAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ name, is_default = false }: { name: string; is_default?: boolean }) => {
+    mutationFn: async ({ name, is_default = false, sort_order = 0 }: { name: string; is_default?: boolean; sort_order?: number }) => {
       const { error } = await supabase
         .from("accounts")
-        .insert({ workspace_id: workspaceId, name, is_default } as any);
+        .insert({ workspace_id: workspaceId, name, is_default, sort_order } as any);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
+      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
     },
   });
 }
@@ -60,7 +88,7 @@ export function useCreateAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
 export function useUpdateAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; name?: string; opening_balance?: number; min_balance_threshold?: number | null }) => {
+    mutationFn: async ({ id, ...updates }: { id: string; name?: string; opening_balance?: number; min_balance_threshold?: number | null; sort_order?: number; is_active?: boolean; is_default?: boolean }) => {
       const { error } = await supabase
         .from("accounts")
         .update(updates as any)
@@ -70,8 +98,67 @@ export function useUpdateAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
+      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
       qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
       qc.invalidateQueries({ queryKey: ["forecast"] });
+    },
+  });
+}
+
+/** Batch-update sort_order for a list of account ids */
+export function useReorderAccounts(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      const updates = orderedIds.map((id, i) =>
+        supabase.from("accounts").update({ sort_order: i } as any).eq("id", id).eq("workspace_id", workspaceId)
+      );
+      const results = await Promise.all(updates);
+      const err = results.find((r) => r.error);
+      if (err?.error) throw err.error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
+      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
+    },
+  });
+}
+
+/** Archive (soft-hide) an account */
+export function useArchiveAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("accounts")
+        .update({ is_active: false } as any)
+        .eq("id", id)
+        .eq("workspace_id", workspaceId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
+      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
+      qc.invalidateQueries({ queryKey: ["forecast"] });
+    },
+  });
+}
+
+/** Restore an archived account */
+export function useRestoreAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("accounts")
+        .update({ is_active: true } as any)
+        .eq("id", id)
+        .eq("workspace_id", workspaceId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
+      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
     },
   });
 }
