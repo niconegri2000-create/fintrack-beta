@@ -13,7 +13,9 @@ import { useForecast } from "@/hooks/useForecast";
 import { useWorkspace, useUpdateWorkspace } from "@/hooks/useWorkspace";
 import { ForecastWidget } from "@/components/dashboard/ForecastWidget";
 import { HealthScoreCard } from "@/components/dashboard/HealthScoreCard";
+import { SmartInsightsCard } from "@/components/dashboard/SmartInsightsCard";
 import { useHealthScoreEnabled } from "@/hooks/useHealthScoreEnabled";
+import { useSmartInsightsEnabled } from "@/hooks/useSmartInsightsEnabled";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { usePrivacy } from "@/contexts/PrivacyContext";
@@ -41,6 +43,7 @@ const Dashboard = () => {
   const { data: budgetRows } = useBudgetSummary(budgetMonthStart, budgetMonthEnd, selectedAccountId);
 
   const { enabled: healthScoreEnabled } = useHealthScoreEnabled();
+  const { enabled: smartInsightsEnabled } = useSmartInsightsEnabled();
   const { data: workspace } = useWorkspace();
   const updateWorkspace = useUpdateWorkspace();
   const { formatAmount, isPrivacy, renderSensitiveChart } = usePrivacy();
@@ -136,6 +139,9 @@ const Dashboard = () => {
 
       {/* Health Score */}
       {healthScoreEnabled && <HealthScoreCard />}
+
+      {/* Smart Insights */}
+      {smartInsightsEnabled && <SmartInsightsCard />}
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
