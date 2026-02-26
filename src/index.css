@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Apple-like system font stack — no external download needed */
+/* Apple / Fintech system font stack */
 
 @layer base {
   :root {
@@ -40,7 +40,7 @@
     --input: 214 20% 90%;
     --ring: 220 60% 20%;
 
-    --radius: 0.625rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 220 25% 10%;
     --sidebar-foreground: 210 15% 80%;
@@ -52,8 +52,8 @@
     --sidebar-ring: 160 60% 45%;
     --sidebar-muted: 215 14% 50%;
 
-    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
-    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, "Segoe UI Mono", Menlo, monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
 
   .dark {
@@ -119,17 +119,35 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tight font-semibold;
-    letter-spacing: -0.015em;
+  h1 {
+    @apply font-semibold;
+    letter-spacing: -0.025em;
+  }
+  h2, h3 {
+    @apply font-semibold;
+    letter-spacing: -0.02em;
+  }
+  h4, h5, h6 {
+    @apply font-medium;
+    letter-spacing: -0.01em;
   }
 
-  /* Tabular numerals for all mono/numeric contexts */
+  /* Fintech numeric styling — tabular, tight, premium */
   .font-mono, [class*="font-mono"] {
+    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.01em;
+    letter-spacing: -0.02em;
     font-weight: 600;
+  }
+}
+
+/* Card refinement — breathing space */
+@layer components {
+  .bg-card {
+    @apply shadow-sm;
   }
 }
