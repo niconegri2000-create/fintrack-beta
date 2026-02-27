@@ -4,6 +4,7 @@ import { BudgetControlSection } from "@/components/settings/BudgetControlSection
 import { GeneralPreferencesSection } from "@/components/settings/GeneralPreferencesSection";
 import { AccountManagementSection } from "@/components/settings/AccountManagementSection";
 import { AnalysisSection } from "@/components/settings/AnalysisSection";
+import { DebugSection } from "@/components/settings/DebugSection";
 
 const Impostazioni = () => {
   return (
@@ -25,6 +26,8 @@ const Impostazioni = () => {
       <CategoriesSection />
 
       <BudgetSection />
+
+      <DebugSection />
     </div>
   );
 };

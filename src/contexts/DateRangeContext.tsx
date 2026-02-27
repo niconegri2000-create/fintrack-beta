@@ -47,11 +47,21 @@ function loadFromStorage(): DateRange {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed.from && parsed.to && parsed.preset) return parsed as DateRange;
+      if (parsed.from && parsed.to && parsed.preset) {
+        // Validate dates are well-formed
+        const fromValid = /^\d{4}-\d{2}-\d{2}$/.test(parsed.from);
+        const toValid = /^\d{4}-\d{2}-\d{2}$/.test(parsed.to);
+        if (fromValid && toValid && parsed.from <= parsed.to) {
+          return parsed as DateRange;
+        }
+      }
     }
   } catch { /* ignore */ }
+  // Fallback: repair localStorage with default
   const r = presetToRange("current_month");
-  return { ...r, preset: "current_month" };
+  const fallback = { ...r, preset: "current_month" as const };
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fallback)); } catch {}
+  return fallback;
 }
 
 interface DateRangeContextValue {
