@@ -7,6 +7,7 @@ export type PeriodPreset =
   | "last_3_months"
   | "last_6_months"
   | "ytd"
+  | "all"
   | "custom";
 
 export interface DateRange {
@@ -36,6 +37,8 @@ export function presetToRange(preset: Exclude<PeriodPreset, "custom">): { from: 
       return { from: fmt(startOfMonth(subMonths(today, 5))), to: fmt(endOfMonth(today)) };
     case "ytd":
       return { from: fmt(startOfYear(today)), to: fmt(endOfMonth(today)) };
+    case "all":
+      return { from: "2000-01-01", to: fmt(endOfMonth(today)) };
   }
 }
 

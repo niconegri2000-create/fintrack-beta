@@ -30,6 +30,7 @@ import {
 import { useCategories } from "@/hooks/useCategories";
 import { useCreateTransaction } from "@/hooks/useTransactions";
 import { useAccountContext } from "@/contexts/AccountContext";
+import { useDateRange } from "@/contexts/DateRangeContext";
 import { toast } from "sonner";
 import { capitalizeFirst } from "@/lib/normalize";
 
@@ -45,6 +46,7 @@ export function TransactionFormDialog() {
 
   const { data: categories = [] } = useCategories();
   const { selectedAccountId, accounts } = useAccountContext();
+  const { dateRange } = useDateRange();
   const defaultAccount = accounts.find((a) => a.is_default) ?? accounts[0];
   const createTx = useCreateTransaction();
 
@@ -90,7 +92,13 @@ export function TransactionFormDialog() {
       },
       {
         onSuccess: () => {
-          toast.success("Transazione aggiunta");
+          const txDate = format(date, "yyyy-MM-dd");
+          const isOutOfPeriod = txDate < dateRange.from || txDate > dateRange.to;
+          if (isOutOfPeriod) {
+            toast.success("Transazione creata. Non la vedi perché il filtro periodo è diverso. Cambia periodo per visualizzarla.", { duration: 5000 });
+          } else {
+            toast.success("Transazione aggiunta");
+          }
           resetForm();
           setOpen(false);
         },

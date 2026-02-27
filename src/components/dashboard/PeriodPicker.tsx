@@ -26,6 +26,7 @@ const PRESETS: { value: PeriodPreset; label: string }[] = [
   { value: "last_3_months", label: "Ultimi 3 mesi" },
   { value: "last_6_months", label: "Ultimi 6 mesi" },
   { value: "ytd", label: "Da inizio anno" },
+  { value: "all", label: "Tutto" },
   { value: "custom", label: "Personalizzato…" },
 ];
 
