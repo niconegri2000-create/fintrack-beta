@@ -1,4 +1,5 @@
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, Landmark, AlertTriangle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -61,14 +62,19 @@ const Dashboard = () => {
   const budgetMap = new Map<string, BudgetSummaryRow>();
   for (const b of budgetRows) budgetMap.set(b.category_name, b);
 
-  const saldoConto = data ? openingBalance + data.balance : null;
+  const safeIncome = data ? Number(data.income) || 0 : 0;
+  const safeExpense = data ? Number(data.expense) || 0 : 0;
+  const safeBalance = data ? Number(data.balance) || 0 : 0;
+  const safeSavingsRate = data ? Number(data.savingsRate) || 0 : 0;
+
+  const saldoConto = openingBalance + safeBalance;
   const minThreshold = minBalanceThreshold;
 
   const kpis = [
-    { label: "Entrate", value: data ? formatAmount(data.income) : "—", icon: TrendingUp, accent: "text-accent" },
-    { label: "Uscite", value: data ? formatAmount(data.expense) : "—", icon: TrendingDown, accent: "text-destructive" },
-    { label: "Netto periodo", value: data ? formatAmount(data.balance) : "—", icon: Wallet, accent: data && data.balance >= 0 ? "text-accent" : "text-destructive" },
-    { label: "% Risparmio", value: isPrivacy ? "••••" : (data ? `${data.savingsRate.toFixed(1)}%` : "—"), icon: PiggyBank, accent: "text-muted-foreground" },
+    { label: "Entrate", value: isLoading ? null : formatAmount(safeIncome), icon: TrendingUp, accent: "text-accent" },
+    { label: "Uscite", value: isLoading ? null : formatAmount(safeExpense), icon: TrendingDown, accent: "text-destructive" },
+    { label: "Netto periodo", value: isLoading ? null : formatAmount(safeBalance), icon: Wallet, accent: safeBalance >= 0 ? "text-accent" : "text-destructive" },
+    { label: "% Risparmio", value: isLoading ? null : (isPrivacy ? "••••" : `${safeSavingsRate.toFixed(1)}%`), icon: PiggyBank, accent: "text-muted-foreground" },
   ];
 
   const barData = (data?.byMonth ?? []).map((m) => ({
@@ -94,8 +100,8 @@ const Dashboard = () => {
       {/* Hero: Saldo conto */}
       {(() => {
         const isMaster = !selectedAccountId;
-        const isNegative = saldoConto !== null && saldoConto < 0;
-        const isBelowThreshold = saldoConto !== null && !isNegative && !isMaster && minThreshold > 0 && saldoConto < minThreshold;
+        const isNegative = saldoConto < 0;
+        const isBelowThreshold = !isNegative && !isMaster && minThreshold > 0 && saldoConto < minThreshold;
         const heroColor = isNegative ? "text-destructive" : "text-foreground";
         const iconColor = isNegative ? "text-destructive" : isBelowThreshold ? "text-amber-500" : "text-accent";
         return (
@@ -118,10 +124,10 @@ const Dashboard = () => {
               {isBelowThreshold && <Badge className="text-[10px] bg-amber-500/20 text-amber-600 border-amber-500/30">Sotto soglia</Badge>}
             </div>
             <p className={`text-4xl font-bold ft-number ${heroColor}`}>
-              {saldoConto !== null ? formatAmount(saldoConto) : "—"}
+              {isLoading ? <Skeleton className="h-10 w-40" /> : formatAmount(saldoConto ?? 0)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {isMaster ? "Saldo iniziale aggregato" : "Saldo iniziale"}: {formatAmount(openingBalance)} • Netto periodo: {data ? formatAmount(data.balance) : "—"}
+              {isMaster ? "Saldo iniziale aggregato" : "Saldo iniziale"}: {formatAmount(openingBalance)} • Netto periodo: {formatAmount(safeBalance)}
             </p>
           </div>
         );
@@ -135,7 +141,7 @@ const Dashboard = () => {
               <p className="text-xs text-muted-foreground uppercase tracking-wide">{kpi.label}</p>
               <kpi.icon className={`h-4 w-4 ${kpi.accent}`} />
             </div>
-            <p className="text-2xl font-semibold ft-number">{kpi.value}</p>
+            {kpi.value === null ? <Skeleton className="h-7 w-24" /> : <p className="text-2xl font-semibold ft-number">{kpi.value}</p>}
           </div>
         ))}
       </div>

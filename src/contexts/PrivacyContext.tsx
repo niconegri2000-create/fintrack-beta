@@ -55,7 +55,8 @@ export function PrivacyProvider({ children }: { children: React.ReactNode }) {
   const formatAmount = useCallback(
     (value: number): string => {
       if (isPrivacy) return "••••";
-      return value.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
+      const safe = Number.isFinite(value) ? value : 0;
+      return safe.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
     },
     [isPrivacy]
   );
