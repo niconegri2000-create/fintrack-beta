@@ -1,8 +1,9 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useSearchParams } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
 import { DateRangeProvider } from "@/contexts/DateRangeContext";
@@ -28,7 +29,19 @@ const queryClient = new QueryClient();
 function AuthGate() {
   const { user, loading } = useAuth();
   const { status, recheck } = useAccessControl(user);
+  const [searchParams, setSearchParams] = useSearchParams();
 
+  // After Stripe checkout success, recheck access
+  useEffect(() => {
+    if (searchParams.get("checkout") === "success" && user) {
+      // Small delay to let webhook process
+      const timer = setTimeout(() => {
+        recheck();
+        setSearchParams({}, { replace: true });
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, user]);
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">

@@ -477,6 +477,7 @@ export type Database = {
       subscriptions: {
         Row: {
           created_at: string
+          currency: string
           expires_at: string | null
           id: string
           is_active: boolean
@@ -484,10 +485,13 @@ export type Database = {
           price: number
           source: string
           started_at: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           user_id: string
         }
         Insert: {
           created_at?: string
+          currency?: string
           expires_at?: string | null
           id?: string
           is_active?: boolean
@@ -495,10 +499,13 @@ export type Database = {
           price?: number
           source?: string
           started_at?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           user_id: string
         }
         Update: {
           created_at?: string
+          currency?: string
           expires_at?: string | null
           id?: string
           is_active?: boolean
@@ -506,6 +513,8 @@ export type Database = {
           price?: number
           source?: string
           started_at?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           user_id?: string
         }
         Relationships: []
