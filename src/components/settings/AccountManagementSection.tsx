@@ -110,7 +110,10 @@ export function AccountManagementSection() {
     const nextSort = accounts.length;
     createAccount.mutate(
       { name: `Conto ${allAccounts.length + 1}`, is_default: false, sort_order: nextSort },
-      { onSuccess: () => toast({ title: "Conto creato" }) }
+      {
+        onSuccess: () => toast({ title: "Conto creato" }),
+        onError: (err: any) => toast({ title: "Errore nella creazione", description: err?.message || "Errore sconosciuto", variant: "destructive" }),
+      }
     );
   };
 
