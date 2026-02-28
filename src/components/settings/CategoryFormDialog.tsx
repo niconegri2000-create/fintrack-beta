@@ -41,7 +41,7 @@ export function CategoryFormDialog() {
       { name: normalized, priority, is_fixed_default: isFixedDefault, is_active: isActive },
       {
         onSuccess: () => { toast.success("Categoria creata"); reset(); setOpen(false); },
-        onError: (err: any) => toast.error(`Errore: ${err?.message || "salvataggio fallito"}`),
+        onError: () => toast.error("Errore nel salvataggio"),
       },
     );
   };

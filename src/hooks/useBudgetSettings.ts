@@ -21,7 +21,7 @@ export function useBudgetSettings(workspaceId: string = DEFAULT_WORKSPACE_ID) {
 
   const query = useQuery({
     queryKey: [QUERY_KEY, workspaceId],
-    queryFn: async (): Promise<BudgetSettings | null> => {
+    queryFn: async (): Promise<BudgetSettings> => {
       // Try to fetch existing row
       const { data, error } = await supabase
         .from("budget_settings")
@@ -32,16 +32,13 @@ export function useBudgetSettings(workspaceId: string = DEFAULT_WORKSPACE_ID) {
 
       if (data) return data as unknown as BudgetSettings;
 
-      // Try to create default row; if FK fails (workspace missing), return null
+      // Create default row if none exists
       const { data: created, error: insertErr } = await supabase
         .from("budget_settings")
         .insert({ workspace_id: workspaceId })
         .select()
-        .maybeSingle();
-      if (insertErr) {
-        console.warn("budget_settings auto-create failed:", insertErr.message);
-        return null;
-      }
+        .single();
+      if (insertErr) throw insertErr;
       return created as unknown as BudgetSettings;
     },
   });

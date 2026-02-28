@@ -20,12 +20,8 @@ export function useWorkspace(workspaceId: string = DEFAULT_WORKSPACE_ID) {
         .from("workspaces")
         .select("opening_balance, min_balance_threshold, forecast_horizon_months")
         .eq("id", workspaceId)
-        .maybeSingle();
+        .single();
       if (error) throw error;
-      if (!data) {
-        // Workspace doesn't exist yet – return safe defaults
-        return { opening_balance: 0, min_balance_threshold: 0, forecast_horizon_months: 6 };
-      }
       return {
         opening_balance: Number(data.opening_balance ?? 0),
         min_balance_threshold: Number(data.min_balance_threshold ?? 0),

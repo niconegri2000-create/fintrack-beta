@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Save, Check, Pencil, ChevronUp, ChevronDown, Archive, RotateCcw, Plus, Trash2 } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
 import { useAccountContext } from "@/contexts/AccountContext";
 import {
   useUpdateAccount,
@@ -110,10 +110,7 @@ export function AccountManagementSection() {
     const nextSort = accounts.length;
     createAccount.mutate(
       { name: `Conto ${allAccounts.length + 1}`, is_default: false, sort_order: nextSort },
-      {
-        onSuccess: () => toast({ title: "Conto creato" }),
-        onError: (err: any) => toast({ title: "Errore nella creazione", description: err?.message || "Errore sconosciuto", variant: "destructive" }),
-      }
+      { onSuccess: () => toast({ title: "Conto creato" }) }
     );
   };
 
