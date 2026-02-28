@@ -1,0 +1,4 @@
+
+ALTER TABLE public.subscriptions
+ADD COLUMN IF NOT EXISTS price numeric NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'manual';

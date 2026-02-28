@@ -27,7 +27,7 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
     if (!trimmed) return;
     setSubmitting(true);
 
-    // Check access_codes table
+    // Check access_codes table: code exists, not used, email matches
     const { data, error: fetchErr } = await supabase
       .from("access_codes")
       .select("*")
@@ -38,7 +38,7 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
     if (fetchErr || !data || data.length === 0) {
       toast({
         title: "Codice non valido",
-        description: "Il codice inserito non è valido, è scaduto o non è associato alla tua email.",
+        description: "Codice non valido o non autorizzato.",
         variant: "destructive",
       });
       setSubmitting(false);
@@ -47,18 +47,29 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
 
     const record = data[0];
 
-    // Check expiry
-    if (record.expires_at && new Date(record.expires_at) < new Date()) {
+    // Verify email matches
+    if (record.email_allowed.toLowerCase() !== user.email!.toLowerCase()) {
       toast({
-        title: "Codice scaduto",
-        description: "Questo codice di accesso è scaduto.",
+        title: "Codice non valido",
+        description: "Codice non valido o non autorizzato.",
         variant: "destructive",
       });
       setSubmitting(false);
       return;
     }
 
-    // Redeem
+    // Check expiry
+    if (record.expires_at && new Date(record.expires_at) < new Date()) {
+      toast({
+        title: "Codice non valido",
+        description: "Codice non valido o non autorizzato.",
+        variant: "destructive",
+      });
+      setSubmitting(false);
+      return;
+    }
+
+    // Redeem code
     const { error: updateErr } = await supabase
       .from("access_codes")
       .update({ is_used: true, used_by: user.id })
@@ -74,7 +85,29 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
       return;
     }
 
-    toast({ title: "Accesso attivato!", description: "Benvenuto in FinTrack." });
+    // Create subscription record
+    const { error: subErr } = await supabase
+      .from("subscriptions")
+      .insert({
+        user_id: user.id,
+        plan: "premium",
+        is_active: true,
+        price: 0,
+        source: "invite_code",
+        started_at: new Date().toISOString(),
+      });
+
+    if (subErr) {
+      toast({
+        title: "Errore",
+        description: "Codice attivato ma errore nella creazione dell'abbonamento. Riprova.",
+        variant: "destructive",
+      });
+      setSubmitting(false);
+      return;
+    }
+
+    toast({ title: "Accesso attivato!", description: "Benvenuto in FinTrack Premium." });
     setCodeModalOpen(false);
     onAccessGranted();
     setSubmitting(false);

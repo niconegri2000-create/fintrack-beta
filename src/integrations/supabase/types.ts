@@ -481,6 +481,8 @@ export type Database = {
           id: string
           is_active: boolean
           plan: string
+          price: number
+          source: string
           started_at: string | null
           user_id: string
         }
@@ -490,6 +492,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           plan?: string
+          price?: number
+          source?: string
           started_at?: string | null
           user_id: string
         }
@@ -499,6 +503,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           plan?: string
+          price?: number
+          source?: string
           started_at?: string | null
           user_id?: string
         }
