@@ -22,6 +22,7 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -36,6 +37,9 @@ const navItems = [
 export function AppSidebar() {
   const { isMobile, setOpenMobile } = useSidebar();
   const location = useLocation();
+  const { user } = useAuth();
+
+  const displayLabel = user?.user_metadata?.display_name || user?.email || "";
 
   useEffect(() => {
     if (isMobile) setOpenMobile(false);
@@ -50,7 +54,7 @@ export function AppSidebar() {
           </div>
           <div>
             <h2 className="text-sm font-semibold text-sidebar-accent-foreground">FinTrack</h2>
-            <p className="text-xs text-sidebar-muted">Personale</p>
+            <p className="text-xs text-sidebar-muted truncate max-w-[140px]">Personale — {displayLabel}</p>
           </div>
         </div>
       </SidebarHeader>
