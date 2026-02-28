@@ -277,6 +277,41 @@ export type Database = {
           },
         ]
       }
+      invites: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          invite_code: string
+          used: boolean
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          invite_code: string
+          used?: boolean
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          invite_code?: string
+          used?: boolean
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invites_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monthly_snapshots: {
         Row: {
           account_id: string | null
