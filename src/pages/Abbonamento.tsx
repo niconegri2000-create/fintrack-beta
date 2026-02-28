@@ -71,7 +71,7 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
           </div>
           <h1 className="text-3xl font-bold">Sblocca FinTrack</h1>
           <p className="text-muted-foreground">
-            Per accedere alla dashboard hai bisogno di un abbonamento attivo.
+            Per accedere alla dashboard è necessario un abbonamento Premium attivo.
           </p>
         </div>
 
@@ -79,10 +79,10 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              Piano Premium
+              FinTrack Premium — €3,99 / mese
             </CardTitle>
             <CardDescription>
-              Gestione completa delle finanze personali
+              Accesso completo alla gestione delle finanze personali.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -94,10 +94,10 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
               <li>✓ Budget per categoria</li>
             </ul>
             <Button className="w-full" size="lg" disabled>
-              Prossimamente
+              Abbonati — €3,99 / mese
             </Button>
             <p className="text-xs text-center text-muted-foreground">
-              Il sistema di pagamento sarà disponibile a breve.
+              Rinnovo mensile automatico. Puoi annullare in qualsiasi momento.
             </p>
           </CardContent>
         </Card>
