@@ -16,6 +16,7 @@ import Ricorrenti from "./pages/Ricorrenti";
 import Obiettivi from "./pages/Obiettivi";
 import Report from "./pages/Report";
 import Impostazioni from "./pages/Impostazioni";
+import Account from "./pages/Account";
 import Auth from "./pages/Auth";
 import Abbonamento from "./pages/Abbonamento";
 import NotFound from "./pages/NotFound";
@@ -68,6 +69,7 @@ function AuthGate() {
               <Route path="/obiettivi" element={<Obiettivi />} />
               <Route path="/report" element={<Report />} />
               <Route path="/impostazioni" element={<Impostazioni />} />
+              <Route path="/account" element={<Account />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

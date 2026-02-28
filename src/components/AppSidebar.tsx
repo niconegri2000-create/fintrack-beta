@@ -7,6 +7,7 @@ import {
   Target,
   FileBarChart,
   Settings,
+  UserCircle,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -29,6 +30,7 @@ const navItems = [
   { title: "Obiettivi", url: "/obiettivi", icon: Target },
   { title: "Confronto", url: "/report", icon: FileBarChart },
   { title: "Impostazioni", url: "/impostazioni", icon: Settings },
+  { title: "Account", url: "/account", icon: UserCircle },
 ];
 
 export function AppSidebar() {
