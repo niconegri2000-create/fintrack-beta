@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Shield, CreditCard, LogOut, Mail, Save, KeyRound } from "lucide-react";
+import { User, Shield, CreditCard, LogOut, Mail, Save, KeyRound, ExternalLink } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -237,6 +237,8 @@ function SecurityTab({ signOut }: { signOut: () => Promise<void> }) {
 /* ---- Subscription Tab ---- */
 
 function SubscriptionTab({ userId }: { userId?: string }) {
+  const { toast } = useToast();
+  const [openingPortal, setOpeningPortal] = useState(false);
   const { data: subscription, isLoading } = useQuery({
     queryKey: ["subscription", userId],
     enabled: !!userId,
@@ -251,6 +253,23 @@ function SubscriptionTab({ userId }: { userId?: string }) {
   });
 
   const isInvite = (subscription as any)?.source === "invite_code";
+  const hasStripeCustomer = !!subscription?.stripe_customer_id;
+
+  const handleManageSubscription = async () => {
+    setOpeningPortal(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-portal-session");
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("URL non ricevuto");
+      }
+    } catch (err: any) {
+      toast({ title: "Errore", description: err.message || "Impossibile aprire il portale", variant: "destructive" });
+      setOpeningPortal(false);
+    }
+  };
 
   return (
     <Card>
@@ -286,6 +305,21 @@ function SubscriptionTab({ userId }: { userId?: string }) {
                   {new Date(subscription.expires_at).toLocaleDateString("it-IT")}
                 </span>
               </div>
+            )}
+
+            {hasStripeCustomer && !isInvite && (
+              <>
+                <Separator />
+                <Button
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={handleManageSubscription}
+                  disabled={openingPortal}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  {openingPortal ? "Apertura portale..." : "Gestisci abbonamento"}
+                </Button>
+              </>
             )}
           </div>
         ) : (
