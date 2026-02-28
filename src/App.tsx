@@ -8,44 +8,69 @@ import { PrivacyProvider } from "@/contexts/PrivacyContext";
 import { DateRangeProvider } from "@/contexts/DateRangeContext";
 import { AccountProvider } from "@/contexts/AccountContext";
 import { AppLayout } from "@/components/AppLayout";
+import { InviteGate } from "@/components/InviteGate";
+import { useAuth } from "@/hooks/useAuth";
 import Dashboard from "./pages/Dashboard";
 import Transazioni from "./pages/Transazioni";
 import Ricorrenti from "./pages/Ricorrenti";
 import Obiettivi from "./pages/Obiettivi";
 import Report from "./pages/Report";
 import Impostazioni from "./pages/Impostazioni";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { DevDiagnostics } from "@/components/DevDiagnostics";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+function AuthGate() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground">Caricamento...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Auth />;
+  }
+
+  return (
+    <InviteGate>
       <PrivacyProvider>
         <AccountProvider>
           <DateRangeProvider>
-            <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <DevDiagnostics />
-              <Routes>
-                <Route element={<AppLayout />}>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/transazioni" element={<Transazioni />} />
-                  <Route path="/ricorrenti" element={<Ricorrenti />} />
-                  <Route path="/obiettivi" element={<Obiettivi />} />
-                  <Route path="/report" element={<Report />} />
-                  <Route path="/impostazioni" element={<Impostazioni />} />
-                </Route>
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-            </TooltipProvider>
+            <Routes>
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/transazioni" element={<Transazioni />} />
+                <Route path="/ricorrenti" element={<Ricorrenti />} />
+                <Route path="/obiettivi" element={<Obiettivi />} />
+                <Route path="/report" element={<Report />} />
+                <Route path="/impostazioni" element={<Impostazioni />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
           </DateRangeProvider>
         </AccountProvider>
       </PrivacyProvider>
+    </InviteGate>
+  );
+}
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <DevDiagnostics />
+          <AuthGate />
+        </BrowserRouter>
+      </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );
