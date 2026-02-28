@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_codes: {
+        Row: {
+          code: string
+          created_at: string
+          email_allowed: string
+          expires_at: string | null
+          id: string
+          is_used: boolean
+          used_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          email_allowed: string
+          expires_at?: string | null
+          id?: string
+          is_used?: boolean
+          used_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          email_allowed?: string
+          expires_at?: string | null
+          id?: string
+          is_used?: boolean
+          used_by?: string | null
+        }
+        Relationships: []
+      }
       accounts: {
         Row: {
           created_at: string | null

@@ -47,6 +47,19 @@ export function useAccessControl(user: User | null) {
         return;
       }
 
+      // 4. Check access_codes (redeemed)
+      const { data: accessCode } = await supabase
+        .from("access_codes")
+        .select("id")
+        .eq("is_used", true)
+        .eq("used_by", user.id)
+        .limit(1);
+
+      if (accessCode && accessCode.length > 0) {
+        setStatus("granted");
+        return;
+      }
+
       setStatus("needs_subscription");
     };
 
@@ -78,6 +91,16 @@ export function useAccessControl(user: User | null) {
           .eq("used", true)
           .limit(1);
         if (invite && invite.length > 0) {
+          setStatus("granted");
+          return;
+        }
+        const { data: accessCode } = await supabase
+          .from("access_codes")
+          .select("id")
+          .eq("is_used", true)
+          .eq("used_by", user.id)
+          .limit(1);
+        if (accessCode && accessCode.length > 0) {
           setStatus("granted");
           return;
         }

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Crown, Sparkles, ShieldCheck, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,37 +16,53 @@ interface AbbonamentoProps {
 export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
-  const [showCodeInput, setShowCodeInput] = useState(false);
+  const [codeModalOpen, setCodeModalOpen] = useState(false);
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const handleCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.email) return;
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) return;
     setSubmitting(true);
 
+    // Check access_codes table
     const { data, error: fetchErr } = await supabase
-      .from("invites")
+      .from("access_codes")
       .select("*")
-      .eq("invite_code", code.trim())
-      .eq("email", user.email)
-      .eq("used", false)
+      .eq("code", trimmed)
+      .eq("is_used", false)
       .limit(1);
 
     if (fetchErr || !data || data.length === 0) {
       toast({
         title: "Codice non valido",
-        description: "Il codice inserito non è valido o è già stato utilizzato.",
+        description: "Il codice inserito non è valido, è scaduto o non è associato alla tua email.",
         variant: "destructive",
       });
       setSubmitting(false);
       return;
     }
 
+    const record = data[0];
+
+    // Check expiry
+    if (record.expires_at && new Date(record.expires_at) < new Date()) {
+      toast({
+        title: "Codice scaduto",
+        description: "Questo codice di accesso è scaduto.",
+        variant: "destructive",
+      });
+      setSubmitting(false);
+      return;
+    }
+
+    // Redeem
     const { error: updateErr } = await supabase
-      .from("invites")
-      .update({ used: true })
-      .eq("id", data[0].id);
+      .from("access_codes")
+      .update({ is_used: true, used_by: user.id })
+      .eq("id", record.id);
 
     if (updateErr) {
       toast({
@@ -57,7 +74,8 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
       return;
     }
 
-    toast({ title: "Accesso attivato!", description: "Benvenuto in FinTrack Beta." });
+    toast({ title: "Accesso attivato!", description: "Benvenuto in FinTrack." });
+    setCodeModalOpen(false);
     onAccessGranted();
     setSubmitting(false);
   };
@@ -103,33 +121,14 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
         </Card>
 
         {/* Tester access CTA */}
-        {!showCodeInput ? (
-          <button
-            type="button"
-            onClick={() => setShowCodeInput(true)}
-            className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ShieldCheck className="inline h-4 w-4 mr-1.5 -mt-0.5" />
-            Hai un codice di accesso?
-          </button>
-        ) : (
-          <form onSubmit={handleCodeSubmit} className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="access-code">Codice di Accesso</Label>
-              <Input
-                id="access-code"
-                type="text"
-                placeholder="es. BETA-XXXX-YYYY"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" variant="secondary" className="w-full" disabled={submitting}>
-              {submitting ? "Verifica in corso..." : "Attiva accesso"}
-            </Button>
-          </form>
-        )}
+        <button
+          type="button"
+          onClick={() => setCodeModalOpen(true)}
+          className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ShieldCheck className="inline h-4 w-4 mr-1.5 -mt-0.5" />
+          Ho un codice di accesso
+        </button>
 
         <div className="text-center">
           <button
@@ -141,6 +140,39 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
             Esci
           </button>
         </div>
+
+        {/* Access code modal */}
+        <Dialog open={codeModalOpen} onOpenChange={setCodeModalOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                Codice di Accesso
+              </DialogTitle>
+              <DialogDescription>
+                Inserisci il codice ricevuto per attivare l'accesso tester.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleCodeSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="access-code">Codice</Label>
+                <Input
+                  id="access-code"
+                  type="text"
+                  placeholder="es. BETA-XXXX-YYYY"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  required
+                  maxLength={50}
+                  autoFocus
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={submitting}>
+                {submitting ? "Verifica in corso..." : "Attiva accesso"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
