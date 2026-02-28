@@ -15,6 +15,7 @@ import Obiettivi from "./pages/Obiettivi";
 import Report from "./pages/Report";
 import Impostazioni from "./pages/Impostazioni";
 import NotFound from "./pages/NotFound";
+import { DevDiagnostics } from "@/components/DevDiagnostics";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <DevDiagnostics />
               <Routes>
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<Dashboard />} />
