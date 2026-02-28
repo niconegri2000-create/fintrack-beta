@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Crown, Sparkles, ShieldCheck, LogOut } from "lucide-react";
+import { Crown, Sparkles, ShieldCheck, LogOut, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +19,27 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
   const [codeModalOpen, setCodeModalOpen] = useState(false);
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
+
+  const handleSubscribe = async () => {
+    setSubscribing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout");
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("Nessun URL di checkout ricevuto");
+      }
+    } catch (err: any) {
+      toast({
+        title: "Errore",
+        description: err?.message || "Impossibile avviare il pagamento. Riprova.",
+        variant: "destructive",
+      });
+      setSubscribing(false);
+    }
+  };
 
   const handleCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,8 +165,15 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
               <li>✓ Report e previsioni</li>
               <li>✓ Budget per categoria</li>
             </ul>
-            <Button className="w-full" size="lg" disabled>
-              Abbonati — €3,99 / mese
+            <Button className="w-full" size="lg" onClick={handleSubscribe} disabled={subscribing}>
+              {subscribing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Reindirizzamento a Stripe...
+                </>
+              ) : (
+                "Abbonati — €3,99 / mese"
+              )}
             </Button>
             <p className="text-xs text-center text-muted-foreground">
               Rinnovo mensile automatico. Puoi annullare in qualsiasi momento.
