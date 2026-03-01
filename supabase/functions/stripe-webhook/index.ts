@@ -12,6 +12,26 @@ const supabaseAdmin = createClient(
   { auth: { persistSession: false } },
 );
 
+/* ── Safe timestamp utilities ── */
+
+function safeUnixToIso(unix?: number | null): string | null {
+  if (typeof unix !== "number") return null;
+  if (unix <= 0) return null;
+  const d = new Date(unix * 1000);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function safeUnixToDate(unix?: number | null): Date | null {
+  if (typeof unix !== "number") return null;
+  if (unix <= 0) return null;
+  const d = new Date(unix * 1000);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+/* ── Relevant events ── */
+
 const relevantEvents = new Set([
   "checkout.session.completed",
   "customer.subscription.created",
@@ -29,6 +49,7 @@ serve(async (req) => {
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
 
   if (!signature || !webhookSecret) {
+    console.error("[WEBHOOK] Missing signature or webhook secret");
     return new Response("Missing signature or secret", { status: 400 });
   }
 
@@ -36,9 +57,11 @@ serve(async (req) => {
   try {
     event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
   } catch (err) {
-    console.error("Webhook signature verification failed:", err);
+    console.error("[WEBHOOK] Signature verification failed:", err);
     return new Response("Invalid signature", { status: 400 });
   }
+
+  console.log(`[WEBHOOK] Received event: ${event.type} (${event.id})`);
 
   if (!relevantEvents.has(event.type)) {
     return new Response(JSON.stringify({ received: true }), { status: 200 });
@@ -47,19 +70,21 @@ serve(async (req) => {
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
-      if (session.mode !== "subscription") {
+      console.log(`[WEBHOOK] checkout.session.completed – mode=${session.mode}, subscription=${session.subscription}, customer=${session.customer}`);
+
+      if (session.mode !== "subscription" || !session.subscription) {
         return new Response(JSON.stringify({ received: true }), { status: 200 });
       }
 
       const userId = session.metadata?.user_id;
       if (!userId) {
-        console.error("No user_id in session metadata");
+        console.error("[WEBHOOK] No user_id in checkout session metadata");
         return new Response("Missing user_id", { status: 400 });
       }
 
-      // Fetch the subscription to get details
+      // Retrieve full subscription from Stripe API
       const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-
+      console.log(`[WEBHOOK] Retrieved subscription ${subscription.id}, status=${subscription.status}`);
       await upsertSubscription(userId, subscription, session.customer as string);
     }
 
@@ -71,29 +96,40 @@ serve(async (req) => {
       const subscription = event.data.object as Stripe.Subscription;
       const userId = subscription.metadata?.user_id;
 
-      if (!userId) {
-        console.error("No user_id in subscription metadata");
-        return new Response(JSON.stringify({ received: true }), { status: 200 });
-      }
+      console.log(`[WEBHOOK] ${event.type} – sub=${subscription.id}, status=${subscription.status}, user_id=${userId}`);
 
-      await upsertSubscription(userId, subscription, subscription.customer as string);
+      if (!userId) {
+        // Try to find user by stripe_customer_id in our DB
+        const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
+        if (customerId) {
+          const { data: existing } = await supabaseAdmin
+            .from("subscriptions")
+            .select("user_id")
+            .eq("stripe_customer_id", customerId)
+            .maybeSingle();
+
+          if (existing?.user_id) {
+            console.log(`[WEBHOOK] Found user_id ${existing.user_id} via stripe_customer_id ${customerId}`);
+            await upsertSubscription(existing.user_id, subscription, customerId);
+          } else {
+            console.warn(`[WEBHOOK] No user_id in metadata and no matching customer in DB for ${customerId}`);
+          }
+        } else {
+          console.warn("[WEBHOOK] No user_id in metadata and no customer ID available");
+        }
+      } else {
+        await upsertSubscription(userId, subscription, subscription.customer as string);
+      }
     }
   } catch (err) {
-    console.error("Error processing webhook:", err);
+    console.error("[WEBHOOK] Error processing event:", err);
     return new Response("Webhook processing error", { status: 500 });
   }
 
   return new Response(JSON.stringify({ received: true }), { status: 200 });
 });
 
-function safeTimestamp(ts: unknown): string | null {
-  if (ts == null || typeof ts !== "number" || !isFinite(ts)) return null;
-  try {
-    return new Date(ts * 1000).toISOString();
-  } catch {
-    return null;
-  }
-}
+/* ── Upsert subscription into public.subscriptions ── */
 
 async function upsertSubscription(
   userId: string,
@@ -103,8 +139,11 @@ async function upsertSubscription(
   const status = subscription.status ?? "active";
   const isActive = ["active", "trialing"].includes(status);
 
-  const periodEnd = safeTimestamp(subscription.current_period_end);
-  const periodStart = safeTimestamp(subscription.current_period_start) ?? new Date().toISOString();
+  const periodStart = safeUnixToIso(subscription.current_period_start);
+  const periodEnd = safeUnixToIso(subscription.current_period_end);
+
+  console.log(`[WEBHOOK] Timestamps – current_period_start raw=${subscription.current_period_start} -> ${periodStart}`);
+  console.log(`[WEBHOOK] Timestamps – current_period_end raw=${subscription.current_period_end} -> ${periodEnd}`);
 
   const payload = {
     plan: "premium",
@@ -112,14 +151,15 @@ async function upsertSubscription(
     source: "stripe",
     stripe_customer_id: stripeCustomerId,
     stripe_subscription_id: subscription.id,
-    started_at: periodStart,
+    started_at: periodStart ?? new Date().toISOString(),
     expires_at: periodEnd,
     price: 399,
     currency: "eur",
   };
 
-  console.log(`Upserting subscription for user ${userId}:`, JSON.stringify(payload));
+  console.log(`[WEBHOOK] Upserting subscription for user ${userId}:`, JSON.stringify(payload));
 
+  // Check if a row already exists for this user
   const { data: existing } = await supabaseAdmin
     .from("subscriptions")
     .select("id")
@@ -131,13 +171,13 @@ async function upsertSubscription(
       .from("subscriptions")
       .update(payload)
       .eq("user_id", userId);
-    if (error) console.error("Update error:", error);
-    else console.log("Subscription updated successfully");
+    if (error) console.error("[WEBHOOK] Update error:", JSON.stringify(error));
+    else console.log("[WEBHOOK] Subscription updated successfully");
   } else {
     const { error } = await supabaseAdmin
       .from("subscriptions")
       .insert({ user_id: userId, ...payload });
-    if (error) console.error("Insert error:", error);
-    else console.log("Subscription inserted successfully");
+    if (error) console.error("[WEBHOOK] Insert error:", JSON.stringify(error));
+    else console.log("[WEBHOOK] Subscription inserted successfully");
   }
 }
