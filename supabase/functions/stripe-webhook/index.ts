@@ -86,19 +86,25 @@ serve(async (req) => {
   return new Response(JSON.stringify({ received: true }), { status: 200 });
 });
 
+function safeTimestamp(ts: unknown): string | null {
+  if (ts == null || typeof ts !== "number" || !isFinite(ts)) return null;
+  try {
+    return new Date(ts * 1000).toISOString();
+  } catch {
+    return null;
+  }
+}
+
 async function upsertSubscription(
   userId: string,
   subscription: Stripe.Subscription,
   stripeCustomerId: string,
 ) {
-  const isActive = ["active", "trialing"].includes(subscription.status);
+  const status = subscription.status ?? "active";
+  const isActive = ["active", "trialing"].includes(status);
 
-  const periodEnd = subscription.current_period_end
-    ? new Date(subscription.current_period_end * 1000).toISOString()
-    : null;
-  const periodStart = subscription.current_period_start
-    ? new Date(subscription.current_period_start * 1000).toISOString()
-    : new Date().toISOString();
+  const periodEnd = safeTimestamp(subscription.current_period_end);
+  const periodStart = safeTimestamp(subscription.current_period_start) ?? new Date().toISOString();
 
   const payload = {
     plan: "premium",
@@ -112,6 +118,8 @@ async function upsertSubscription(
     currency: "eur",
   };
 
+  console.log(`Upserting subscription for user ${userId}:`, JSON.stringify(payload));
+
   const { data: existing } = await supabaseAdmin
     .from("subscriptions")
     .select("id")
@@ -124,12 +132,12 @@ async function upsertSubscription(
       .update(payload)
       .eq("user_id", userId);
     if (error) console.error("Update error:", error);
+    else console.log("Subscription updated successfully");
   } else {
     const { error } = await supabaseAdmin
       .from("subscriptions")
       .insert({ user_id: userId, ...payload });
     if (error) console.error("Insert error:", error);
+    else console.log("Subscription inserted successfully");
   }
-
-  console.log(`Subscription upserted for user ${userId}: active=${isActive}, periodEnd=${periodEnd}`);
 }
