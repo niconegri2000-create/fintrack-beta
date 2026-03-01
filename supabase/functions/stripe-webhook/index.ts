@@ -92,10 +92,26 @@ async function upsertSubscription(
   stripeCustomerId: string,
 ) {
   const isActive = ["active", "trialing"].includes(subscription.status);
-  const periodEnd = new Date(subscription.current_period_end * 1000).toISOString();
-  const periodStart = new Date(subscription.current_period_start * 1000).toISOString();
 
-  // Check if subscription row exists for this user
+  const periodEnd = subscription.current_period_end
+    ? new Date(subscription.current_period_end * 1000).toISOString()
+    : null;
+  const periodStart = subscription.current_period_start
+    ? new Date(subscription.current_period_start * 1000).toISOString()
+    : new Date().toISOString();
+
+  const payload = {
+    plan: "premium",
+    is_active: isActive,
+    source: "stripe",
+    stripe_customer_id: stripeCustomerId,
+    stripe_subscription_id: subscription.id,
+    started_at: periodStart,
+    expires_at: periodEnd,
+    price: 399,
+    currency: "eur",
+  };
+
   const { data: existing } = await supabaseAdmin
     .from("subscriptions")
     .select("id")
@@ -103,34 +119,17 @@ async function upsertSubscription(
     .maybeSingle();
 
   if (existing) {
-    await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from("subscriptions")
-      .update({
-        plan: "premium",
-        is_active: isActive,
-        source: "stripe",
-        stripe_customer_id: stripeCustomerId,
-        stripe_subscription_id: subscription.id,
-        started_at: periodStart,
-        expires_at: periodEnd,
-        price: 399,
-        currency: "eur",
-      })
+      .update(payload)
       .eq("user_id", userId);
+    if (error) console.error("Update error:", error);
   } else {
-    await supabaseAdmin.from("subscriptions").insert({
-      user_id: userId,
-      plan: "premium",
-      is_active: isActive,
-      source: "stripe",
-      stripe_customer_id: stripeCustomerId,
-      stripe_subscription_id: subscription.id,
-      started_at: periodStart,
-      expires_at: periodEnd,
-      price: 399,
-      currency: "eur",
-    });
+    const { error } = await supabaseAdmin
+      .from("subscriptions")
+      .insert({ user_id: userId, ...payload });
+    if (error) console.error("Insert error:", error);
   }
 
-  console.log(`Subscription upserted for user ${userId}: active=${isActive}`);
+  console.log(`Subscription upserted for user ${userId}: active=${isActive}, periodEnd=${periodEnd}`);
 }
