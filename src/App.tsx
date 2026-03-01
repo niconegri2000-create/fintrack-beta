@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,6 +11,9 @@ import { AccountProvider } from "@/contexts/AccountContext";
 import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useAccessControl } from "@/hooks/useAccessControl";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import Transazioni from "./pages/Transazioni";
 import Ricorrenti from "./pages/Ricorrenti";
@@ -26,22 +29,88 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const queryClient = new QueryClient();
 
+function CheckoutPolling({ user, onActivated }: { user: any; onActivated: () => void }) {
+  const [attempts, setAttempts] = useState(0);
+  const [failed, setFailed] = useState(false);
+  const maxAttempts = 30;
+
+  const poll = useCallback(async () => {
+    setFailed(false);
+    setAttempts(0);
+    let count = 0;
+    const interval = setInterval(async () => {
+      count++;
+      setAttempts(count);
+      try {
+        const { data } = await supabase
+          .from("subscriptions")
+          .select("is_active")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (data?.is_active) {
+          clearInterval(interval);
+          onActivated();
+        } else if (count >= maxAttempts) {
+          clearInterval(interval);
+          setFailed(true);
+        }
+      } catch {
+        if (count >= maxAttempts) {
+          clearInterval(interval);
+          setFailed(true);
+        }
+      }
+    }, 1000);
+    return interval;
+  }, [user.id, onActivated]);
+
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval>;
+    poll().then((id) => { intervalId = id; });
+    return () => { if (intervalId) clearInterval(intervalId); };
+  }, [poll]);
+
+  if (failed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="text-center space-y-4 max-w-md">
+          <p className="text-lg font-semibold">Attivazione non riuscita</p>
+          <p className="text-sm text-muted-foreground">
+            Il pagamento è stato completato, ma l'abbonamento non risulta ancora attivo. Questo può succedere per un ritardo nella conferma.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Button onClick={() => poll()}>Riprova verifica</Button>
+            <Button variant="outline" asChild>
+              <a href="mailto:support@fintrack.app">Contatta supporto</a>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-center space-y-3">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        <p className="text-muted-foreground">Attivazione in corso…</p>
+        <p className="text-xs text-muted-foreground">Tentativo {attempts}/{maxAttempts}</p>
+      </div>
+    </div>
+  );
+}
+
 function AuthGate() {
   const { user, loading } = useAuth();
   const { status, recheck } = useAccessControl(user);
   const [searchParams, setSearchParams] = useSearchParams();
+  const isCheckoutSuccess = searchParams.get("checkout") === "success";
 
-  // After Stripe checkout success, recheck access
-  useEffect(() => {
-    if (searchParams.get("checkout") === "success" && user) {
-      // Small delay to let webhook process
-      const timer = setTimeout(() => {
-        recheck();
-        setSearchParams({}, { replace: true });
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [searchParams, user]);
+  const handleActivated = useCallback(() => {
+    setSearchParams({}, { replace: true });
+    recheck();
+  }, [setSearchParams, recheck]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -52,6 +121,11 @@ function AuthGate() {
 
   if (!user) {
     return <Auth />;
+  }
+
+  // Show polling UI after Stripe checkout before access check
+  if (isCheckoutSuccess && status !== "granted") {
+    return <CheckoutPolling user={user} onActivated={handleActivated} />;
   }
 
   if (status === "loading") {
