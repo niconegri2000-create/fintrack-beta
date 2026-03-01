@@ -663,7 +663,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      ensure_user_bootstrap: { Args: { p_user_id: string }; Returns: string }
+      get_user_workspace_id: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
