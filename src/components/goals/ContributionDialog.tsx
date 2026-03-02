@@ -13,17 +13,16 @@ import { format } from "date-fns";
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  workspaceId: string;
   goalId: string;
   goalName: string;
   mode: "contribute" | "withdraw";
 }
 
-export default function ContributionDialog({ open, onOpenChange, workspaceId, goalId, goalName, mode }: Props) {
+export default function ContributionDialog({ open, onOpenChange, goalId, goalName, mode }: Props) {
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [note, setNote] = useState("");
-  const add = useAddContribution(workspaceId);
+  const add = useAddContribution();
 
   const isWithdraw = mode === "withdraw";
   const title = isWithdraw ? `Preleva da "${goalName}"` : `Contribuisci a "${goalName}"`;

@@ -5,7 +5,7 @@ import { useDashboardData } from "@/hooks/useDashboardData";
 import { useRecurringRules } from "@/hooks/useRecurringRules";
 import { useAccountContext } from "@/contexts/AccountContext";
 import { useDateRange } from "@/contexts/DateRangeContext";
-import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
+import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 import { subMonths, startOfMonth, endOfMonth, format } from "date-fns";
 
 export type HealthStatus = "ottimo" | "buono" | "attenzione" | "critico" | "insufficiente";
@@ -106,7 +106,7 @@ export function computeHealthScore(input: ScoreInput): { score: number; savingsR
 }
 
 // ── Fetch monthly totals (income + expense) for previous months ──
-function useHistoricalMonthlyTotals(accountId: string | null, months: number = 3, workspaceId: string = DEFAULT_WORKSPACE_ID) {
+function useHistoricalMonthlyTotals(accountId: string | null, months: number = 3, workspaceId: string) {
   const today = new Date();
   const from = format(startOfMonth(subMonths(today, months)), "yyyy-MM-dd");
   const to = format(endOfMonth(subMonths(today, 1)), "yyyy-MM-dd");
@@ -140,7 +140,7 @@ function useHistoricalMonthlyTotals(accountId: string | null, months: number = 3
 }
 
 // ── Fetch category spending for current period (for cause analysis) ──
-function useCategoryComparison(accountId: string | null, workspaceId: string = DEFAULT_WORKSPACE_ID) {
+function useCategoryComparison(accountId: string | null, workspaceId: string) {
   const today = new Date();
   const curFrom = format(startOfMonth(today), "yyyy-MM-dd");
   const curTo = format(endOfMonth(today), "yyyy-MM-dd");
@@ -196,12 +196,13 @@ function useCategoryComparison(accountId: string | null, workspaceId: string = D
 }
 
 export function useHealthScore(): HealthScoreResult {
+  const workspaceId = useWorkspaceId();
   const { dateRange } = useDateRange();
   const { selectedAccountId, openingBalance, minBalanceThreshold } = useAccountContext();
   const { data, isLoading: dashLoading } = useDashboardData(dateRange.from, dateRange.to, selectedAccountId);
   const { data: recurring, isLoading: recLoading } = useRecurringRules(selectedAccountId);
-  const { data: histMonths, isLoading: histLoading } = useHistoricalMonthlyTotals(selectedAccountId);
-  const { data: catComparison } = useCategoryComparison(selectedAccountId);
+  const { data: histMonths, isLoading: histLoading } = useHistoricalMonthlyTotals(selectedAccountId, 3, workspaceId);
+  const { data: catComparison } = useCategoryComparison(selectedAccountId, workspaceId);
 
   return useMemo(() => {
     const isLoading = dashLoading || recLoading || histLoading;

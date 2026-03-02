@@ -26,6 +26,7 @@ import Abbonamento from "./pages/Abbonamento";
 import NotFound from "./pages/NotFound";
 import { DevDiagnostics } from "@/components/DevDiagnostics";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 
 const queryClient = new QueryClient();
 
@@ -145,24 +146,26 @@ function AuthGate() {
   }
 
   return (
-    <PrivacyProvider>
-      <AccountProvider>
-        <DateRangeProvider>
-          <Routes>
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/transazioni" element={<Transazioni />} />
-              <Route path="/ricorrenti" element={<Ricorrenti />} />
-              <Route path="/obiettivi" element={<Obiettivi />} />
-              <Route path="/report" element={<Report />} />
-              <Route path="/impostazioni" element={<Impostazioni />} />
-              <Route path="/account" element={<Account />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </DateRangeProvider>
-      </AccountProvider>
-    </PrivacyProvider>
+    <WorkspaceProvider userId={user.id}>
+      <PrivacyProvider>
+        <AccountProvider>
+          <DateRangeProvider>
+            <Routes>
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/transazioni" element={<Transazioni />} />
+                <Route path="/ricorrenti" element={<Ricorrenti />} />
+                <Route path="/obiettivi" element={<Obiettivi />} />
+                <Route path="/report" element={<Report />} />
+                <Route path="/impostazioni" element={<Impostazioni />} />
+                <Route path="/account" element={<Account />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </DateRangeProvider>
+        </AccountProvider>
+      </PrivacyProvider>
+    </WorkspaceProvider>
   );
 }
 
