@@ -16,22 +16,19 @@ import { toast } from "sonner";
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  workspaceId: string;
 }
 
-export default function GoalFormDialog({ open, onOpenChange, workspaceId }: Props) {
+export default function GoalFormDialog({ open, onOpenChange }: Props) {
   const { accounts, selectedAccountId } = useAccountContext();
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
   const [accountId, setAccountId] = useState("");
-  const create = useCreateGoal(workspaceId);
+  const create = useCreateGoal();
 
-  // Set default account when dialog opens
   const handleOpenChange = (v: boolean) => {
     if (v && !accountId) {
-      // Pre-select current account or first available
       const defaultId = selectedAccountId ?? accounts[0]?.id ?? "";
       setAccountId(defaultId);
     }
