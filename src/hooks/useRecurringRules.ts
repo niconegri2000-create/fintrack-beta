@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
+import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 
 export interface RecurringRow {
   id: string;
@@ -31,10 +31,8 @@ export interface NewRecurring {
   account_id: string;
 }
 
-/**
- * @param accountId — null = MASTER (no filter), string = filter by account
- */
-export function useRecurringRules(accountId: string | null = null, workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useRecurringRules(accountId: string | null = null) {
+  const workspaceId = useWorkspaceId();
   return useQuery({
     queryKey: ["recurring_rules", accountId, workspaceId],
     queryFn: async () => {
@@ -51,24 +49,18 @@ export function useRecurringRules(accountId: string | null = null, workspaceId: 
   });
 }
 
-export function useCreateRecurring(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useCreateRecurring() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (r: NewRecurring) => {
       const { error } = await supabase.from("recurring_rules").insert({
         workspace_id: workspaceId,
-        name: r.name,
-        type: r.type,
-        amount: r.amount,
-        category_id: r.category_id || null,
-        day_of_month: r.day_of_month,
-        start_date: r.start_date,
-        is_fixed: r.is_fixed,
-        is_active: r.is_active,
-        frequency: "monthly",
-        interval_months: r.interval_months,
-        end_date: r.end_date || null,
-        account_id: r.account_id,
+        name: r.name, type: r.type, amount: r.amount,
+        category_id: r.category_id || null, day_of_month: r.day_of_month,
+        start_date: r.start_date, is_fixed: r.is_fixed, is_active: r.is_active,
+        frequency: "monthly", interval_months: r.interval_months,
+        end_date: r.end_date || null, account_id: r.account_id,
       });
       if (error) throw error;
     },
@@ -76,21 +68,16 @@ export function useCreateRecurring(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   });
 }
 
-export function useUpdateRecurring(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useUpdateRecurring() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...r }: { id: string; name: string; type: string; amount: number; category_id: string | null; day_of_month: number; interval_months: number; end_date: string | null; is_active: boolean; is_fixed: boolean; account_id: string }) => {
       const { error } = await supabase.from("recurring_rules").update({
-        name: r.name,
-        type: r.type,
-        amount: r.amount,
-        category_id: r.category_id || null,
-        day_of_month: r.day_of_month,
-        interval_months: r.interval_months,
-        end_date: r.end_date || null,
-        is_active: r.is_active,
-        is_fixed: r.is_fixed,
-        account_id: r.account_id,
+        name: r.name, type: r.type, amount: r.amount,
+        category_id: r.category_id || null, day_of_month: r.day_of_month,
+        interval_months: r.interval_months, end_date: r.end_date || null,
+        is_active: r.is_active, is_fixed: r.is_fixed, account_id: r.account_id,
       }).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
@@ -98,18 +85,17 @@ export function useUpdateRecurring(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   });
 }
 
-export function useDeleteRecurring(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useDeleteRecurring() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      // Detach linked transactions first to avoid FK constraint violation
       const { error: unlinkError } = await supabase
         .from("transactions")
         .update({ recurring_rule_id: null })
         .eq("recurring_rule_id", id)
         .eq("workspace_id", workspaceId);
       if (unlinkError) throw unlinkError;
-
       const { error } = await supabase.from("recurring_rules").delete().eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },

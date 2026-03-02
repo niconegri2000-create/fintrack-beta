@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
+import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 
 export interface TransactionRow {
   id: string;
@@ -29,7 +29,8 @@ export interface NewTransaction {
 /**
  * @param accountId — null = MASTER (no filter), string = filter by account
  */
-export function useTransactions(from: string, to: string, accountId: string | null = null, workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useTransactions(from: string, to: string, accountId: string | null = null) {
+  const workspaceId = useWorkspaceId();
   return useQuery({
     queryKey: ["transactions", from, to, accountId, workspaceId],
     queryFn: async () => {
@@ -48,7 +49,8 @@ export function useTransactions(from: string, to: string, accountId: string | nu
   });
 }
 
-export function useCreateTransaction(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useCreateTransaction() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
 
   return useMutation({
@@ -74,7 +76,8 @@ export function useCreateTransaction(workspaceId: string = DEFAULT_WORKSPACE_ID)
   });
 }
 
-export function useUpdateTransaction(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useUpdateTransaction() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...tx }: { id: string; date: string; type: string; amount: number; category_id: string | null; description: string; notes: string; account_id: string }) => {
@@ -96,7 +99,8 @@ export function useUpdateTransaction(workspaceId: string = DEFAULT_WORKSPACE_ID)
   });
 }
 
-export function useDeleteTransaction(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useDeleteTransaction() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {

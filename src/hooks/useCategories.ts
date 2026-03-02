@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
+import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 
 export interface Category {
   id: string;
@@ -11,7 +11,8 @@ export interface Category {
 }
 
 /** All categories (for settings page) */
-export function useAllCategories(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useAllCategories() {
+  const workspaceId = useWorkspaceId();
   return useQuery({
     queryKey: ["categories", "all", workspaceId],
     queryFn: async () => {
@@ -27,7 +28,8 @@ export function useAllCategories(workspaceId: string = DEFAULT_WORKSPACE_ID) {
 }
 
 /** Only active categories (for dropdowns) */
-export function useCategories(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useCategories() {
+  const workspaceId = useWorkspaceId();
   return useQuery({
     queryKey: ["categories", workspaceId],
     queryFn: async () => {
@@ -50,7 +52,8 @@ export interface NewCategory {
   is_active: boolean;
 }
 
-export function useCreateCategory(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useCreateCategory() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (cat: NewCategory) => {
@@ -67,7 +70,8 @@ export function useCreateCategory(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   });
 }
 
-export function useUpdateCategory(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useUpdateCategory() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Category> & { id: string }) => {
@@ -82,7 +86,8 @@ export function useUpdateCategory(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   });
 }
 
-export function useDeleteCategory(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useDeleteCategory() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {

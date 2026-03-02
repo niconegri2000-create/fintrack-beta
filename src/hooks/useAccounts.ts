@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
+import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 
 export interface AccountRow {
   id: string;
@@ -29,7 +29,8 @@ function mapRow(a: any): AccountRow {
 }
 
 /** Active accounts ordered by sort_order */
-export function useAccounts(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useAccounts() {
+  const workspaceId = useWorkspaceId();
   return useQuery({
     queryKey: ["accounts", workspaceId],
     queryFn: async () => {
@@ -47,7 +48,8 @@ export function useAccounts(workspaceId: string = DEFAULT_WORKSPACE_ID) {
 }
 
 /** ALL accounts including archived, ordered by sort_order */
-export function useAllAccounts(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useAllAccounts() {
+  const workspaceId = useWorkspaceId();
   return useQuery({
     queryKey: ["accounts-all", workspaceId],
     queryFn: async () => {
@@ -63,13 +65,14 @@ export function useAllAccounts(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   });
 }
 
-export function useDefaultAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
-  const { data: accounts, ...rest } = useAccounts(workspaceId);
+export function useDefaultAccount() {
+  const { data: accounts, ...rest } = useAccounts();
   const defaultAccount = accounts?.find((a) => a.is_default) ?? accounts?.[0] ?? null;
   return { data: defaultAccount, accounts, ...rest };
 }
 
-export function useCreateAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useCreateAccount() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ name, is_default = false, sort_order = 0 }: { name: string; is_default?: boolean; sort_order?: number }) => {
@@ -85,7 +88,8 @@ export function useCreateAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   });
 }
 
-export function useUpdateAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useUpdateAccount() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string; name?: string; opening_balance?: number; min_balance_threshold?: number | null; sort_order?: number; is_active?: boolean; is_default?: boolean }) => {
@@ -106,7 +110,8 @@ export function useUpdateAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
 }
 
 /** Batch-update sort_order for a list of account ids */
-export function useReorderAccounts(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useReorderAccounts() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (orderedIds: string[]) => {
@@ -125,7 +130,8 @@ export function useReorderAccounts(workspaceId: string = DEFAULT_WORKSPACE_ID) {
 }
 
 /** Archive (soft-hide) an account */
-export function useArchiveAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useArchiveAccount() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -145,7 +151,8 @@ export function useArchiveAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
 }
 
 /** Restore an archived account */
-export function useRestoreAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useRestoreAccount() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -173,7 +180,8 @@ export async function checkAccountHasLinkedData(accountId: string): Promise<bool
 }
 
 /** Hard-delete an archived account (only if no linked data) */
-export function useDeleteAccount(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useDeleteAccount() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {

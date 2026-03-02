@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
+import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 
 export interface WorkspaceData {
   opening_balance: number;
@@ -12,7 +12,8 @@ export interface WorkspaceData {
  * Centralized workspace hook.
  * All workspace-level settings are fetched from a single query.
  */
-export function useWorkspace(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useWorkspace() {
+  const workspaceId = useWorkspaceId();
   return useQuery({
     queryKey: ["workspace", workspaceId],
     queryFn: async (): Promise<WorkspaceData> => {
@@ -31,7 +32,8 @@ export function useWorkspace(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   });
 }
 
-export function useUpdateWorkspace(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useUpdateWorkspace() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (updates: Partial<Pick<WorkspaceData, "opening_balance" | "min_balance_threshold" | "forecast_horizon_months">>) => {

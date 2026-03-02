@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
+import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 
 export interface Goal {
   id: string;
@@ -15,7 +15,8 @@ export interface Goal {
   saved: number;
 }
 
-export function useGoals(workspaceId: string = DEFAULT_WORKSPACE_ID, accountId?: string | null) {
+export function useGoals(accountId?: string | null) {
+  const workspaceId = useWorkspaceId();
   return useQuery({
     queryKey: ["goals", workspaceId, accountId],
     queryFn: async (): Promise<Goal[]> => {
@@ -24,12 +25,7 @@ export function useGoals(workspaceId: string = DEFAULT_WORKSPACE_ID, accountId?:
         .select("*")
         .eq("workspace_id", workspaceId)
         .order("created_at", { ascending: false });
-
-      // If accountId is provided (not null/undefined), filter by it
-      if (accountId) {
-        query = query.eq("account_id", accountId);
-      }
-      // If accountId is null (Master), fetch all goals (no account filter)
+      if (accountId) query = query.eq("account_id", accountId);
 
       const { data: goals, error } = await query;
       if (error) throw error;
@@ -46,16 +42,10 @@ export function useGoals(workspaceId: string = DEFAULT_WORKSPACE_ID, accountId?:
       });
 
       return (goals ?? []).map((g: any) => ({
-        id: g.id,
-        workspace_id: g.workspace_id,
-        account_id: g.account_id,
-        name: g.name,
-        target_amount: Number(g.target_amount),
-        target_date: g.target_date,
-        status: g.status as Goal["status"],
-        note: g.note,
-        created_at: g.created_at,
-        saved: savedMap[g.id] ?? 0,
+        id: g.id, workspace_id: g.workspace_id, account_id: g.account_id,
+        name: g.name, target_amount: Number(g.target_amount),
+        target_date: g.target_date, status: g.status as Goal["status"],
+        note: g.note, created_at: g.created_at, saved: savedMap[g.id] ?? 0,
       }));
     },
   });
@@ -69,17 +59,16 @@ export interface NewGoal {
   account_id: string;
 }
 
-export function useCreateGoal(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useCreateGoal() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (goal: NewGoal) => {
       const { error } = await supabase.from("goals").insert({
-        workspace_id: workspaceId,
-        name: goal.name,
+        workspace_id: workspaceId, name: goal.name,
         target_amount: goal.target_amount,
         target_date: goal.target_date ?? null,
-        note: goal.note ?? null,
-        account_id: goal.account_id,
+        note: goal.note ?? null, account_id: goal.account_id,
       } as any);
       if (error) throw error;
     },
@@ -87,45 +76,36 @@ export function useCreateGoal(workspaceId: string = DEFAULT_WORKSPACE_ID) {
   });
 }
 
-export function useUpdateGoalStatus(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useUpdateGoalStatus() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: Goal["status"] }) => {
-      const { error } = await supabase
-        .from("goals")
-        .update({ status } as any)
-        .eq("id", id)
-        .eq("workspace_id", workspaceId);
+      const { error } = await supabase.from("goals").update({ status } as any).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
   });
 }
 
-export function useUpdateGoal(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useUpdateGoal() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<NewGoal> & { id: string }) => {
-      const { error } = await supabase
-        .from("goals")
-        .update(updates as any)
-        .eq("id", id)
-        .eq("workspace_id", workspaceId);
+      const { error } = await supabase.from("goals").update(updates as any).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
   });
 }
 
-export function useDeleteGoal(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useDeleteGoal() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("goals")
-        .delete()
-        .eq("id", id)
-        .eq("workspace_id", workspaceId);
+      const { error } = await supabase.from("goals").delete().eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
