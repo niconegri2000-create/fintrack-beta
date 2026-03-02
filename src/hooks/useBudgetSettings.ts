@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
+import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 
 export interface BudgetSettings {
   id: string;
@@ -16,23 +16,21 @@ export interface BudgetSettings {
 
 const QUERY_KEY = "budget_settings";
 
-export function useBudgetSettings(workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useBudgetSettings() {
+  const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
 
   const query = useQuery({
     queryKey: [QUERY_KEY, workspaceId],
     queryFn: async (): Promise<BudgetSettings> => {
-      // Try to fetch existing row
       const { data, error } = await supabase
         .from("budget_settings")
         .select("*")
         .eq("workspace_id", workspaceId)
         .maybeSingle();
       if (error) throw error;
-
       if (data) return data as unknown as BudgetSettings;
 
-      // Create default row if none exists
       const { data: created, error: insertErr } = await supabase
         .from("budget_settings")
         .insert({ workspace_id: workspaceId })
@@ -55,7 +53,6 @@ export function useBudgetSettings(workspaceId: string = DEFAULT_WORKSPACE_ID) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, workspaceId] });
-      // Also invalidate budget-dependent queries so spending recalculates with new window
       qc.invalidateQueries({ queryKey: ["category_spending"] });
       qc.invalidateQueries({ queryKey: ["category_budgets"] });
     },

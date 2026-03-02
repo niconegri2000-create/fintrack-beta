@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_WORKSPACE_ID } from "@/lib/constants";
+import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 
 export interface DashboardData {
   income: number;
@@ -14,7 +14,8 @@ export interface DashboardData {
 /**
  * @param accountId — null = MASTER (no filter), string = filter by account
  */
-export function useDashboardData(startDate: string, endDate: string, accountId: string | null = null, workspaceId: string = DEFAULT_WORKSPACE_ID) {
+export function useDashboardData(startDate: string, endDate: string, accountId: string | null = null) {
+  const workspaceId = useWorkspaceId();
   return useQuery({
     queryKey: ["dashboard", startDate, endDate, accountId, workspaceId],
     queryFn: async (): Promise<DashboardData> => {
