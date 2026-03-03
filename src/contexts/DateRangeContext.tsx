@@ -22,6 +22,11 @@ function fmt(d: Date) {
   return format(d, "yyyy-MM-dd");
 }
 
+/** Derive a stable key for React Query cache segmentation */
+export function dateRangeKey(dr: DateRange): string {
+  return `${dr.from}|${dr.to}`;
+}
+
 export function presetToRange(preset: Exclude<PeriodPreset, "custom">): { from: string; to: string } {
   const today = new Date();
   switch (preset) {
@@ -42,13 +47,17 @@ export function presetToRange(preset: Exclude<PeriodPreset, "custom">): { from: 
   }
 }
 
+function buildDefault(): DateRange {
+  const r = presetToRange("current_month");
+  return { ...r, preset: "current_month" as const };
+}
+
 function loadFromStorage(): DateRange {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed.from && parsed.to && parsed.preset) {
-        // Validate dates are well-formed
         const fromValid = /^\d{4}-\d{2}-\d{2}$/.test(parsed.from);
         const toValid = /^\d{4}-\d{2}-\d{2}$/.test(parsed.to);
         if (fromValid && toValid && parsed.from <= parsed.to) {
@@ -57,15 +66,15 @@ function loadFromStorage(): DateRange {
       }
     }
   } catch { /* ignore */ }
-  // Fallback: repair localStorage with default
-  const r = presetToRange("current_month");
-  const fallback = { ...r, preset: "current_month" as const };
+  const fallback = buildDefault();
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fallback)); } catch {}
   return fallback;
 }
 
 interface DateRangeContextValue {
   dateRange: DateRange;
+  dateRangeKey: string;
+  isReady: boolean;
   applyPreset: (p: Exclude<PeriodPreset, "custom">) => void;
   applyCustom: (from: string, to: string) => void;
 }
@@ -73,10 +82,22 @@ interface DateRangeContextValue {
 const DateRangeContext = createContext<DateRangeContextValue | null>(null);
 
 export function DateRangeProvider({ children }: { children: ReactNode }) {
-  const [dateRange, setDateRange] = useState<DateRange>(loadFromStorage);
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
+  // Deterministic init: compute once on mount, then mark ready
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(dateRange));
+    const loaded = loadFromStorage();
+    console.info(`[BOOT] DateRangeProvider init | from=${loaded.from} | to=${loaded.to} | preset=${loaded.preset}`);
+    setDateRange(loaded);
+    setIsReady(true);
+  }, []);
+
+  // Persist on change (skip initial null)
+  useEffect(() => {
+    if (dateRange) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dateRange));
+    }
   }, [dateRange]);
 
   const applyPreset = useCallback((p: Exclude<PeriodPreset, "custom">) => {
@@ -85,14 +106,20 @@ export function DateRangeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applyCustom = useCallback((from: string, to: string) => {
-    // enforce from <= to
     const safeFrom = from <= to ? from : to;
     const safeTo = from <= to ? to : from;
     setDateRange({ from: safeFrom, to: safeTo, preset: "custom" });
   }, []);
 
+  // Block children until ready
+  if (!isReady || !dateRange) {
+    return null; // WorkspaceProvider already shows a loader above us
+  }
+
+  const drKey = dateRangeKey(dateRange);
+
   return (
-    <DateRangeContext.Provider value={{ dateRange, applyPreset, applyCustom }}>
+    <DateRangeContext.Provider value={{ dateRange, dateRangeKey: drKey, isReady, applyPreset, applyCustom }}>
       {children}
     </DateRangeContext.Provider>
   );
