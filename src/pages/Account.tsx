@@ -122,7 +122,7 @@ function SubscriptionTab({ userId }: { userId?: string }) {
       <CardContent className="space-y-4">
         {isLoading ? (<p className="text-sm text-muted-foreground">Caricamento...</p>) : subscription?.is_active ? (
           <div className="space-y-4">
-            <div className="flex items-center gap-3"><span className="text-sm font-medium">Piano:</span><Badge variant="secondary">FinTrack Premium</Badge></div>
+            <div className="flex items-center gap-3"><span className="text-sm font-medium">Piano:</span><Badge variant="secondary">FinFlow Premium</Badge></div>
             {!isInvite && <div className="flex items-center gap-3"><span className="text-sm font-medium">Prezzo:</span><span className="text-sm">€3,99/mese</span></div>}
             <div className="flex items-center gap-3"><span className="text-sm font-medium">Stato:</span><Badge variant="default">{isInvite ? "Attivo (Invite Access)" : "Attivo"}</Badge></div>
             {subscription.expires_at && <div className="flex items-center gap-3"><span className="text-sm font-medium">Scadenza:</span><span className="text-sm text-muted-foreground">{new Date(subscription.expires_at).toLocaleDateString("it-IT")}</span></div>}

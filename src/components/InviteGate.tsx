@@ -47,9 +47,9 @@ export function InviteGate({ children }: InviteGateProps) {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-accent text-accent-foreground mb-2">
             <ShieldCheck className="h-6 w-6" />
           </div>
-          <h1 className="text-2xl font-bold">Accesso Beta</h1>
+          <h1 className="text-2xl font-bold">Accesso riservato</h1>
           <p className="text-sm text-muted-foreground">
-            Inserisci il codice invito ricevuto via email per accedere a FinTrack Beta.
+            Inserisci il codice invito ricevuto via email per accedere a FinFlow.
           </p>
         </div>
 
