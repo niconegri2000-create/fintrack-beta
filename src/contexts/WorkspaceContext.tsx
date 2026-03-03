@@ -27,13 +27,17 @@ function clearWorkspaceCache() {
       }
     }
     keysToRemove.forEach((k) => localStorage.removeItem(k));
+    console.info("[BOOT] cleared workspace cache keys:", keysToRemove);
   } catch { /* noop */ }
 }
 
 /**
- * Calls ensure_user_bootstrap(user_id) on mount.
- * Always validates workspace from DB — never trusts cached values.
- * On mismatch or failure: clears cache, retries automatically.
+ * BLOCKING workspace gate.
+ * 1. ensure_user_bootstrap(user_id) — idempotent, creates workspace if missing
+ * 2. get_user_workspace_id() — authoritative DB fetch, never trusts cache
+ * 3. setWorkspaceId(wid) — only then children render
+ *
+ * On mismatch with cached value → clears all caches + retries.
  */
 export function WorkspaceProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
@@ -42,43 +46,60 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
   const queryClient = useQueryClient();
 
   const bootstrap = useCallback(async (signal: AbortSignal) => {
+    const t0 = performance.now();
+    console.info(`[BOOT] start | userId=${userId} | timestamp=${new Date().toISOString()}`);
+
     try {
-      const { data, error: rpcError } = await supabase.rpc("ensure_user_bootstrap", {
+      // Step 1: ensure bootstrap (idempotent)
+      console.info("[BOOT] ensure_user_bootstrap → start");
+      const { data: bootstrapWid, error: rpcError } = await supabase.rpc("ensure_user_bootstrap", {
         p_user_id: userId,
       });
-
       if (signal.aborted) return;
+      console.info(`[BOOT] ensure_user_bootstrap → end | result=${bootstrapWid} | error=${rpcError?.message ?? "none"} | ${(performance.now() - t0).toFixed(0)}ms`);
 
       if (rpcError) {
-        console.error("Bootstrap error:", rpcError);
-        // Clear stale cache and retry once
+        console.error("[BOOT] bootstrap RPC failed:", rpcError);
         clearWorkspaceCache();
         queryClient.clear();
         setError("Errore durante l'inizializzazione del workspace.");
         return;
       }
 
-      if (data) {
-        const freshId = data as string;
-        // Check for workspace mismatch with cached value
-        try {
-          const cachedId = localStorage.getItem(WS_STORAGE_KEY);
-          if (cachedId && cachedId !== freshId) {
-            // Workspace changed — clear all stale caches
-            clearWorkspaceCache();
-            queryClient.clear();
-          }
-          localStorage.setItem(WS_STORAGE_KEY, freshId);
-        } catch { /* noop */ }
+      // Step 2: authoritative fetch from DB (never trust cache)
+      console.info("[BOOT] get_user_workspace_id → start");
+      const { data: dbWid, error: fetchErr } = await supabase.rpc("get_user_workspace_id");
+      if (signal.aborted) return;
+      console.info(`[BOOT] get_user_workspace_id → end | wid=${dbWid} | error=${fetchErr?.message ?? "none"} | ${(performance.now() - t0).toFixed(0)}ms`);
 
-        setWorkspaceId(freshId);
-        setError(null);
-      } else {
+      if (fetchErr || !dbWid) {
+        console.error("[BOOT] workspace fetch failed or null:", fetchErr);
+        clearWorkspaceCache();
+        queryClient.clear();
         setError("Workspace non trovato.");
+        return;
       }
+
+      const freshId = dbWid as string;
+
+      // Step 3: mismatch detection
+      try {
+        const cachedId = localStorage.getItem(WS_STORAGE_KEY);
+        if (cachedId && cachedId !== freshId) {
+          console.warn(`[BOOT] MISMATCH! cached=${cachedId} vs db=${freshId} — clearing all caches`);
+          clearWorkspaceCache();
+          queryClient.clear();
+        }
+        localStorage.setItem(WS_STORAGE_KEY, freshId);
+      } catch { /* noop */ }
+
+      // Step 4: set state → unblock children
+      console.info(`[BOOT] setState workspaceId=${freshId} | total=${(performance.now() - t0).toFixed(0)}ms | render children`);
+      setWorkspaceId(freshId);
+      setError(null);
     } catch (err) {
       if (!signal.aborted) {
-        console.error("Bootstrap error:", err);
+        console.error("[BOOT] unexpected error:", err);
         clearWorkspaceCache();
         queryClient.clear();
         setError("Errore durante l'inizializzazione.");
@@ -95,6 +116,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
   }, [bootstrap, retryCount]);
 
   const handleRetry = useCallback(() => {
+    console.info("[BOOT] manual retry triggered");
     clearWorkspaceCache();
     queryClient.clear();
     setRetryCount((c) => c + 1);

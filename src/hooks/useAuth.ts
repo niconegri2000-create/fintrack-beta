@@ -8,9 +8,12 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.info(`[BOOT] useAuth mount | timestamp=${new Date().toISOString()}`);
+
     // Set up listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        console.info(`[BOOT] onAuthStateChange | event=${_event} | user=${session?.user?.id ?? "null"}`);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -19,6 +22,7 @@ export function useAuth() {
 
     // Then get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.info(`[BOOT] getSession resolved | user=${session?.user?.id ?? "null"} | session=${!!session}`);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
