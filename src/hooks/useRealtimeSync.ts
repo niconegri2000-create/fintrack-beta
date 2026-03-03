@@ -1,75 +1,86 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 
 /**
  * Subscribes to Supabase realtime changes on key tables
- * scoped by workspace_id. Any insert/update/delete invalidates
- * the relevant React Query caches so all devices stay in sync.
+ * scoped by workspace_id. Logs all events with [RT] prefix.
  */
 export function useRealtimeSync() {
   const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
+  const lastEventRef = useRef<{ table: string; event: string; id: string; ts: number } | null>(null);
 
   useEffect(() => {
+    console.info(`[RT] subscribing | workspaceId=${workspaceId}`);
+
+    const logAndInvalidate = (table: string, payload: any, keys: string[][]) => {
+      const eventType = payload.eventType;
+      const recordId = payload.new?.id ?? payload.old?.id ?? "unknown";
+      const wsId = payload.new?.workspace_id ?? payload.old?.workspace_id ?? "n/a";
+      console.info(`[RT] event | table=${table} | type=${eventType} | id=${recordId} | workspace_id=${wsId}`);
+      lastEventRef.current = { table, event: eventType, id: recordId, ts: Date.now() };
+
+      // Emit custom event for debug panel
+      try {
+        window.dispatchEvent(new CustomEvent("fintrack-rt-event", { detail: lastEventRef.current }));
+      } catch { /* noop */ }
+
+      for (const key of keys) {
+        qc.invalidateQueries({ queryKey: key });
+      }
+    };
+
     const channel = supabase
       .channel(`workspace-sync-${workspaceId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "transactions", filter: `workspace_id=eq.${workspaceId}` },
-        () => {
-          qc.invalidateQueries({ queryKey: ["transactions"] });
-          qc.invalidateQueries({ queryKey: ["dashboard"] });
-          qc.invalidateQueries({ queryKey: ["forecast"] });
-          qc.invalidateQueries({ queryKey: ["report"] });
-          qc.invalidateQueries({ queryKey: ["category_spending"] });
-        }
+        (payload) => logAndInvalidate("transactions", payload, [
+          ["transactions"], ["dashboard"], ["forecast"], ["report"], ["category_spending"],
+          ["historical_monthly_totals"],
+        ])
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "accounts", filter: `workspace_id=eq.${workspaceId}` },
-        () => {
-          qc.invalidateQueries({ queryKey: ["accounts"] });
-          qc.invalidateQueries({ queryKey: ["accounts-all"] });
-          qc.invalidateQueries({ queryKey: ["forecast"] });
-          qc.invalidateQueries({ queryKey: ["dashboard"] });
-        }
+        (payload) => logAndInvalidate("accounts", payload, [
+          ["accounts"], ["accounts-all"], ["forecast"], ["dashboard"],
+        ])
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "recurring_rules", filter: `workspace_id=eq.${workspaceId}` },
-        () => {
-          qc.invalidateQueries({ queryKey: ["recurring_rules"] });
-          qc.invalidateQueries({ queryKey: ["forecast"] });
-        }
+        (payload) => logAndInvalidate("recurring_rules", payload, [
+          ["recurring_rules"], ["forecast"],
+        ])
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "goals", filter: `workspace_id=eq.${workspaceId}` },
-        () => {
-          qc.invalidateQueries({ queryKey: ["goals"] });
-        }
+        (payload) => logAndInvalidate("goals", payload, [["goals"]])
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "goal_contributions", filter: `workspace_id=eq.${workspaceId}` },
-        () => {
-          qc.invalidateQueries({ queryKey: ["goal_contributions"] });
-          qc.invalidateQueries({ queryKey: ["goals"] });
-        }
+        (payload) => logAndInvalidate("goal_contributions", payload, [
+          ["goal_contributions"], ["goals"],
+        ])
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "categories" },
-        () => {
-          qc.invalidateQueries({ queryKey: ["categories"] });
-          qc.invalidateQueries({ queryKey: ["category_budgets"] });
-        }
+        (payload) => logAndInvalidate("categories", payload, [
+          ["categories"], ["category_budgets"], ["categories_names"],
+        ])
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.info(`[RT] subscription status=${status} | workspaceId=${workspaceId}`);
+      });
 
     return () => {
+      console.info(`[RT] unsubscribing | workspaceId=${workspaceId}`);
       supabase.removeChannel(channel);
     };
   }, [workspaceId, qc]);
