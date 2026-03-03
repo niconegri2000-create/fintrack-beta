@@ -31,14 +31,28 @@ function clearWorkspaceCache() {
   } catch { /* noop */ }
 }
 
-/**
- * BLOCKING workspace gate.
- * 1. ensure_user_bootstrap(user_id) — idempotent, creates workspace if missing
- * 2. get_user_workspace_id() — authoritative DB fetch, never trusts cache
- * 3. setWorkspaceId(wid) — only then children render
- *
- * On mismatch with cached value → clears all caches + retries.
- */
+const BACKOFF_DELAYS = [250, 500, 1000];
+
+async function rpcWithRetry<T>(
+  fn: () => Promise<{ data: T; error: any }>,
+  label: string
+): Promise<{ data: T; error: any }> {
+  for (let attempt = 0; attempt <= BACKOFF_DELAYS.length; attempt++) {
+    const result = await fn();
+    if (!result.error) return result;
+    
+    if (attempt < BACKOFF_DELAYS.length) {
+      const delay = BACKOFF_DELAYS[attempt];
+      console.warn(`[BOOT] ${label} failed (attempt ${attempt + 1}), retrying in ${delay}ms:`, result.error.message);
+      await new Promise((r) => setTimeout(r, delay));
+    } else {
+      return result; // final failure
+    }
+  }
+  // unreachable
+  return { data: null as any, error: { message: "exhausted retries" } };
+}
+
 export function WorkspaceProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,11 +64,21 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
     console.info(`[BOOT] start | userId=${userId} | timestamp=${new Date().toISOString()}`);
 
     try {
-      // Step 1: ensure bootstrap (idempotent)
+      // Step 0: Validate session is still alive (Safari fix)
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (signal.aborted) return;
+      if (!sessionData.session) {
+        console.warn("[BOOT] no active session during bootstrap — aborting");
+        setError("Sessione scaduta. Effettua nuovamente il login.");
+        return;
+      }
+
+      // Step 1: ensure bootstrap (idempotent) with retry
       console.info("[BOOT] ensure_user_bootstrap → start");
-      const { data: bootstrapWid, error: rpcError } = await supabase.rpc("ensure_user_bootstrap", {
-        p_user_id: userId,
-      });
+      const { data: bootstrapWid, error: rpcError } = await rpcWithRetry(
+        () => Promise.resolve(supabase.rpc("ensure_user_bootstrap", { p_user_id: userId })),
+        "ensure_user_bootstrap"
+      );
       if (signal.aborted) return;
       console.info(`[BOOT] ensure_user_bootstrap → end | result=${bootstrapWid} | error=${rpcError?.message ?? "none"} | ${(performance.now() - t0).toFixed(0)}ms`);
 
@@ -66,9 +90,12 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
         return;
       }
 
-      // Step 2: authoritative fetch from DB (never trust cache)
+      // Step 2: authoritative fetch from DB with retry
       console.info("[BOOT] get_user_workspace_id → start");
-      const { data: dbWid, error: fetchErr } = await supabase.rpc("get_user_workspace_id");
+      const { data: dbWid, error: fetchErr } = await rpcWithRetry(
+        () => Promise.resolve(supabase.rpc("get_user_workspace_id")),
+        "get_user_workspace_id"
+      );
       if (signal.aborted) return;
       console.info(`[BOOT] get_user_workspace_id → end | wid=${dbWid} | error=${fetchErr?.message ?? "none"} | ${(performance.now() - t0).toFixed(0)}ms`);
 

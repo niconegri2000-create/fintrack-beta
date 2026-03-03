@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -6,26 +6,35 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const resolvedRef = useRef(false);
 
   useEffect(() => {
     console.info(`[BOOT] useAuth mount | timestamp=${new Date().toISOString()}`);
+    resolvedRef.current = false;
+
+    const applySession = (s: Session | null, source: string) => {
+      console.info(`[BOOT] ${source} | user=${s?.user?.id ?? "null"} | session=${!!s}`);
+      setSession(s);
+      setUser(s?.user ?? null);
+      setLoading(false);
+      resolvedRef.current = true;
+    };
 
     // Set up listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        console.info(`[BOOT] onAuthStateChange | event=${_event} | user=${session?.user?.id ?? "null"}`);
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+      (event, session) => {
+        console.info(`[BOOT] onAuthStateChange | event=${event}`);
+        // On Safari, INITIAL_SESSION fires before getSession resolves
+        applySession(session, `onAuthStateChange(${event})`);
       }
     );
 
-    // Then get initial session
+    // Then get initial session as fallback
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.info(`[BOOT] getSession resolved | user=${session?.user?.id ?? "null"} | session=${!!session}`);
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+      // Only apply if listener hasn't resolved yet
+      if (!resolvedRef.current) {
+        applySession(session, "getSession");
+      }
     });
 
     return () => subscription.unsubscribe();
