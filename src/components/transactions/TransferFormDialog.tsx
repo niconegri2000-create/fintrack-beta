@@ -80,13 +80,22 @@ export function TransferFormDialog({ trigger }: { trigger?: React.ReactNode } = 
             try {
               await syncTransactionTags(outId, tagIds);
               await syncTransactionTags(inId, tagIds);
-            } catch {}
+            } catch (e) {
+              console.warn("[TRANSFER] Tag sync failed:", e);
+            }
           }
           toast.success("Trasferimento creato");
           resetForm();
           setOpen(false);
         },
-        onError: () => toast.error("Errore nel salvataggio"),
+        onError: (err: any) => {
+          const msg = err?.message || "Errore sconosciuto";
+          const code = err?.code;
+          console.error("[TRANSFER] Save error:", { message: msg, code, details: err?.details, hint: err?.hint });
+          toast.error(`Errore nel salvataggio: ${msg}`, {
+            description: code ? `Codice: ${code}` : undefined,
+          });
+        },
       }
     );
   };
