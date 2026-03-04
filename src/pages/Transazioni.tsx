@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useDateRange } from "@/contexts/DateRangeContext";
 import { useAccountContext } from "@/contexts/AccountContext";
@@ -6,6 +6,8 @@ import { PeriodPicker } from "@/components/dashboard/PeriodPicker";
 import { TransactionsTable } from "@/components/transactions/TransactionsTable";
 import { TransactionFormDialog } from "@/components/transactions/TransactionFormDialog";
 import { TransferFormDialog } from "@/components/transactions/TransferFormDialog";
+import { FilterBar } from "@/components/filters/FilterBar";
+import { useTransactionTagsMap } from "@/hooks/useBatchTags";
 import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
 
 const Transazioni = () => {
@@ -13,9 +15,35 @@ const Transazioni = () => {
   const { selectedAccountId } = useAccountContext();
   const { data = [], isLoading } = useTransactions(dateRange.from, dateRange.to, selectedAccountId);
 
-  const income = useMemo(() => data.filter((t) => t.type === "income"), [data]);
-  const expense = useMemo(() => data.filter((t) => t.type === "expense"), [data]);
-  const transfers = useMemo(() => data.filter((t) => t.type === "transfer_in" || t.type === "transfer_out"), [data]);
+  const [filterCategoryId, setFilterCategoryId] = useState<string | null>(null);
+  const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
+
+  // Fetch tags for all transactions in period for filtering
+  const allTxIds = useMemo(() => data.map((t) => t.id), [data]);
+  const { data: tagsMap = {} } = useTransactionTagsMap(allTxIds);
+
+  // Apply filters
+  const filtered = useMemo(() => {
+    let result = data;
+    if (filterCategoryId) {
+      result = result.filter((t) => t.category?.id === filterCategoryId);
+    }
+    if (filterTagIds.length > 0) {
+      result = result.filter((t) => {
+        const txTags = tagsMap[t.id] || [];
+        return txTags.some((tag) => filterTagIds.includes(tag.id));
+      });
+    }
+    return result;
+  }, [data, filterCategoryId, filterTagIds, tagsMap]);
+
+  const income = useMemo(() => filtered.filter((t) => t.type === "income"), [filtered]);
+  const expense = useMemo(() => filtered.filter((t) => t.type === "expense"), [filtered]);
+  const transfers = useMemo(() => filtered.filter((t) => t.type === "transfer_in" || t.type === "transfer_out"), [filtered]);
+
+  const hasFilters = filterCategoryId !== null || filterTagIds.length > 0;
+  const emptyMsg = hasFilters ? "Nessun risultato con i filtri applicati" : "Nessuna entrata nel periodo";
+  const emptyMsgExp = hasFilters ? "Nessun risultato con i filtri applicati" : "Nessuna uscita nel periodo";
 
   return (
     <div className="space-y-6">
@@ -33,8 +61,16 @@ const Transazioni = () => {
         </div>
       </div>
 
+      <FilterBar
+        selectedCategoryId={filterCategoryId}
+        onCategoryChange={setFilterCategoryId}
+        selectedTagIds={filterTagIds}
+        onTagsChange={setFilterTagIds}
+      />
+
       <p className="text-sm text-muted-foreground">
-        {data.length} moviment{data.length === 1 ? "o" : "i"}
+        {filtered.length} moviment{filtered.length === 1 ? "o" : "i"}
+        {hasFilters && ` (filtrati da ${data.length})`}
       </p>
 
       {/* Entrate */}
@@ -47,7 +83,7 @@ const Transazioni = () => {
         {isLoading ? (
           <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">Caricamento…</div>
         ) : income.length === 0 ? (
-          <div className="rounded-xl border bg-card p-6 text-center text-muted-foreground text-sm">Nessuna entrata nel periodo</div>
+          <div className="rounded-xl border bg-card p-6 text-center text-muted-foreground text-sm">{emptyMsg}</div>
         ) : (
           <TransactionsTable data={income} isLoading={false} />
         )}
@@ -63,7 +99,7 @@ const Transazioni = () => {
         {isLoading ? (
           <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">Caricamento…</div>
         ) : expense.length === 0 ? (
-          <div className="rounded-xl border bg-card p-6 text-center text-muted-foreground text-sm">Nessuna uscita nel periodo</div>
+          <div className="rounded-xl border bg-card p-6 text-center text-muted-foreground text-sm">{emptyMsgExp}</div>
         ) : (
           <TransactionsTable data={expense} isLoading={false} />
         )}

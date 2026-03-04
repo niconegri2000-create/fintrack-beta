@@ -1,22 +1,47 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useRecurringRules } from "@/hooks/useRecurringRules";
 import { useAccountContext } from "@/contexts/AccountContext";
 import { RecurringTable } from "@/components/recurring/RecurringTable";
 import { RecurringFormDialog } from "@/components/recurring/RecurringFormDialog";
+import { FilterBar } from "@/components/filters/FilterBar";
+import { useRecurringTagsMap } from "@/hooks/useBatchTags";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
 const Ricorrenti = () => {
   const { selectedAccountId } = useAccountContext();
   const { data = [], isLoading } = useRecurringRules(selectedAccountId);
 
-  const income = useMemo(() => data.filter((r) => r.type === "income"), [data]);
-  const expense = useMemo(() => data.filter((r) => r.type === "expense"), [data]);
+  const [filterCategoryId, setFilterCategoryId] = useState<string | null>(null);
+  const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
+
+  const allIds = useMemo(() => data.map((r) => r.id), [data]);
+  const { data: tagsMap = {} } = useRecurringTagsMap(allIds);
+
+  const filtered = useMemo(() => {
+    let result = data;
+    if (filterCategoryId) {
+      result = result.filter((r) => r.category?.id === filterCategoryId);
+    }
+    if (filterTagIds.length > 0) {
+      result = result.filter((r) => {
+        const rTags = tagsMap[r.id] || [];
+        return rTags.some((tag) => filterTagIds.includes(tag.id));
+      });
+    }
+    return result;
+  }, [data, filterCategoryId, filterTagIds, tagsMap]);
+
+  const income = useMemo(() => filtered.filter((r) => r.type === "income"), [filtered]);
+  const expense = useMemo(() => filtered.filter((r) => r.type === "expense"), [filtered]);
+  const hasFilters = filterCategoryId !== null || filterTagIds.length > 0;
+  const emptyMsg = hasFilters ? "Nessun risultato con i filtri applicati" : "Nessuna entrata ricorrente";
+  const emptyMsgExp = hasFilters ? "Nessun risultato con i filtri applicati" : "Nessuna uscita ricorrente";
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Ricorrenti</h1>
+          <h1 className="text-2xl font-semibold">Ricorrenze</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Movimenti automatici mensili
           </p>
@@ -25,6 +50,13 @@ const Ricorrenti = () => {
           <RecurringFormDialog />
         </div>
       </div>
+
+      <FilterBar
+        selectedCategoryId={filterCategoryId}
+        onCategoryChange={setFilterCategoryId}
+        selectedTagIds={filterTagIds}
+        onTagsChange={setFilterTagIds}
+      />
 
       {/* Entrate ricorrenti */}
       <section className="space-y-2">
@@ -36,7 +68,7 @@ const Ricorrenti = () => {
         {isLoading ? (
           <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">Caricamento…</div>
         ) : income.length === 0 ? (
-          <div className="rounded-xl border bg-card p-6 text-center text-muted-foreground text-sm">Nessuna entrata ricorrente</div>
+          <div className="rounded-xl border bg-card p-6 text-center text-muted-foreground text-sm">{emptyMsg}</div>
         ) : (
           <RecurringTable data={income} isLoading={false} />
         )}
@@ -52,7 +84,7 @@ const Ricorrenti = () => {
         {isLoading ? (
           <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">Caricamento…</div>
         ) : expense.length === 0 ? (
-          <div className="rounded-xl border bg-card p-6 text-center text-muted-foreground text-sm">Nessuna uscita ricorrente</div>
+          <div className="rounded-xl border bg-card p-6 text-center text-muted-foreground text-sm">{emptyMsgExp}</div>
         ) : (
           <RecurringTable data={expense} isLoading={false} />
         )}
