@@ -13,6 +13,7 @@ import { TransactionEditDialog } from "./TransactionEditDialog";
 import { TransactionDeleteDialog } from "./TransactionDeleteDialog";
 import { TransferEditDialog } from "./TransferEditDialog";
 import { TransferDeleteDialog } from "./TransferDeleteDialog";
+import { useTransactionTagsMap } from "@/hooks/useBatchTags";
 
 interface Props {
   data: TransactionRow[];
@@ -28,6 +29,9 @@ export function TransactionsTable({ data, isLoading }: Props) {
   const [editTransfer, setEditTransfer] = useState<TransactionRow | null>(null);
   const [deleteTransferId, setDeleteTransferId] = useState<string | null>(null);
 
+  const txIds = useMemo(() => data.map((t) => t.id), [data]);
+  const { data: tagsMap = {} } = useTransactionTagsMap(txIds);
+
   if (isLoading) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">
@@ -39,7 +43,7 @@ export function TransactionsTable({ data, isLoading }: Props) {
   if (data.length === 0) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">
-        Nessuna transazione in questo mese
+        Nessuna transazione trovata
       </div>
     );
   }
@@ -71,6 +75,7 @@ export function TransactionsTable({ data, isLoading }: Props) {
               <TableHead className="w-[100px]">Data</TableHead>
               <TableHead>Descrizione</TableHead>
               <TableHead>Categoria</TableHead>
+              <TableHead>Tag</TableHead>
               <TableHead className="w-[90px]">Tipo</TableHead>
               <TableHead className="text-right w-[110px]">Importo</TableHead>
               <TableHead className="w-[70px] text-center">Fisso</TableHead>
@@ -80,58 +85,74 @@ export function TransactionsTable({ data, isLoading }: Props) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((tx) => (
-              <TableRow key={tx.id}>
-                <TableCell className="text-xs">{tx.date}</TableCell>
-                <TableCell>
-                  {isTransfer(tx) ? (
-                    <div className="flex flex-col gap-0.5">
-                      <span>{capitalizeFirst(tx.description) || "Trasferimento"}</span>
-                      <span className="text-xs text-muted-foreground">{getTransferLabel(tx)}</span>
+            {data.map((tx) => {
+              const txTags = tagsMap[tx.id] || [];
+              return (
+                <TableRow key={tx.id}>
+                  <TableCell className="text-xs">{tx.date}</TableCell>
+                  <TableCell>
+                    {isTransfer(tx) ? (
+                      <div className="flex flex-col gap-0.5">
+                        <span>{capitalizeFirst(tx.description) || "Trasferimento"}</span>
+                        <span className="text-xs text-muted-foreground">{getTransferLabel(tx)}</span>
+                      </div>
+                    ) : (
+                      capitalizeFirst(tx.description) || "—"
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {isTransfer(tx) ? "—" : (tx.category?.name || "—")}
+                  </TableCell>
+                  <TableCell>
+                    {txTags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {txTags.map((tag) => (
+                          <Badge key={tag.id} variant="outline" className="text-[10px] px-1.5 py-0">
+                            {tag.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {isTransfer(tx) ? (
+                      <Badge className="text-[11px] bg-primary/20 text-primary border-primary/30 hover:bg-primary/30">
+                        <ArrowRightLeft className="h-3 w-3 mr-1" />
+                        Trasf.
+                      </Badge>
+                    ) : (
+                      <Badge className={`text-[11px] ${tx.type === "income" ? "bg-success text-success-foreground hover:bg-success/80" : "bg-destructive text-destructive-foreground hover:bg-destructive/80"}`}>
+                        {tx.type === "income" ? "Entrata" : "Uscita"}
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className={`text-right ft-number font-medium ${isTransfer(tx) ? "text-primary" : tx.type === "income" ? "text-success" : "text-destructive"}`}>
+                    {isPrivacy ? "••••" : isTransfer(tx)
+                      ? `${tx.transfer_direction === "out" ? "−" : "+"}€${tx.amount.toFixed(2)}`
+                      : `${tx.type === "income" ? "+" : "−"}€${tx.amount.toFixed(2)}`}
+                  </TableCell>
+                  <TableCell className="text-center text-xs text-muted-foreground">{tx.is_fixed ? "Sì" : "No"}</TableCell>
+                  {!selectedAccountId && (
+                    <TableCell className="text-xs text-muted-foreground">{tx.account_id ? accountMap[tx.account_id] || "—" : "—"}</TableCell>
+                  )}
+                  <TableCell className="text-xs text-muted-foreground capitalize">
+                    {isTransfer(tx) ? "Trasferimento" : tx.source === "manual" ? "Manuale" : tx.source === "recurring_generated" ? "Ricorrente" : tx.source}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(tx)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
-                  ) : (
-                    capitalizeFirst(tx.description) || "—"
-                  )}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {isTransfer(tx) ? "—" : (tx.category?.name || "—")}
-                </TableCell>
-                <TableCell>
-                  {isTransfer(tx) ? (
-                    <Badge className="text-[11px] bg-primary/20 text-primary border-primary/30 hover:bg-primary/30">
-                      <ArrowRightLeft className="h-3 w-3 mr-1" />
-                      Trasf.
-                    </Badge>
-                  ) : (
-                    <Badge className={`text-[11px] ${tx.type === "income" ? "bg-success text-success-foreground hover:bg-success/80" : "bg-destructive text-destructive-foreground hover:bg-destructive/80"}`}>
-                      {tx.type === "income" ? "Entrata" : "Uscita"}
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className={`text-right ft-number font-medium ${isTransfer(tx) ? "text-primary" : tx.type === "income" ? "text-success" : "text-destructive"}`}>
-                  {isPrivacy ? "••••" : isTransfer(tx)
-                    ? `${tx.transfer_direction === "out" ? "−" : "+"}€${tx.amount.toFixed(2)}`
-                    : `${tx.type === "income" ? "+" : "−"}€${tx.amount.toFixed(2)}`}
-                </TableCell>
-                <TableCell className="text-center text-xs text-muted-foreground">{tx.is_fixed ? "Sì" : "No"}</TableCell>
-                {!selectedAccountId && (
-                  <TableCell className="text-xs text-muted-foreground">{tx.account_id ? accountMap[tx.account_id] || "—" : "—"}</TableCell>
-                )}
-                <TableCell className="text-xs text-muted-foreground capitalize">
-                  {isTransfer(tx) ? "Trasferimento" : tx.source === "manual" ? "Manuale" : tx.source === "recurring_generated" ? "Ricorrente" : tx.source}
-                </TableCell>
-                <TableCell className="text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(tx)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
