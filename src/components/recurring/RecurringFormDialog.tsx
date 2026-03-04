@@ -32,7 +32,7 @@ import { useAccountContext } from "@/contexts/AccountContext";
 import { toast } from "sonner";
 import { capitalizeFirst } from "@/lib/normalize";
 
-export function RecurringFormDialog() {
+export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } = {}) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState("expense");
@@ -124,10 +124,12 @@ export function RecurringFormDialog() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-1.5">
-          <Plus className="h-4 w-4" />
-          Nuova ricorrenza
-        </Button>
+        {trigger ?? (
+          <Button size="sm" className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            Nuova ricorrenza
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

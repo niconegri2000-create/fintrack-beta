@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, Landmark, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, Landmark, AlertTriangle, Plus, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -19,10 +19,13 @@ import { useHealthScoreEnabled } from "@/hooks/useHealthScoreEnabled";
 import { useSmartInsightsEnabled } from "@/hooks/useSmartInsightsEnabled";
 import { KpiDetailModal } from "@/components/dashboard/KpiDetailModal";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 import { useState } from "react";
+import { TransactionFormDialog } from "@/components/transactions/TransactionFormDialog";
+import { RecurringFormDialog } from "@/components/recurring/RecurringFormDialog";
 
 const MONTH_LABELS: Record<string, string> = {
   "01": "Gen", "02": "Feb", "03": "Mar", "04": "Apr",
@@ -92,6 +95,22 @@ const Dashboard = () => {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+          <TransactionFormDialog
+            trigger={
+              <Button size="sm" className="gap-1.5">
+                <Plus className="h-4 w-4" />
+                Nuova transazione
+              </Button>
+            }
+          />
+          <RecurringFormDialog
+            trigger={
+              <Button size="sm" variant="outline" className="gap-1.5">
+                <RefreshCw className="h-4 w-4" />
+                Nuova ricorrenza
+              </Button>
+            }
+          />
           <AccountSwitcher />
           <PeriodPicker />
         </div>

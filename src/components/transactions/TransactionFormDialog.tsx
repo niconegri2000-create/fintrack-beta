@@ -34,7 +34,7 @@ import { useDateRange } from "@/contexts/DateRangeContext";
 import { toast } from "sonner";
 import { capitalizeFirst } from "@/lib/normalize";
 
-export function TransactionFormDialog() {
+export function TransactionFormDialog({ trigger }: { trigger?: React.ReactNode } = {}) {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date>(new Date());
   const [type, setType] = useState<string>("expense");
@@ -112,10 +112,12 @@ export function TransactionFormDialog() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-1.5">
-          <Plus className="h-4 w-4" />
-          Nuova transazione
-        </Button>
+        {trigger ?? (
+          <Button size="sm" className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            Nuova transazione
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
