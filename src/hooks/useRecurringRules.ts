@@ -53,16 +53,17 @@ export function useCreateRecurring() {
   const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (r: NewRecurring) => {
-      const { error } = await supabase.from("recurring_rules").insert({
+    mutationFn: async (r: NewRecurring): Promise<string> => {
+      const { data, error } = await supabase.from("recurring_rules").insert({
         workspace_id: workspaceId,
         name: r.name, type: r.type, amount: r.amount,
         category_id: r.category_id || null, day_of_month: r.day_of_month,
         start_date: r.start_date, is_fixed: r.is_fixed, is_active: r.is_active,
         frequency: "monthly", interval_months: r.interval_months,
         end_date: r.end_date || null, account_id: r.account_id,
-      });
+      }).select("id").single();
       if (error) throw error;
+      return data.id;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["recurring_rules"] }),
   });

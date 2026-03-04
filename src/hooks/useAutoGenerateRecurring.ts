@@ -57,6 +57,21 @@ export function useAutoGenerateRecurring() {
           (existing || []).map((t: any) => `${t.recurring_rule_id}_${t.date}`)
         );
 
+        // Pre-fetch recurring tags for all eligible rules
+        const { data: allRecurringTags } = await supabase
+          .from("recurring_tags")
+          .select("recurring_id, tag_id")
+          .in("recurring_id", ruleIds);
+        const recurringTagMap = new Map<string, string[]>();
+        for (const rt of (allRecurringTags || []) as any[]) {
+          const list = recurringTagMap.get(rt.recurring_id) || [];
+          list.push(rt.tag_id);
+          recurringTagMap.set(rt.recurring_id, list);
+        }
+
+        // Track which rule generated which inserts for tag propagation
+        const insertRuleIds: string[] = [];
+
         for (const rule of eligible as any[]) {
           const sd = new Date(rule.start_date);
           const interval = rule.interval_months || 1;
@@ -87,6 +102,7 @@ export function useAutoGenerateRecurring() {
                     is_fixed: rule.is_fixed, source: "recurring_generated",
                     recurring_rule_id: rule.id, account_id: rule.account_id,
                   });
+                  insertRuleIds.push(rule.id);
                 }
               }
             }
@@ -95,11 +111,28 @@ export function useAutoGenerateRecurring() {
         }
 
         if (allInserts.length > 0) {
-          const { error: iErr } = await supabase
+          const { data: insertedRows, error: iErr } = await supabase
             .from("transactions")
-            .upsert(allInserts, { onConflict: "workspace_id,recurring_rule_id,date", ignoreDuplicates: true });
-          if (iErr) console.error("Auto-generate recurring error:", iErr);
-          else {
+            .upsert(allInserts, { onConflict: "workspace_id,recurring_rule_id,date", ignoreDuplicates: true })
+            .select("id, recurring_rule_id");
+          
+          if (iErr) {
+            console.error("Auto-generate recurring error:", iErr);
+          } else {
+            // Propagate tags from recurring rules to generated transactions
+            const tagInserts: Array<{ transaction_id: string; tag_id: string }> = [];
+            for (const row of (insertedRows || []) as any[]) {
+              const tags = recurringTagMap.get(row.recurring_rule_id);
+              if (tags) {
+                for (const tagId of tags) {
+                  tagInserts.push({ transaction_id: row.id, tag_id: tagId });
+                }
+              }
+            }
+            if (tagInserts.length > 0) {
+              await supabase.from("transaction_tags").upsert(tagInserts, { onConflict: "transaction_id,tag_id", ignoreDuplicates: true });
+            }
+
             qc.invalidateQueries({ queryKey: ["transactions"] });
             qc.invalidateQueries({ queryKey: ["dashboard"] });
           }

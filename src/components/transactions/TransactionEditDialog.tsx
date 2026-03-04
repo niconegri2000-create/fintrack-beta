@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +29,8 @@ import { useUpdateTransaction, TransactionRow } from "@/hooks/useTransactions";
 import { useAccountContext } from "@/contexts/AccountContext";
 import { toast } from "sonner";
 import { capitalizeFirst } from "@/lib/normalize";
+import { TagInput } from "@/components/ui/tag-input";
+import { useTransactionTags, syncTransactionTags } from "@/hooks/useTags";
 
 interface Props {
   transaction: TransactionRow;
@@ -44,11 +45,12 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
   const [accountId, setAccountId] = useState(transaction.account_id || "");
   const [categoryId, setCategoryId] = useState(transaction.category?.id || "");
   const [description, setDescription] = useState(transaction.description || "");
-  const [notes, setNotes] = useState(transaction.notes || "");
+  const [tagIds, setTagIds] = useState<string[]>([]);
 
   const { data: categories = [] } = useCategories();
   const { accounts } = useAccountContext();
   const update = useUpdateTransaction();
+  const { data: existingTagIds = [] } = useTransactionTags(open ? transaction.id : null);
 
   useEffect(() => {
     if (open) {
@@ -58,9 +60,14 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
       setAccountId(transaction.account_id || "");
       setCategoryId(transaction.category?.id || "");
       setDescription(transaction.description || "");
-      setNotes(transaction.notes || "");
     }
   }, [open, transaction]);
+
+  useEffect(() => {
+    if (open && existingTagIds.length >= 0) {
+      setTagIds(existingTagIds);
+    }
+  }, [open, existingTagIds]);
 
   const handleSubmit = () => {
     const num = parseFloat(amount);
@@ -81,11 +88,12 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
         amount: num,
         category_id: categoryId || null,
         description: capitalizeFirst(description),
-        notes,
+        notes: transaction.notes || "",
         account_id: accountId,
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
+          try { await syncTransactionTags(transaction.id, tagIds); } catch {}
           toast.success("Transazione aggiornata");
           onOpenChange(false);
         },
@@ -161,9 +169,11 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
             <Input placeholder="Descrizione" maxLength={200} value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
 
+          {/* Tags */}
           <div className="space-y-1.5">
-            <Label>Note</Label>
-            <Textarea placeholder="Note opzionali" maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none" rows={2} />
+            <Label>Tag</Label>
+            <p className="text-xs text-muted-foreground">Aggiungi uno o più tag per classificare la transazione.</p>
+            <TagInput selectedTagIds={tagIds} onChange={setTagIds} />
           </div>
 
           <Button onClick={handleSubmit} disabled={update.isPending} className="w-full">
