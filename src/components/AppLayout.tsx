@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet } from "react-router-dom";
 import { useAutoGenerateRecurring } from "@/hooks/useAutoGenerateRecurring";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import { CurrentDateBadge } from "@/components/CurrentDateBadge";
 
 export function AppLayout() {
   useAutoGenerateRecurring();
@@ -12,8 +13,9 @@ export function AppLayout() {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 min-w-0 flex flex-col">
-          <header className="h-14 flex items-center border-b px-4 bg-card">
+          <header className="h-14 flex items-center justify-between border-b px-4 bg-card">
             <SidebarTrigger />
+            <CurrentDateBadge />
           </header>
           <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto">
             <Outlet />
