@@ -18,7 +18,7 @@ export function CategoryFormDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [priority, setPriority] = useState("mandatory");
-  const [isFixedDefault, setIsFixedDefault] = useState(false);
+  
   const [isActive, setIsActive] = useState(true);
 
   const create = useCreateCategory();
@@ -26,7 +26,7 @@ export function CategoryFormDialog() {
   const reset = () => {
     setName("");
     setPriority("mandatory");
-    setIsFixedDefault(false);
+    
     setIsActive(true);
   };
 
@@ -38,7 +38,7 @@ export function CategoryFormDialog() {
     }
 
     create.mutate(
-      { name: normalized, priority, is_fixed_default: isFixedDefault, is_active: isActive },
+      { name: normalized, priority, is_fixed_default: false, is_active: isActive },
       {
         onSuccess: () => { toast.success("Categoria creata"); reset(); setOpen(false); },
         onError: () => toast.error("Errore nel salvataggio"),
@@ -68,10 +68,6 @@ export function CategoryFormDialog() {
                 <SelectItem value="eliminable">Eliminabile</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div className="flex items-center justify-between">
-            <Label>Default per fissi</Label>
-            <Switch checked={isFixedDefault} onCheckedChange={setIsFixedDefault} />
           </div>
           <div className="flex items-center justify-between">
             <Label>Attiva</Label>
