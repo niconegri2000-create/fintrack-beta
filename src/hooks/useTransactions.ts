@@ -54,8 +54,8 @@ export function useCreateTransaction() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (tx: NewTransaction) => {
-      const { error } = await supabase.from("transactions").insert({
+    mutationFn: async (tx: NewTransaction): Promise<string> => {
+      const { data, error } = await supabase.from("transactions").insert({
         workspace_id: workspaceId,
         date: tx.date,
         type: tx.type,
@@ -66,8 +66,9 @@ export function useCreateTransaction() {
         notes: tx.notes || null,
         source: "manual",
         account_id: tx.account_id,
-      });
+      }).select("id").single();
       if (error) throw error;
+      return data.id;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });

@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +31,8 @@ import { useAccountContext } from "@/contexts/AccountContext";
 import { useDateRange } from "@/contexts/DateRangeContext";
 import { toast } from "sonner";
 import { capitalizeFirst } from "@/lib/normalize";
+import { TagInput } from "@/components/ui/tag-input";
+import { syncTransactionTags } from "@/hooks/useTags";
 
 export function TransactionFormDialog({ trigger }: { trigger?: React.ReactNode } = {}) {
   const [open, setOpen] = useState(false);
@@ -42,7 +42,7 @@ export function TransactionFormDialog({ trigger }: { trigger?: React.ReactNode }
   const [accountId, setAccountId] = useState<string>("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [description, setDescription] = useState("");
-  const [notes, setNotes] = useState("");
+  const [tagIds, setTagIds] = useState<string[]>([]);
 
   const { data: categories = [] } = useCategories();
   const { selectedAccountId, accounts } = useAccountContext();
@@ -50,7 +50,6 @@ export function TransactionFormDialog({ trigger }: { trigger?: React.ReactNode }
   const defaultAccount = accounts.find((a) => a.is_default) ?? accounts[0];
   const createTx = useCreateTransaction();
 
-  // Set default accountId when dialog opens
   const resolvedDefault = selectedAccountId ?? defaultAccount?.id ?? "";
   const handleOpenChange = (v: boolean) => {
     if (v) setAccountId(resolvedDefault);
@@ -64,7 +63,7 @@ export function TransactionFormDialog({ trigger }: { trigger?: React.ReactNode }
     setAccountId(resolvedDefault);
     setCategoryId("");
     setDescription("");
-    setNotes("");
+    setTagIds([]);
   };
 
   const handleSubmit = () => {
@@ -73,7 +72,6 @@ export function TransactionFormDialog({ trigger }: { trigger?: React.ReactNode }
       toast.error("Inserisci un importo valido maggiore di 0");
       return;
     }
-
     if (!accountId) {
       toast.error("Seleziona un conto");
       return;
@@ -87,11 +85,14 @@ export function TransactionFormDialog({ trigger }: { trigger?: React.ReactNode }
         category_id: categoryId || null,
         description: capitalizeFirst(description),
         is_fixed: false,
-        notes,
+        notes: "",
         account_id: accountId,
       },
       {
-        onSuccess: () => {
+        onSuccess: async (txId) => {
+          if (tagIds.length > 0) {
+            try { await syncTransactionTags(txId, tagIds); } catch {}
+          }
           const txDate = format(date, "yyyy-MM-dd");
           const isOutOfPeriod = txDate < dateRange.from || txDate > dateRange.to;
           if (isOutOfPeriod) {
@@ -222,17 +223,11 @@ export function TransactionFormDialog({ trigger }: { trigger?: React.ReactNode }
             />
           </div>
 
-          {/* Notes */}
+          {/* Tags */}
           <div className="space-y-1.5">
-            <Label>Note</Label>
-            <Textarea
-              placeholder="Note opzionali"
-              maxLength={500}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="resize-none"
-              rows={2}
-            />
+            <Label>Tag</Label>
+            <p className="text-xs text-muted-foreground">Aggiungi uno o più tag per classificare la transazione.</p>
+            <TagInput selectedTagIds={tagIds} onChange={setTagIds} />
           </div>
 
           <Button

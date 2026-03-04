@@ -30,6 +30,8 @@ import { useUpdateRecurring, RecurringRow } from "@/hooks/useRecurringRules";
 import { useAccountContext } from "@/contexts/AccountContext";
 import { toast } from "sonner";
 import { capitalizeFirst } from "@/lib/normalize";
+import { TagInput } from "@/components/ui/tag-input";
+import { useRecurringTags, syncRecurringTags } from "@/hooks/useTags";
 
 interface Props {
   rule: RecurringRow;
@@ -45,13 +47,14 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
   const [categoryId, setCategoryId] = useState(rule.category?.id || "");
   const [dayOfMonth, setDayOfMonth] = useState(String(rule.day_of_month || 1));
   const [intervalMonths, setIntervalMonths] = useState(String(rule.interval_months));
-  
   const [isActive, setIsActive] = useState(rule.is_active);
   const [endDate, setEndDate] = useState<Date | undefined>(rule.end_date ? new Date(rule.end_date) : undefined);
+  const [tagIds, setTagIds] = useState<string[]>([]);
 
   const { data: categories = [] } = useCategories();
   const { accounts } = useAccountContext();
   const update = useUpdateRecurring();
+  const { data: existingTagIds = [] } = useRecurringTags(open ? rule.id : null);
 
   useEffect(() => {
     if (open) {
@@ -62,11 +65,16 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
       setCategoryId(rule.category?.id || "");
       setDayOfMonth(String(rule.day_of_month || 1));
       setIntervalMonths(String(rule.interval_months));
-      
       setIsActive(rule.is_active);
       setEndDate(rule.end_date ? new Date(rule.end_date) : undefined);
     }
   }, [open, rule]);
+
+  useEffect(() => {
+    if (open && existingTagIds.length >= 0) {
+      setTagIds(existingTagIds);
+    }
+  }, [open, existingTagIds]);
 
   const handleSubmit = () => {
     if (!name.trim()) { toast.error("Inserisci un nome"); return; }
@@ -79,19 +87,18 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
     update.mutate(
       {
         id: rule.id,
-        name: capitalizeFirst(name),
-        type,
-        amount: num,
-        category_id: categoryId || null,
-        day_of_month: day,
+        name: capitalizeFirst(name), type, amount: num,
+        category_id: categoryId || null, day_of_month: day,
         interval_months: parseInt(intervalMonths) || 1,
         end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
-        is_active: isActive,
-        is_fixed: true,
-        account_id: accountId,
+        is_active: isActive, is_fixed: true, account_id: accountId,
       },
       {
-        onSuccess: () => { toast.success("Ricorrenza aggiornata"); onOpenChange(false); },
+        onSuccess: async () => {
+          try { await syncRecurringTags(rule.id, tagIds); } catch {}
+          toast.success("Ricorrenza aggiornata");
+          onOpenChange(false);
+        },
         onError: () => toast.error("Errore nell'aggiornamento"),
       }
     );
@@ -112,9 +119,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
             <Select value={accountId} onValueChange={setAccountId}>
               <SelectTrigger><SelectValue placeholder="Seleziona conto" /></SelectTrigger>
               <SelectContent>
-                {accounts.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                ))}
+                {accounts.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
@@ -140,9 +145,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
             <Select value={categoryId} onValueChange={setCategoryId}>
               <SelectTrigger><SelectValue placeholder="Seleziona" /></SelectTrigger>
               <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
+                {categories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
@@ -189,6 +192,13 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
           <div className="flex items-center justify-between">
             <Label>Attiva</Label>
             <Switch checked={isActive} onCheckedChange={setIsActive} />
+          </div>
+
+          {/* Tags */}
+          <div className="space-y-1.5">
+            <Label>Tag</Label>
+            <p className="text-xs text-muted-foreground">Aggiungi uno o più tag per classificare la ricorrenza.</p>
+            <TagInput selectedTagIds={tagIds} onChange={setTagIds} />
           </div>
 
           <Button onClick={handleSubmit} disabled={update.isPending} className="w-full">

@@ -31,6 +31,8 @@ import { useCreateRecurring } from "@/hooks/useRecurringRules";
 import { useAccountContext } from "@/contexts/AccountContext";
 import { toast } from "sonner";
 import { capitalizeFirst } from "@/lib/normalize";
+import { TagInput } from "@/components/ui/tag-input";
+import { syncRecurringTags } from "@/hooks/useTags";
 
 export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } = {}) {
   const [open, setOpen] = useState(false);
@@ -42,9 +44,9 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
   const [dayOfMonth, setDayOfMonth] = useState("1");
   const [intervalMonths, setIntervalMonths] = useState("1");
   const [startDate, setStartDate] = useState<Date>(new Date());
-  
   const [isActive, setIsActive] = useState(true);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [tagIds, setTagIds] = useState<string[]>([]);
 
   const { data: categories = [] } = useCategories();
   const { selectedAccountId, accounts } = useAccountContext();
@@ -58,60 +60,37 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
   };
 
   const reset = () => {
-    setName("");
-    setType("expense");
-    setAmount("");
-    setAccountId(resolvedDefault);
-    setCategoryId("");
-    setDayOfMonth("1");
-    setIntervalMonths("1");
-    setStartDate(new Date());
-    
-    setIsActive(true);
-    setEndDate(undefined);
+    setName(""); setType("expense"); setAmount("");
+    setAccountId(resolvedDefault); setCategoryId("");
+    setDayOfMonth("1"); setIntervalMonths("1");
+    setStartDate(new Date()); setIsActive(true);
+    setEndDate(undefined); setTagIds([]);
   };
 
   const handleSubmit = () => {
-    if (!name.trim()) {
-      toast.error("Inserisci un nome");
-      return;
-    }
+    if (!name.trim()) { toast.error("Inserisci un nome"); return; }
     const num = parseFloat(amount);
-    if (!num || num <= 0) {
-      toast.error("Importo deve essere maggiore di 0");
-      return;
-    }
+    if (!num || num <= 0) { toast.error("Importo deve essere maggiore di 0"); return; }
     const day = parseInt(dayOfMonth);
-    if (isNaN(day) || day < 1 || day > 31) {
-      toast.error("Giorno del mese non valido (1–31)");
-      return;
-    }
-    if (endDate && endDate < startDate) {
-      toast.error("La data fine deve essere uguale o successiva alla data inizio");
-      return;
-    }
-
-    if (!accountId) {
-      toast.error("Seleziona un conto");
-      return;
-    }
+    if (isNaN(day) || day < 1 || day > 31) { toast.error("Giorno del mese non valido (1–31)"); return; }
+    if (endDate && endDate < startDate) { toast.error("La data fine deve essere uguale o successiva alla data inizio"); return; }
+    if (!accountId) { toast.error("Seleziona un conto"); return; }
 
     create.mutate(
       {
-        name: capitalizeFirst(name),
-        type,
-        amount: num,
-        category_id: categoryId || null,
-        day_of_month: day,
+        name: capitalizeFirst(name), type, amount: num,
+        category_id: categoryId || null, day_of_month: day,
         start_date: format(startDate, "yyyy-MM-dd"),
-        is_fixed: true,
-        is_active: isActive,
+        is_fixed: true, is_active: isActive,
         interval_months: parseInt(intervalMonths) || 1,
         end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
         account_id: accountId,
       },
       {
-        onSuccess: () => {
+        onSuccess: async (ruleId) => {
+          if (tagIds.length > 0) {
+            try { await syncRecurringTags(ruleId, tagIds); } catch {}
+          }
           toast.success("Ricorrenza creata");
           reset();
           setOpen(false);
@@ -146,9 +125,7 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
             <Select value={accountId} onValueChange={setAccountId}>
               <SelectTrigger><SelectValue placeholder="Seleziona conto" /></SelectTrigger>
               <SelectContent>
-                {accounts.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                ))}
+                {accounts.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
@@ -174,9 +151,7 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
             <Select value={categoryId} onValueChange={setCategoryId}>
               <SelectTrigger><SelectValue placeholder="Seleziona" /></SelectTrigger>
               <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
+                {categories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
@@ -238,6 +213,13 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
           <div className="flex items-center justify-between">
             <Label>Attiva</Label>
             <Switch checked={isActive} onCheckedChange={setIsActive} />
+          </div>
+
+          {/* Tags */}
+          <div className="space-y-1.5">
+            <Label>Tag</Label>
+            <p className="text-xs text-muted-foreground">Aggiungi uno o più tag per classificare la ricorrenza.</p>
+            <TagInput selectedTagIds={tagIds} onChange={setTagIds} />
           </div>
 
           <Button onClick={handleSubmit} disabled={create.isPending} className="w-full">
