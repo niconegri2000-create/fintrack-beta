@@ -8,12 +8,15 @@ import { TransactionFormDialog } from "@/components/transactions/TransactionForm
 import { TransferFormDialog } from "@/components/transactions/TransferFormDialog";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { useTransactionTagsMap } from "@/hooks/useBatchTags";
-import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
+import { CsvImportWizard } from "@/components/csv-import/CsvImportWizard";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, TrendingDown, ArrowRightLeft, FileUp } from "lucide-react";
 
 const Transazioni = () => {
   const { dateRange } = useDateRange();
   const { selectedAccountId } = useAccountContext();
   const { data = [], isLoading } = useTransactions(dateRange.from, dateRange.to, selectedAccountId);
+  const [csvOpen, setCsvOpen] = useState(false);
 
   const [filterCategoryId, setFilterCategoryId] = useState<string | null>(null);
   const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
@@ -58,8 +61,14 @@ const Transazioni = () => {
           <PeriodPicker />
           <TransactionFormDialog />
           <TransferFormDialog />
+          <Button variant="outline" size="sm" onClick={() => setCsvOpen(true)}>
+            <FileUp className="h-4 w-4 mr-1" />
+            Importa CSV
+          </Button>
         </div>
       </div>
+
+      <CsvImportWizard open={csvOpen} onOpenChange={setCsvOpen} defaultAccountId={selectedAccountId ?? undefined} />
 
       <FilterBar
         selectedCategoryId={filterCategoryId}
