@@ -126,6 +126,7 @@ function useHistoricalMonthlyTotals(accountId: string | null, months: number = 3
 
       const monthMap = new Map<string, { income: number; expense: number }>();
       for (const r of data ?? []) {
+        if (r.type === "transfer_in" || r.type === "transfer_out") continue;
         const m = r.date.slice(0, 7);
         const entry = monthMap.get(m) ?? { income: 0, expense: 0 };
         if (r.type === "income") entry.income += Number(r.amount);

@@ -13,6 +13,9 @@ export interface TransactionRow {
   notes: string | null;
   account_id: string;
   category: { id: string; name: string } | null;
+  transfer_id: string | null;
+  linked_account_id: string | null;
+  transfer_direction: string | null;
 }
 
 export interface NewTransaction {
@@ -36,7 +39,7 @@ export function useTransactions(from: string, to: string, accountId: string | nu
     queryFn: async () => {
       let q = supabase
         .from("transactions")
-        .select("id, date, description, amount, type, is_fixed, source, notes, account_id, category:categories(id, name)")
+        .select("id, date, description, amount, type, is_fixed, source, notes, account_id, transfer_id, linked_account_id, transfer_direction, category:categories(id, name)")
         .eq("workspace_id", workspaceId)
         .gte("date", from)
         .lte("date", to)

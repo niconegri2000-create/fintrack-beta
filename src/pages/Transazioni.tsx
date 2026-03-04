@@ -5,7 +5,8 @@ import { useAccountContext } from "@/contexts/AccountContext";
 import { PeriodPicker } from "@/components/dashboard/PeriodPicker";
 import { TransactionsTable } from "@/components/transactions/TransactionsTable";
 import { TransactionFormDialog } from "@/components/transactions/TransactionFormDialog";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TransferFormDialog } from "@/components/transactions/TransferFormDialog";
+import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
 
 const Transazioni = () => {
   const { dateRange } = useDateRange();
@@ -14,6 +15,7 @@ const Transazioni = () => {
 
   const income = useMemo(() => data.filter((t) => t.type === "income"), [data]);
   const expense = useMemo(() => data.filter((t) => t.type === "expense"), [data]);
+  const transfers = useMemo(() => data.filter((t) => t.type === "transfer_in" || t.type === "transfer_out"), [data]);
 
   return (
     <div className="space-y-6">
@@ -27,6 +29,7 @@ const Transazioni = () => {
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
           <PeriodPicker />
           <TransactionFormDialog />
+          <TransferFormDialog />
         </div>
       </div>
 
@@ -65,6 +68,18 @@ const Transazioni = () => {
           <TransactionsTable data={expense} isLoading={false} />
         )}
       </section>
+
+      {/* Trasferimenti */}
+      {transfers.length > 0 && (
+        <section className="space-y-2">
+          <div className="flex items-center gap-2">
+            <ArrowRightLeft className="h-4 w-4 text-primary" />
+            <h2 className="text-base font-semibold">Trasferimenti</h2>
+            <span className="text-xs text-muted-foreground">({transfers.length})</span>
+          </div>
+          <TransactionsTable data={transfers} isLoading={false} />
+        </section>
+      )}
     </div>
   );
 };

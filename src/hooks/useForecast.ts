@@ -31,7 +31,11 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6, accoun
       if (tErr) throw tErr;
 
       let baseIncome = 0, baseExpense = 0;
-      for (const t of txns ?? []) { const amt = Number(t.amount); if (t.type === "income") baseIncome += amt; else baseExpense += amt; }
+      for (const t of txns ?? []) {
+        if (t.type === "transfer_in" || t.type === "transfer_out") continue;
+        const amt = Number(t.amount);
+        if (t.type === "income") baseIncome += amt; else baseExpense += amt;
+      }
 
       let rulesQ = supabase.from("recurring_rules")
         .select("id, name, type, amount, category_id, day_of_month, start_date, interval_months, end_date, category:categories(name, is_active)")

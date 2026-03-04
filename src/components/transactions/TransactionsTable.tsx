@@ -1,21 +1,18 @@
 import { useState, useMemo } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, ArrowRightLeft } from "lucide-react";
 import { TransactionRow } from "@/hooks/useTransactions";
 import { capitalizeFirst } from "@/lib/normalize";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { useAccountContext } from "@/contexts/AccountContext";
 import { TransactionEditDialog } from "./TransactionEditDialog";
 import { TransactionDeleteDialog } from "./TransactionDeleteDialog";
+import { TransferEditDialog } from "./TransferEditDialog";
+import { TransferDeleteDialog } from "./TransferDeleteDialog";
 
 interface Props {
   data: TransactionRow[];
@@ -28,6 +25,8 @@ export function TransactionsTable({ data, isLoading }: Props) {
   const accountMap = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a.name])), [accounts]);
   const [editTx, setEditTx] = useState<TransactionRow | null>(null);
   const [deleteTxId, setDeleteTxId] = useState<string | null>(null);
+  const [editTransfer, setEditTransfer] = useState<TransactionRow | null>(null);
+  const [deleteTransferId, setDeleteTransferId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -44,6 +43,24 @@ export function TransactionsTable({ data, isLoading }: Props) {
       </div>
     );
   }
+
+  const isTransfer = (tx: TransactionRow) => tx.type === "transfer_in" || tx.type === "transfer_out";
+
+  const getTransferLabel = (tx: TransactionRow) => {
+    const fromName = tx.transfer_direction === "out" ? accountMap[tx.account_id] : accountMap[tx.linked_account_id || ""];
+    const toName = tx.transfer_direction === "in" ? accountMap[tx.account_id] : accountMap[tx.linked_account_id || ""];
+    return `Da ${fromName || "?"} → A ${toName || "?"}`;
+  };
+
+  const handleEdit = (tx: TransactionRow) => {
+    if (isTransfer(tx)) setEditTransfer(tx);
+    else setEditTx(tx);
+  };
+
+  const handleDelete = (tx: TransactionRow) => {
+    if (isTransfer(tx) && tx.transfer_id) setDeleteTransferId(tx.transfer_id);
+    else setDeleteTxId(tx.id);
+  };
 
   return (
     <>
@@ -66,29 +83,49 @@ export function TransactionsTable({ data, isLoading }: Props) {
             {data.map((tx) => (
               <TableRow key={tx.id}>
                 <TableCell className="text-xs">{tx.date}</TableCell>
-                <TableCell>{capitalizeFirst(tx.description) || "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{tx.category?.name || "—"}</TableCell>
                 <TableCell>
-                  <Badge className={`text-[11px] ${tx.type === "income" ? "bg-success text-success-foreground hover:bg-success/80" : "bg-destructive text-destructive-foreground hover:bg-destructive/80"}`}>
-                    {tx.type === "income" ? "Entrata" : "Uscita"}
-                  </Badge>
+                  {isTransfer(tx) ? (
+                    <div className="flex flex-col gap-0.5">
+                      <span>{capitalizeFirst(tx.description) || "Trasferimento"}</span>
+                      <span className="text-xs text-muted-foreground">{getTransferLabel(tx)}</span>
+                    </div>
+                  ) : (
+                    capitalizeFirst(tx.description) || "—"
+                  )}
                 </TableCell>
-                <TableCell className={`text-right ft-number font-medium ${tx.type === "income" ? "text-success" : "text-destructive"}`}>
-                  {isPrivacy ? "••••" : `${tx.type === "income" ? "+" : "−"}€${tx.amount.toFixed(2)}`}
+                <TableCell className="text-muted-foreground">
+                  {isTransfer(tx) ? "—" : (tx.category?.name || "—")}
+                </TableCell>
+                <TableCell>
+                  {isTransfer(tx) ? (
+                    <Badge className="text-[11px] bg-primary/20 text-primary border-primary/30 hover:bg-primary/30">
+                      <ArrowRightLeft className="h-3 w-3 mr-1" />
+                      Trasf.
+                    </Badge>
+                  ) : (
+                    <Badge className={`text-[11px] ${tx.type === "income" ? "bg-success text-success-foreground hover:bg-success/80" : "bg-destructive text-destructive-foreground hover:bg-destructive/80"}`}>
+                      {tx.type === "income" ? "Entrata" : "Uscita"}
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className={`text-right ft-number font-medium ${isTransfer(tx) ? "text-primary" : tx.type === "income" ? "text-success" : "text-destructive"}`}>
+                  {isPrivacy ? "••••" : isTransfer(tx)
+                    ? `${tx.transfer_direction === "out" ? "−" : "+"}€${tx.amount.toFixed(2)}`
+                    : `${tx.type === "income" ? "+" : "−"}€${tx.amount.toFixed(2)}`}
                 </TableCell>
                 <TableCell className="text-center text-xs text-muted-foreground">{tx.is_fixed ? "Sì" : "No"}</TableCell>
                 {!selectedAccountId && (
                   <TableCell className="text-xs text-muted-foreground">{tx.account_id ? accountMap[tx.account_id] || "—" : "—"}</TableCell>
                 )}
                 <TableCell className="text-xs text-muted-foreground capitalize">
-                  {tx.source === "manual" ? "Manuale" : tx.source === "recurring_generated" ? "Ricorrente" : tx.source}
+                  {isTransfer(tx) ? "Trasferimento" : tx.source === "manual" ? "Manuale" : tx.source === "recurring_generated" ? "Ricorrente" : tx.source}
                 </TableCell>
                 <TableCell className="text-center">
                   <div className="flex items-center justify-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditTx(tx)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(tx)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTxId(tx.id)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(tx)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -104,6 +141,12 @@ export function TransactionsTable({ data, isLoading }: Props) {
       )}
       {deleteTxId && (
         <TransactionDeleteDialog transactionId={deleteTxId} open={!!deleteTxId} onOpenChange={(o) => !o && setDeleteTxId(null)} />
+      )}
+      {editTransfer && (
+        <TransferEditDialog transaction={editTransfer} open={!!editTransfer} onOpenChange={(o) => !o && setEditTransfer(null)} />
+      )}
+      {deleteTransferId && (
+        <TransferDeleteDialog transferId={deleteTransferId} open={!!deleteTransferId} onOpenChange={(o) => !o && setDeleteTransferId(null)} />
       )}
     </>
   );

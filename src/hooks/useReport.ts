@@ -13,7 +13,12 @@ export interface ReportData {
 
 function sumByType(rows: { amount: number; type: string | null }[]) {
   let income = 0, expense = 0;
-  for (const r of rows) { const amt = Number(r.amount); if (r.type === "income") income += amt; else if (r.type === "expense") expense += amt; }
+  for (const r of rows) {
+    if (r.type === "transfer_in" || r.type === "transfer_out") continue;
+    const amt = Number(r.amount);
+    if (r.type === "income") income += amt;
+    else if (r.type === "expense") expense += amt;
+  }
   return { income, expense };
 }
 

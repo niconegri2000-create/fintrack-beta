@@ -618,9 +618,12 @@ export type Database = {
           description: string | null
           id: string
           is_fixed: boolean | null
+          linked_account_id: string | null
           notes: string | null
           recurring_rule_id: string | null
           source: string | null
+          transfer_direction: string | null
+          transfer_id: string | null
           type: string | null
           workspace_id: string | null
         }
@@ -633,9 +636,12 @@ export type Database = {
           description?: string | null
           id?: string
           is_fixed?: boolean | null
+          linked_account_id?: string | null
           notes?: string | null
           recurring_rule_id?: string | null
           source?: string | null
+          transfer_direction?: string | null
+          transfer_id?: string | null
           type?: string | null
           workspace_id?: string | null
         }
@@ -648,9 +654,12 @@ export type Database = {
           description?: string | null
           id?: string
           is_fixed?: boolean | null
+          linked_account_id?: string | null
           notes?: string | null
           recurring_rule_id?: string | null
           source?: string | null
+          transfer_direction?: string | null
+          transfer_id?: string | null
           type?: string | null
           workspace_id?: string | null
         }
@@ -667,6 +676,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_linked_account_id_fkey"
+            columns: ["linked_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
             referencedColumns: ["id"]
           },
           {
