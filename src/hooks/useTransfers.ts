@@ -24,7 +24,7 @@ export function useCreateTransfer() {
           workspace_id: workspaceId,
           date: t.date,
           type: "transfer_out" as const,
-          amount: -Math.abs(t.amount),
+          amount: Math.abs(t.amount),
           description: t.description || null,
           account_id: t.from_account_id,
           linked_account_id: t.to_account_id,
@@ -92,7 +92,7 @@ export function useUpdateTransfer() {
         .from("transactions")
         .update({
           date: t.date,
-          amount: t.amount,
+          amount: Math.abs(t.amount),
           description: t.description || null,
           account_id: t.from_account_id,
           linked_account_id: t.to_account_id,
@@ -107,7 +107,7 @@ export function useUpdateTransfer() {
         .from("transactions")
         .update({
           date: t.date,
-          amount: t.amount,
+          amount: Math.abs(t.amount),
           description: t.description || null,
           account_id: t.to_account_id,
           linked_account_id: t.from_account_id,
