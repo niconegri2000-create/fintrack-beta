@@ -22,7 +22,7 @@ export function CategoryEditDialog({ category }: Props) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(category.name);
   const [priority, setPriority] = useState(category.priority);
-  const [isFixedDefault, setIsFixedDefault] = useState(category.is_fixed_default);
+  
   const [isActive, setIsActive] = useState(category.is_active);
 
   const update = useUpdateCategory();
@@ -34,7 +34,7 @@ export function CategoryEditDialog({ category }: Props) {
       return;
     }
     update.mutate(
-      { id: category.id, name: normalized, priority, is_fixed_default: isFixedDefault, is_active: isActive },
+      { id: category.id, name: normalized, priority, is_active: isActive },
       {
         onSuccess: () => { toast.success("Categoria aggiornata"); setOpen(false); },
         onError: () => toast.error("Errore nell'aggiornamento"),
@@ -44,7 +44,7 @@ export function CategoryEditDialog({ category }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => {
-      if (v) { setName(category.name); setPriority(category.priority); setIsFixedDefault(category.is_fixed_default); setIsActive(category.is_active); }
+      if (v) { setName(category.name); setPriority(category.priority); setIsActive(category.is_active); }
       setOpen(v);
     }}>
       <DialogTrigger asChild>
@@ -67,10 +67,6 @@ export function CategoryEditDialog({ category }: Props) {
                 <SelectItem value="eliminable">Eliminabile</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div className="flex items-center justify-between">
-            <Label>Default per fissi</Label>
-            <Switch checked={isFixedDefault} onCheckedChange={setIsFixedDefault} />
           </div>
           <div className="flex items-center justify-between">
             <Label>Attiva</Label>

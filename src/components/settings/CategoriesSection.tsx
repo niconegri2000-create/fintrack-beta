@@ -115,7 +115,7 @@ function SyncedScrollTable({ categories, onToggle, onDelete }: {
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>Priorità</TableHead>
-              <TableHead className="text-center w-[100px]">Default fissi</TableHead>
+              
               <TableHead className="text-center w-[80px]">Attiva</TableHead>
               <TableHead className="text-right w-[120px]">Azioni</TableHead>
             </TableRow>
@@ -128,9 +128,6 @@ function SyncedScrollTable({ categories, onToggle, onDelete }: {
                   <Badge variant="secondary" className="text-[11px]">
                     {priorityLabel[c.priority] ?? c.priority}
                   </Badge>
-                </TableCell>
-                <TableCell className="text-center text-xs text-muted-foreground">
-                  {c.is_fixed_default ? "Sì" : "No"}
                 </TableCell>
                 <TableCell className="text-center">
                   <span className={`inline-block h-2 w-2 rounded-full ${c.is_active ? "bg-success" : "bg-muted-foreground"}`} />
