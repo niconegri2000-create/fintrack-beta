@@ -53,19 +53,35 @@ export function useCreateTransfer() {
       ];
 
       console.log("[TRANSFER] Inserting rows:", JSON.stringify(rows, null, 2));
+      console.log("[TRANSFER] workspaceId:", workspaceId);
 
-      const { data, error } = await supabase
+      const { data, error, status, statusText } = await supabase
         .from("transactions")
         .insert(rows)
         .select("id, transfer_direction");
+
+      console.log("[TRANSFER] Response:", { status, statusText, dataLength: data?.length, error });
+
       if (error) {
         console.error("[TRANSFER] Insert failed:", { message: error.message, code: error.code, details: error.details, hint: error.hint });
         throw error;
       }
 
+      if (!data || data.length < 2) {
+        console.error("[TRANSFER] Insert returned insufficient rows. RLS may be blocking. data:", data);
+        throw new Error("Trasferimento non salvato: verifica di essere autenticato e di avere un workspace attivo.");
+      }
+
       const out = (data as any[]).find((r) => r.transfer_direction === "out");
       const ins = (data as any[]).find((r) => r.transfer_direction === "in");
-      return { outId: out?.id, inId: ins?.id };
+
+      if (!out?.id || !ins?.id) {
+        console.error("[TRANSFER] Missing out/in ids:", { out, ins, data });
+        throw new Error("Trasferimento incompleto: record mancanti.");
+      }
+
+      console.log("[TRANSFER] Success:", { outId: out.id, inId: ins.id });
+      return { outId: out.id, inId: ins.id };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
