@@ -65,7 +65,7 @@ export function useCreateTransfer() {
           to_account_id: t.to_account_id,
           amount: Math.abs(t.amount),
           description: t.description || null,
-        } as any)
+        })
         .select("id")
         .single();
 
@@ -183,7 +183,7 @@ export function useUpdateTransfer() {
           to_account_id: t.to_account_id,
           amount: Math.abs(t.amount),
           description: t.description || null,
-        } as any)
+        })
         .eq("id", t.transfer_id)
         .eq("workspace_id", workspaceId);
       if (hErr) throw hErr;
