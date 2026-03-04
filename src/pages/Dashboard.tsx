@@ -105,7 +105,7 @@ const Dashboard = () => {
           />
           <RecurringFormDialog
             trigger={
-              <Button size="sm" variant="outline" className="gap-1.5">
+              <Button size="sm" className="gap-1.5">
                 <RefreshCw className="h-4 w-4" />
                 Nuova ricorrenza
               </Button>
