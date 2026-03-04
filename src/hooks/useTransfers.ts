@@ -23,8 +23,8 @@ export function useCreateTransfer() {
         {
           workspace_id: workspaceId,
           date: t.date,
-          type: "transfer_out",
-          amount: t.amount,
+          type: "transfer_out" as const,
+          amount: -Math.abs(t.amount),
           description: t.description || null,
           account_id: t.from_account_id,
           linked_account_id: t.to_account_id,
@@ -38,8 +38,8 @@ export function useCreateTransfer() {
         {
           workspace_id: workspaceId,
           date: t.date,
-          type: "transfer_in",
-          amount: t.amount,
+          type: "transfer_in" as const,
+          amount: Math.abs(t.amount),
           description: t.description || null,
           account_id: t.to_account_id,
           linked_account_id: t.from_account_id,
@@ -51,6 +51,8 @@ export function useCreateTransfer() {
           notes: null,
         },
       ];
+
+      console.log("[TRANSFER] Inserting rows:", JSON.stringify(rows, null, 2));
 
       const { data, error } = await supabase
         .from("transactions")
