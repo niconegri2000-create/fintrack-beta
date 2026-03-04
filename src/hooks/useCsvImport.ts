@@ -30,6 +30,67 @@ export function useCsvImports(accountId?: string | null) {
   });
 }
 
+/* ── Templates ───────────────────────────────────────────────── */
+
+export function useCsvImportTemplates(accountId?: string | null) {
+  const workspaceId = useWorkspaceId();
+  return useQuery({
+    queryKey: ["csv_import_templates", workspaceId, accountId],
+    queryFn: async () => {
+      let q = supabase
+        .from("csv_import_templates")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .order("updated_at", { ascending: false });
+      if (accountId) q = q.eq("account_id", accountId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useSaveCsvImportTemplate() {
+  const workspaceId = useWorkspaceId();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ accountId, name, mapping }: { accountId: string; name: string; mapping: CsvMapping }) => {
+      console.info("[CSV_IMPORT] saving template", { name, accountId });
+      // Upsert: if template exists for this account+workspace with same name, update it
+      const { data: existing } = await supabase
+        .from("csv_import_templates")
+        .select("id")
+        .eq("workspace_id", workspaceId)
+        .eq("account_id", accountId)
+        .eq("name", name)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from("csv_import_templates")
+          .update({ mapping: mapping as any, updated_at: new Date().toISOString() })
+          .eq("id", existing.id);
+        if (error) throw error;
+        console.info("[CSV_IMPORT] template updated", existing.id);
+      } else {
+        const { error } = await supabase
+          .from("csv_import_templates")
+          .insert({
+            workspace_id: workspaceId,
+            account_id: accountId,
+            name,
+            mapping: mapping as any,
+          });
+        if (error) throw error;
+        console.info("[CSV_IMPORT] template created");
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["csv_import_templates"] });
+    },
+  });
+}
+
 /* ── Run import mutation ─────────────────────────────────────── */
 
 interface RunImportInput {
@@ -37,18 +98,21 @@ interface RunImportInput {
   fileName: string;
   csvText: string;
   mapping: CsvMapping;
+  autoTag: boolean;
+  saveMapping: boolean;
 }
 
 export function useRunCsvImport() {
   const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
+  const saveTemplate = useSaveCsvImportTemplate();
 
   return useMutation<ImportResult, Error, RunImportInput>({
-    mutationFn: async ({ accountId, fileName, csvText, mapping }) => {
+    mutationFn: async ({ accountId, fileName, csvText, mapping, autoTag, saveMapping }) => {
       // 1) File hash check
       const fileHash = await generateFileHash(csvText);
+      console.info(`[CSV_IMPORT] file hash: ${fileHash.slice(0, 16)}…`);
 
-      // Check if already imported
       const { data: existing } = await supabase
         .from("csv_imports")
         .select("id")
@@ -68,19 +132,63 @@ export function useRunCsvImport() {
       }
 
       const { normalized, errors } = normalizeRows(rawRows, mapping);
-      console.info(`[CSV_IMPORT] parsed ${rawRows.length} rows → ${normalized.length} valid, ${errors.length} errors`);
+      console.info(`[CSV_IMPORT] parsed ${rawRows.length} rows → ${normalized.length} valid, ${errors.length} parse errors`);
 
       if (normalized.length === 0) {
+        if (errors.length > 0) {
+          throw new Error(`PARSE_ERRORS:${errors.slice(0, 3).map((e) => e.reason).join("; ")}`);
+        }
         throw new Error("NO_VALID_ROWS");
       }
 
-      // 3) Execute
-      return executeCsvImport(workspaceId, accountId, fileName, fileHash, mapping, normalized);
+      // 3) Ensure #import-csv tag exists if autoTag
+      let importTagId: string | null = null;
+      if (autoTag) {
+        const { data: existingTag } = await supabase
+          .from("tags")
+          .select("id")
+          .eq("workspace_id", workspaceId)
+          .eq("name", "import-csv")
+          .maybeSingle();
+
+        if (existingTag) {
+          importTagId = existingTag.id;
+        } else {
+          const { data: newTag, error: tagErr } = await supabase
+            .from("tags")
+            .insert({ workspace_id: workspaceId, name: "import-csv" })
+            .select("id")
+            .single();
+          if (!tagErr && newTag) {
+            importTagId = newTag.id;
+          }
+          console.info(`[CSV_IMPORT] created tag #import-csv: ${importTagId}`);
+        }
+      }
+
+      // 4) Execute import
+      const result = await executeCsvImport(workspaceId, accountId, fileName, fileHash, mapping, normalized, importTagId);
+
+      // 5) Save template if requested
+      if (saveMapping) {
+        try {
+          await saveTemplate.mutateAsync({
+            accountId,
+            name: fileName.replace(/\.csv$/i, ""),
+            mapping,
+          });
+        } catch (e) {
+          console.warn("[CSV_IMPORT] failed to save template (non-blocking):", e);
+        }
+      }
+
+      return result;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["csv_imports"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["tags"] });
     },
   });
 }

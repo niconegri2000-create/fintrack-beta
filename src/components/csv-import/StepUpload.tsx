@@ -1,8 +1,11 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAccounts } from "@/hooks/useAccounts";
-import { Upload, FileText } from "lucide-react";
+import { useCsvImportTemplates } from "@/hooks/useCsvImport";
+import { Upload, FileText, History } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import type { WizardState } from "./CsvImportWizard";
+import type { CsvMapping } from "@/lib/csvImport";
 
 interface Props {
   state: WizardState;
@@ -11,6 +14,7 @@ interface Props {
 
 export function StepUpload({ state, setState }: Props) {
   const { data: accounts = [] } = useAccounts();
+  const { data: templates = [] } = useCsvImportTemplates(state.accountId || undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(
@@ -37,6 +41,16 @@ export function StepUpload({ state, setState }: Props) {
     [handleFile]
   );
 
+  const applyTemplate = useCallback(
+    (templateId: string) => {
+      const tpl = templates.find((t) => t.id === templateId);
+      if (!tpl) return;
+      const mapping = tpl.mapping as unknown as CsvMapping;
+      setState((s) => ({ ...s, mapping: { ...s.mapping, ...mapping } }));
+    },
+    [templates, setState]
+  );
+
   return (
     <div className="space-y-4">
       {/* Account selector */}
@@ -56,6 +70,29 @@ export function StepUpload({ state, setState }: Props) {
         </Select>
       </div>
 
+      {/* Template selector */}
+      {templates.length > 0 && (
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium flex items-center gap-1.5">
+            <History className="h-3.5 w-3.5" />
+            Modello mapping salvato
+          </label>
+          <Select onValueChange={applyTemplate}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona un modello (opzionale)" />
+            </SelectTrigger>
+            <SelectContent>
+              {templates.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">Precompila il mapping con un modello precedente</p>
+        </div>
+      )}
+
       {/* File drop zone */}
       <div
         onDrop={handleDrop}
@@ -70,7 +107,7 @@ export function StepUpload({ state, setState }: Props) {
             <FileText className="h-8 w-8 text-primary" />
             <p className="text-sm font-medium">{state.fileName}</p>
             <p className="text-xs text-muted-foreground">
-              {state.csvText.split("\n").length - 1} righe rilevate
+              {state.csvText.split("\n").filter((l) => l.trim()).length - 1} righe rilevate
             </p>
             <p className="text-xs text-primary cursor-pointer hover:underline">Clicca per cambiare file</p>
           </div>
@@ -100,7 +137,7 @@ export function StepUpload({ state, setState }: Props) {
           value={state.mapping.delimiter ?? ","}
           onValueChange={(v) => setState((s) => ({ ...s, mapping: { ...s.mapping, delimiter: v } }))}
         >
-          <SelectTrigger className="w-32">
+          <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

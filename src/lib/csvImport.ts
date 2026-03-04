@@ -2,10 +2,6 @@ import { supabase } from "@/integrations/supabase/client";
 
 /* ── Fingerprint / Dedup ─────────────────────────────────────── */
 
-/**
- * Generate a SHA-256 based dedup key from core transaction fields.
- * Returns a hex string.
- */
 export async function generateDedupKey(
   workspaceId: string,
   accountId: string,
@@ -21,9 +17,6 @@ export async function generateDedupKey(
     .join("");
 }
 
-/**
- * Generate a file hash from raw CSV content (for duplicate file detection).
- */
 export async function generateFileHash(content: string): Promise<string> {
   const encoder = new TextEncoder();
   const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(content));
@@ -41,59 +34,73 @@ export function normalizeDescription(desc: string): string {
     .trim();
 }
 
-/**
- * Parse a date string using a format hint.
- * Supports: "dd/mm/yyyy", "mm/dd/yyyy", "yyyy-mm-dd", "dd-mm-yyyy", "dd.mm.yyyy"
- * Returns ISO date string "YYYY-MM-DD" or null.
- */
 export function parseDate(raw: string, format: string): string | null {
   if (!raw) return null;
   const s = raw.trim();
 
+  const patterns: Record<string, RegExp> = {
+    "yyyy-mm-dd": /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
+    "dd/mm/yyyy": /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+    "mm/dd/yyyy": /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+    "dd-mm-yyyy": /^(\d{1,2})-(\d{1,2})-(\d{4})$/,
+    "dd.mm.yyyy": /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/,
+  };
+
+  const re = patterns[format];
+  if (!re) return null;
+  const m = s.match(re);
+  if (!m) return null;
+
   if (format === "yyyy-mm-dd") {
-    const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-    if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
-  }
-  if (format === "dd/mm/yyyy") {
-    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+    return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
   }
   if (format === "mm/dd/yyyy") {
-    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (m) return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+    return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
   }
-  if (format === "dd-mm-yyyy") {
-    const m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-    if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-  }
-  if (format === "dd.mm.yyyy") {
-    const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-    if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-  }
-  return null;
+  // dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy
+  return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
 }
 
 /**
- * Parse amount from string. Handles comma as decimal separator.
- * `negativeIsExpense`: if true, negative values become type=expense with positive amount.
- * Returns { amount: number (always >0), type: 'income' | 'expense' }
+ * Auto-detect date format from a sample of values.
  */
+export function autoDetectDateFormat(samples: string[]): string {
+  const formats = ["dd/mm/yyyy", "yyyy-mm-dd", "dd-mm-yyyy", "dd.mm.yyyy", "mm/dd/yyyy"];
+  let best = "dd/mm/yyyy";
+  let bestCount = 0;
+  for (const fmt of formats) {
+    const count = samples.filter((s) => parseDate(s, fmt) !== null).length;
+    if (count > bestCount) {
+      bestCount = count;
+      best = fmt;
+    }
+  }
+  return best;
+}
+
 export function parseAmount(
   raw: string,
-  opts?: { debitCol?: string; creditCol?: string; negativeIsExpense?: boolean }
+  opts?: { negativeIsExpense?: boolean }
 ): { amount: number; type: "income" | "expense" } | null {
-  if (!raw && !opts?.debitCol && !opts?.creditCol) return null;
+  if (!raw) return null;
 
-  // Single amount column
-  const cleaned = (raw ?? "")
-    .replace(/[€$£\s]/g, "")
-    .replace(/\./g, "") // thousand separator
-    .replace(",", "."); // decimal separator
+  // Clean currency symbols and whitespace
+  let cleaned = raw.replace(/[€$£\s]/g, "");
+
+  // Detect European number format: dots as thousands, comma as decimal
+  // e.g. "1.234,56" or "-1.234,56"
+  if (/\d{1,3}(\.\d{3})*(,\d+)?$/.test(cleaned) && cleaned.includes(",")) {
+    cleaned = cleaned.replace(/\./g, "").replace(",", ".");
+  } else if (/\d+,\d{2}$/.test(cleaned) && !cleaned.includes(".")) {
+    // Simple comma decimal: "1234,56"
+    cleaned = cleaned.replace(",", ".");
+  }
+  // Otherwise assume dots are decimals (US/UK format)
+
   const num = parseFloat(cleaned);
-  if (isNaN(num)) return null;
+  if (isNaN(num) || num === 0) return null;
 
   if (opts?.negativeIsExpense !== false) {
-    // Default: negative = expense
     return num < 0
       ? { amount: Math.abs(num), type: "expense" }
       : { amount: num, type: "income" };
@@ -123,9 +130,6 @@ export interface NormalizedRow {
   raw: Record<string, string>;
 }
 
-/**
- * Parse raw CSV text into an array of string-keyed objects.
- */
 export function parseCsvText(text: string, delimiter = ","): Record<string, string>[] {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return [];
@@ -159,9 +163,6 @@ function splitCsvLine(line: string, delimiter: string): string[] {
   return result;
 }
 
-/**
- * Normalise parsed CSV rows using a mapping config.
- */
 export function normalizeRows(
   rows: Record<string, string>[],
   mapping: CsvMapping
@@ -178,12 +179,11 @@ export function normalizeRows(
       continue;
     }
 
-    const description = row[mapping.desc_col] ?? "";
+    const description = normalizeDescription(row[mapping.desc_col] ?? "");
 
     let amountResult: { amount: number; type: "income" | "expense" } | null = null;
 
     if (mapping.debit_col && mapping.credit_col) {
-      // Separate debit/credit columns
       const debitRaw = row[mapping.debit_col];
       const creditRaw = row[mapping.credit_col];
       const debit = parseAmount(debitRaw);
@@ -200,7 +200,7 @@ export function normalizeRows(
     }
 
     if (!amountResult || amountResult.amount <= 0) {
-      errors.push({ row: i, reason: `Importo non valido` });
+      errors.push({ row: i, reason: `Importo non valido: "${row[mapping.amount_col ?? ""] ?? ""}"` });
       continue;
     }
 
@@ -233,9 +233,10 @@ export async function executeCsvImport(
   fileName: string,
   fileHash: string,
   mapping: CsvMapping,
-  rows: NormalizedRow[]
+  rows: NormalizedRow[],
+  importTagId: string | null = null
 ): Promise<ImportResult> {
-  console.info(`[CSV_IMPORT] start | rows=${rows.length} | account=${accountId}`);
+  console.info(`[CSV_IMPORT] start | rows=${rows.length} | account=${accountId} | tagId=${importTagId}`);
 
   // 1) Create import record
   const { data: importRec, error: importErr } = await supabase
@@ -253,8 +254,8 @@ export async function executeCsvImport(
     .single();
 
   if (importErr) {
-    console.error("[CSV_IMPORT] failed to create import record:", importErr);
-    throw importErr;
+    console.error("[CSV_IMPORT] failed to create import record:", importErr.message, importErr.code);
+    throw new Error(`Errore creazione record import: ${importErr.message}`);
   }
 
   const importId = importRec.id;
@@ -269,16 +270,10 @@ export async function executeCsvImport(
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     try {
-      const dedupKey = await generateDedupKey(
-        workspaceId,
-        accountId,
-        row.date,
-        row.amount,
-        row.description
-      );
+      const dedupKey = await generateDedupKey(workspaceId, accountId, row.date, row.amount, row.description);
 
-      // Try insert — unique index will catch duplicates
-      const { error: txErr } = await supabase.from("transactions").insert({
+      // Insert transaction
+      const { data: txData, error: txErr } = await supabase.from("transactions").insert({
         workspace_id: workspaceId,
         account_id: accountId,
         date: row.date,
@@ -289,7 +284,7 @@ export async function executeCsvImport(
         source: "csv_import",
         import_id: importId,
         dedup_key: dedupKey,
-      });
+      }).select("id").maybeSingle();
 
       let status: string;
       let reason: string | null = null;
@@ -299,14 +294,24 @@ export async function executeCsvImport(
           status = "duplicate";
           reason = "Fingerprint già presente";
           duplicate++;
+          console.info(`[CSV_IMPORT] row ${i}: duplicate (dedup_key collision)`);
         } else {
           status = "error";
-          reason = txErr.message;
+          reason = `${txErr.message} (code: ${txErr.code})`;
           errors++;
+          console.error(`[CSV_IMPORT] row ${i}: error:`, txErr.message, txErr.code);
         }
       } else {
         status = "created";
         created++;
+
+        // Tag the transaction if autoTag and we have a tag ID
+        if (importTagId && txData?.id) {
+          await supabase.from("transaction_tags").insert({
+            transaction_id: txData.id,
+            tag_id: importTagId,
+          });
+        }
       }
 
       // Audit row
@@ -319,6 +324,7 @@ export async function executeCsvImport(
       });
     } catch (err: any) {
       errors++;
+      console.error(`[CSV_IMPORT] row ${i}: unexpected error:`, err?.message);
       await supabase.from("csv_import_rows").insert({
         import_id: importId,
         raw: row.raw as any,
@@ -333,6 +339,6 @@ export async function executeCsvImport(
   const stats = { total: rows.length, created, duplicate, skipped, errors };
   await supabase.from("csv_imports").update({ stats: stats as any }).eq("id", importId);
 
-  console.info(`[CSV_IMPORT] done | id=${importId} | created=${created} duplicate=${duplicate} errors=${errors}`);
+  console.info(`[CSV_IMPORT] done | id=${importId} | created=${created} duplicate=${duplicate} skipped=${skipped} errors=${errors}`);
   return { importId, ...stats };
 }

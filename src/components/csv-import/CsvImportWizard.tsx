@@ -5,7 +5,7 @@ import { StepUpload } from "./StepUpload";
 import { StepMapping } from "./StepMapping";
 import { StepControls } from "./StepControls";
 import { StepConfirm } from "./StepConfirm";
-import { parseCsvText, normalizeRows, type CsvMapping, type NormalizedRow } from "@/lib/csvImport";
+import { parseCsvText, normalizeRows, autoDetectDateFormat, type CsvMapping, type NormalizedRow } from "@/lib/csvImport";
 import { useRunCsvImport } from "@/hooks/useCsvImport";
 import { toast } from "@/hooks/use-toast";
 import { ChevronLeft, ChevronRight, Upload } from "lucide-react";
@@ -33,35 +33,13 @@ const STEP_LABELS = ["Upload", "Mapping", "Controlli", "Conferma"];
 
 export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props) {
   const [step, setStep] = useState(0);
-  const [state, setState] = useState<WizardState>({
-    accountId: defaultAccountId ?? "",
-    fileName: "",
-    csvText: "",
-    rawRows: [],
-    headers: [],
-    mapping: { date_col: "", desc_col: "", amount_col: "", date_format: "dd/mm/yyyy", delimiter: "," },
-    normalized: [],
-    errors: [],
-    autoTag: true,
-    saveMapping: true,
-  });
+  const [state, setState] = useState<WizardState>(makeInitialState(defaultAccountId));
 
   const importMutation = useRunCsvImport();
 
   const reset = useCallback(() => {
     setStep(0);
-    setState({
-      accountId: defaultAccountId ?? "",
-      fileName: "",
-      csvText: "",
-      rawRows: [],
-      headers: [],
-      mapping: { date_col: "", desc_col: "", amount_col: "", date_format: "dd/mm/yyyy", delimiter: "," },
-      normalized: [],
-      errors: [],
-      autoTag: true,
-      saveMapping: true,
-    });
+    setState(makeInitialState(defaultAccountId));
   }, [defaultAccountId]);
 
   const handleClose = useCallback(() => {
@@ -69,35 +47,44 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
     setTimeout(reset, 300);
   }, [onOpenChange, reset]);
 
-  // Re-parse when going from step 1 → 2
   const handleNext = useCallback(() => {
     if (step === 0) {
-      // Parse CSV
-      const rawRows = parseCsvText(state.csvText, state.mapping.delimiter);
+      // Parse CSV with auto-detect delimiter
+      let delimiter = state.mapping.delimiter ?? ",";
+      let rawRows = parseCsvText(state.csvText, delimiter);
+
+      // Auto-detect: try ; if , gives 1 column
+      if (rawRows.length > 0 && Object.keys(rawRows[0]).length <= 1 && delimiter === ",") {
+        const semiRows = parseCsvText(state.csvText, ";");
+        if (semiRows.length > 0 && Object.keys(semiRows[0]).length > 1) {
+          rawRows = semiRows;
+          delimiter = ";";
+        }
+      }
+
       if (rawRows.length === 0) {
         toast({ title: "Il file CSV è vuoto o non valido", variant: "destructive" });
         return;
       }
+
       const headers = Object.keys(rawRows[0]);
-      // Auto-detect delimiter if , gives 1 col and ; gives more
-      if (headers.length <= 1 && state.mapping.delimiter === ",") {
-        const semiRows = parseCsvText(state.csvText, ";");
-        if (semiRows.length > 0 && Object.keys(semiRows[0]).length > 1) {
-          const semiHeaders = Object.keys(semiRows[0]);
-          setState((s) => ({
-            ...s,
-            rawRows: semiRows,
-            headers: semiHeaders,
-            mapping: { ...s.mapping, delimiter: ";" },
-          }));
-          setStep(1);
-          return;
-        }
+
+      // Auto-detect date format from first column that looks like dates
+      let detectedFormat = state.mapping.date_format;
+      const firstCol = headers[0];
+      if (firstCol) {
+        const samples = rawRows.slice(0, 20).map((r) => r[firstCol]).filter(Boolean);
+        detectedFormat = autoDetectDateFormat(samples);
       }
-      setState((s) => ({ ...s, rawRows, headers }));
+
+      setState((s) => ({
+        ...s,
+        rawRows,
+        headers,
+        mapping: { ...s.mapping, delimiter, date_format: detectedFormat },
+      }));
       setStep(1);
     } else if (step === 1) {
-      // Validate mapping
       if (!state.mapping.date_col || !state.mapping.desc_col) {
         toast({ title: "Seleziona almeno Data e Descrizione", variant: "destructive" });
         return;
@@ -106,7 +93,6 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
         toast({ title: "Seleziona Importo oppure Entrate/Uscite", variant: "destructive" });
         return;
       }
-      // Normalize
       const { normalized, errors } = normalizeRows(state.rawRows, state.mapping);
       setState((s) => ({ ...s, normalized, errors }));
       setStep(2);
@@ -126,21 +112,41 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
         fileName: state.fileName,
         csvText: state.csvText,
         mapping: state.mapping,
+        autoTag: state.autoTag,
+        saveMapping: state.saveMapping,
       });
-      toast({
-        title: "Import completato",
-        description: `${result.created} create, ${result.duplicate} duplicate, ${result.errors} errori`,
-      });
+
+      if (result.created === 0 && result.duplicate > 0) {
+        toast({
+          title: "Nessuna nuova transazione",
+          description: `Tutte le ${result.duplicate} righe risultano già importate (duplicati).`,
+          variant: "destructive",
+        });
+      } else if (result.created === 0) {
+        toast({
+          title: "Import fallito",
+          description: `${result.errors} errori, nessuna transazione creata.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "✅ Import completato",
+          description: `${result.created} create · ${result.duplicate} duplicate · ${result.errors} errori`,
+        });
+      }
       handleClose();
     } catch (err: any) {
-      if (err.message === "FILE_ALREADY_IMPORTED") {
+      const msg = err.message ?? "";
+      if (msg === "FILE_ALREADY_IMPORTED") {
         toast({ title: "File già importato per questo conto", variant: "destructive" });
-      } else if (err.message === "CSV_EMPTY") {
+      } else if (msg === "CSV_EMPTY") {
         toast({ title: "Il CSV è vuoto", variant: "destructive" });
-      } else if (err.message === "NO_VALID_ROWS") {
-        toast({ title: "Nessuna riga valida nel CSV", variant: "destructive" });
+      } else if (msg === "NO_VALID_ROWS") {
+        toast({ title: "Nessuna riga valida nel CSV", description: "Controlla mapping e formato data.", variant: "destructive" });
+      } else if (msg.startsWith("PARSE_ERRORS:")) {
+        toast({ title: "Errori di parsing", description: msg.replace("PARSE_ERRORS:", ""), variant: "destructive" });
       } else {
-        toast({ title: "Errore durante l'import", description: err.message, variant: "destructive" });
+        toast({ title: "Errore durante l'import", description: msg, variant: "destructive" });
       }
     }
   }, [importMutation, state, handleClose]);
@@ -185,7 +191,6 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
           ))}
         </div>
 
-        {/* Step content */}
         {step === 0 && <StepUpload state={state} setState={setState} />}
         {step === 1 && <StepMapping state={state} setState={setState} />}
         {step === 2 && <StepControls state={state} />}
@@ -204,11 +209,26 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
             </Button>
           ) : (
             <Button onClick={handleImport} disabled={importMutation.isPending}>
-              {importMutation.isPending ? "Importando…" : "Importa"}
+              {importMutation.isPending ? "Importando…" : `Importa ${state.normalized.length} righe`}
             </Button>
           )}
         </div>
       </DialogContent>
     </Dialog>
   );
+}
+
+function makeInitialState(defaultAccountId?: string): WizardState {
+  return {
+    accountId: defaultAccountId ?? "",
+    fileName: "",
+    csvText: "",
+    rawRows: [],
+    headers: [],
+    mapping: { date_col: "", desc_col: "", amount_col: "", date_format: "dd/mm/yyyy", delimiter: "," },
+    normalized: [],
+    errors: [],
+    autoTag: true,
+    saveMapping: true,
+  };
 }
