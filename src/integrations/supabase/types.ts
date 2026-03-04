@@ -215,6 +215,98 @@ export type Database = {
           },
         ]
       }
+      csv_import_rows: {
+        Row: {
+          created_at: string
+          id: string
+          import_id: string
+          normalized: Json | null
+          raw: Json | null
+          reason: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          import_id: string
+          normalized?: Json | null
+          raw?: Json | null
+          reason?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          import_id?: string
+          normalized?: Json | null
+          raw?: Json | null
+          reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "csv_import_rows_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "csv_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      csv_imports: {
+        Row: {
+          account_id: string
+          created_at: string
+          file_hash: string | null
+          file_name: string | null
+          id: string
+          mapping: Json | null
+          period_end: string | null
+          period_start: string | null
+          stats: Json | null
+          workspace_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          file_hash?: string | null
+          file_name?: string | null
+          id?: string
+          mapping?: Json | null
+          period_end?: string | null
+          period_start?: string | null
+          stats?: Json | null
+          workspace_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          file_hash?: string | null
+          file_name?: string | null
+          id?: string
+          mapping?: Json | null
+          period_end?: string | null
+          period_start?: string | null
+          stats?: Json | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "csv_imports_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "csv_imports_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goal_contributions: {
         Row: {
           amount: number
@@ -615,8 +707,11 @@ export type Database = {
           category_id: string | null
           created_at: string | null
           date: string
+          dedup_key: string | null
           description: string | null
+          external_id: string | null
           id: string
+          import_id: string | null
           is_fixed: boolean | null
           linked_account_id: string | null
           notes: string | null
@@ -633,8 +728,11 @@ export type Database = {
           category_id?: string | null
           created_at?: string | null
           date: string
+          dedup_key?: string | null
           description?: string | null
+          external_id?: string | null
           id?: string
+          import_id?: string | null
           is_fixed?: boolean | null
           linked_account_id?: string | null
           notes?: string | null
@@ -651,8 +749,11 @@ export type Database = {
           category_id?: string | null
           created_at?: string | null
           date?: string
+          dedup_key?: string | null
           description?: string | null
+          external_id?: string | null
           id?: string
+          import_id?: string | null
           is_fixed?: boolean | null
           linked_account_id?: string | null
           notes?: string | null
@@ -676,6 +777,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "csv_imports"
             referencedColumns: ["id"]
           },
           {
