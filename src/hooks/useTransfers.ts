@@ -56,7 +56,10 @@ export function useCreateTransfer() {
         .from("transactions")
         .insert(rows)
         .select("id, transfer_direction");
-      if (error) throw error;
+      if (error) {
+        console.error("[TRANSFER] Insert failed:", { message: error.message, code: error.code, details: error.details, hint: error.hint });
+        throw error;
+      }
 
       const out = (data as any[]).find((r) => r.transfer_direction === "out");
       const ins = (data as any[]).find((r) => r.transfer_direction === "in");
