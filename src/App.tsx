@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import Transazioni from "./pages/Transazioni";
+import Trasferimenti from "./pages/Trasferimenti";
 import Ricorrenti from "./pages/Ricorrenti";
 import BudgetCategorie from "./pages/BudgetCategorie";
 import Obiettivi from "./pages/Obiettivi";
@@ -154,7 +155,8 @@ function AuthGate() {
             <Routes>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<Dashboard />} />
-                <Route path="/transazioni" element={<Transazioni />} />
+              <Route path="/transazioni" element={<Transazioni />} />
+                <Route path="/trasferimenti" element={<Trasferimenti />} />
                 <Route path="/ricorrenti" element={<Ricorrenti />} />
                 <Route path="/budget-categorie" element={<BudgetCategorie />} />
                 <Route path="/obiettivi" element={<Obiettivi />} />

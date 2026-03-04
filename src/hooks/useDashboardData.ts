@@ -7,6 +7,8 @@ export interface DashboardData {
   expense: number;
   balance: number;
   savingsRate: number;
+  transfersIn: number;
+  transfersOut: number;
   byCategory: { name: string; amount: number }[];
   byMonth: { month: string; income: number; expense: number }[];
 }
@@ -40,15 +42,24 @@ export function useDashboardData(startDate: string, endDate: string, accountId: 
 
       let income = 0;
       let expense = 0;
+      let transfersIn = 0;
+      let transfersOut = 0;
 
-      // Filter out transfers from KPI calculations
       const catMap = new Map<string, number>();
       const monthMap = new Map<string, { income: number; expense: number }>();
 
       for (const r of rows) {
-        // Skip transfers from income/expense calculations
-        if (r.type === "transfer_in" || r.type === "transfer_out") continue;
         const amt = Number(r.amount);
+
+        if (r.type === "transfer_in") {
+          transfersIn += amt;
+          continue;
+        }
+        if (r.type === "transfer_out") {
+          transfersOut += amt;
+          continue;
+        }
+
         if (r.type === "income") income += amt;
         else expense += amt;
 
@@ -64,8 +75,9 @@ export function useDashboardData(startDate: string, endDate: string, accountId: 
         monthMap.set(m, entry);
       }
 
-      const balance = income - expense;
-      const savingsRate = income > 0 ? (balance / income) * 100 : 0;
+      // Balance includes transfers effect: income + transfersIn - expense - transfersOut
+      const balance = income - expense + transfersIn - transfersOut;
+      const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
 
       const byCategory = Array.from(catMap.entries())
         .map(([name, amount]) => ({ name, amount }))
@@ -75,7 +87,7 @@ export function useDashboardData(startDate: string, endDate: string, accountId: 
         .map(([month, v]) => ({ month, ...v }))
         .sort((a, b) => a.month.localeCompare(b.month));
 
-      return { income, expense, balance, savingsRate, byCategory, byMonth };
+      return { income, expense, balance, savingsRate, transfersIn, transfersOut, byCategory, byMonth };
     },
   });
 }

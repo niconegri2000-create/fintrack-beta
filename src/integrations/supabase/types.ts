@@ -701,6 +701,64 @@ export type Database = {
           },
         ]
       }
+      transfers: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string
+          description: string | null
+          from_account_id: string
+          id: string
+          notes: string | null
+          to_account_id: string
+          workspace_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          date: string
+          description?: string | null
+          from_account_id: string
+          id?: string
+          notes?: string | null
+          to_account_id: string
+          workspace_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string
+          description?: string | null
+          from_account_id?: string
+          id?: string
+          notes?: string | null
+          to_account_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transfers_from_account_id_fkey"
+            columns: ["from_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfers_to_account_id_fkey"
+            columns: ["to_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfers_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_workspaces: {
         Row: {
           created_at: string

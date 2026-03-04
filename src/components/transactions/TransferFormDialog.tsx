@@ -75,7 +75,7 @@ export function TransferFormDialog({ trigger }: { trigger?: React.ReactNode } = 
         description: capitalizeFirst(description),
       },
       {
-        onSuccess: async ({ outId, inId }) => {
+        onSuccess: async ({ outId, inId, transferId }) => {
           if (tagIds.length > 0) {
             try {
               await syncTransactionTags(outId, tagIds);
