@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, Landmark, AlertTriangle, Plus, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, Landmark, AlertTriangle, Plus, RefreshCw, ArrowRightLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -25,6 +25,7 @@ import { usePrivacy } from "@/contexts/PrivacyContext";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 import { useState } from "react";
 import { TransactionFormDialog } from "@/components/transactions/TransactionFormDialog";
+import { TransferFormDialog } from "@/components/transactions/TransferFormDialog";
 import { RecurringFormDialog } from "@/components/recurring/RecurringFormDialog";
 
 const MONTH_LABELS: Record<string, string> = {
@@ -108,6 +109,14 @@ const Dashboard = () => {
               <Button size="sm" className="gap-1.5">
                 <RefreshCw className="h-4 w-4" />
                 Nuova ricorrenza
+              </Button>
+            }
+          />
+          <TransferFormDialog
+            trigger={
+              <Button size="sm" className="gap-1.5">
+                <ArrowRightLeft className="h-4 w-4" />
+                Nuovo trasferimento
               </Button>
             }
           />

@@ -40,10 +40,14 @@ export function useDashboardData(startDate: string, endDate: string, accountId: 
 
       let income = 0;
       let expense = 0;
+
+      // Filter out transfers from KPI calculations
       const catMap = new Map<string, number>();
       const monthMap = new Map<string, { income: number; expense: number }>();
 
       for (const r of rows) {
+        // Skip transfers from income/expense calculations
+        if (r.type === "transfer_in" || r.type === "transfer_out") continue;
         const amt = Number(r.amount);
         if (r.type === "income") income += amt;
         else expense += amt;
