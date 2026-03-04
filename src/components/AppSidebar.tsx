@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   ArrowLeftRight,
+  ArrowRightLeft,
   RefreshCw,
   Layers,
   Target,
@@ -28,7 +29,8 @@ import { useAuth } from "@/hooks/useAuth";
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Transazioni", url: "/transazioni", icon: ArrowLeftRight },
-  { title: "Ricorrenti", url: "/ricorrenti", icon: RefreshCw },
+  { title: "Trasferimenti", url: "/trasferimenti", icon: ArrowRightLeft },
+  { title: "Ricorrenze", url: "/ricorrenti", icon: RefreshCw },
   { title: "Budget & Categorie", url: "/budget-categorie", icon: Layers },
   { title: "Obiettivi", url: "/obiettivi", icon: Target },
   { title: "Confronto", url: "/report", icon: FileBarChart },

@@ -1,7 +1,18 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
-import { format } from "date-fns";
+
+export interface TransferRow {
+  id: string;
+  workspace_id: string;
+  date: string;
+  from_account_id: string;
+  to_account_id: string;
+  amount: number;
+  description: string | null;
+  notes: string | null;
+  created_at: string;
+}
 
 export interface NewTransfer {
   date: string;
@@ -11,15 +22,68 @@ export interface NewTransfer {
   description: string;
 }
 
+/** Fetch transfers for a date range, optionally filtered by account */
+export function useTransfersList(from: string, to: string, accountId: string | null = null) {
+  const workspaceId = useWorkspaceId();
+  return useQuery({
+    queryKey: ["transfers", from, to, accountId, workspaceId],
+    queryFn: async () => {
+      let q = supabase
+        .from("transfers")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .gte("date", from)
+        .lte("date", to)
+        .order("date", { ascending: false });
+      if (accountId) {
+        q = q.or(`from_account_id.eq.${accountId},to_account_id.eq.${accountId}`);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as unknown as TransferRow[];
+    },
+  });
+}
+
 export function useCreateTransfer() {
   const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (t: NewTransfer): Promise<{ outId: string; inId: string }> => {
-      const transferId = crypto.randomUUID();
+    mutationFn: async (t: NewTransfer): Promise<{ transferId: string; outId: string; inId: string }> => {
+      console.log("[TRANSFER] Starting transfer creation...");
+      console.log("[TRANSFER] workspaceId:", workspaceId);
+      console.log("[TRANSFER] payload:", JSON.stringify(t, null, 2));
 
-      const rows = [
+      // Step 1: Insert into transfers table
+      const { data: transferData, error: transferError } = await supabase
+        .from("transfers")
+        .insert({
+          workspace_id: workspaceId,
+          date: t.date,
+          from_account_id: t.from_account_id,
+          to_account_id: t.to_account_id,
+          amount: Math.abs(t.amount),
+          description: t.description || null,
+        } as any)
+        .select("id")
+        .single();
+
+      if (transferError) {
+        console.error("[TRANSFER] transfers insert failed:", { message: transferError.message, code: transferError.code, details: transferError.details, hint: transferError.hint });
+        throw transferError;
+      }
+
+      if (!transferData?.id) {
+        console.error("[TRANSFER] transfers insert returned no id. RLS may be blocking.");
+        throw new Error("Trasferimento non salvato: verifica di essere autenticato.");
+      }
+
+      const transferId = transferData.id;
+      console.log("[TRANSFER] Transfer header created:", transferId);
+
+      // Step 2: Insert 2 transaction rows
+      const txRows = [
         {
           workspace_id: workspaceId,
           date: t.date,
@@ -52,40 +116,47 @@ export function useCreateTransfer() {
         },
       ];
 
-      console.log("[TRANSFER] Inserting rows:", JSON.stringify(rows, null, 2));
-      console.log("[TRANSFER] workspaceId:", workspaceId);
+      console.log("[TRANSFER] Inserting transaction rows:", JSON.stringify(txRows, null, 2));
 
-      const { data, error, status, statusText } = await supabase
+      const { data: txData, error: txError, status, statusText } = await supabase
         .from("transactions")
-        .insert(rows)
+        .insert(txRows)
         .select("id, transfer_direction");
 
-      console.log("[TRANSFER] Response:", { status, statusText, dataLength: data?.length, error });
+      console.log("[TRANSFER] Transactions response:", { status, statusText, dataLength: txData?.length, error: txError });
 
-      if (error) {
-        console.error("[TRANSFER] Insert failed:", { message: error.message, code: error.code, details: error.details, hint: error.hint });
-        throw error;
+      if (txError) {
+        console.error("[TRANSFER] transactions insert failed:", { message: txError.message, code: txError.code, details: txError.details, hint: txError.hint });
+        // Cleanup: delete transfer header
+        await supabase.from("transfers").delete().eq("id", transferId).eq("workspace_id", workspaceId);
+        console.log("[TRANSFER] Rolled back transfer header:", transferId);
+        throw txError;
       }
 
-      if (!data || data.length < 2) {
-        console.error("[TRANSFER] Insert returned insufficient rows. RLS may be blocking. data:", data);
+      if (!txData || txData.length < 2) {
+        console.error("[TRANSFER] transactions insert returned insufficient rows. RLS may be blocking. data:", txData);
+        // Cleanup
+        await supabase.from("transfers").delete().eq("id", transferId).eq("workspace_id", workspaceId);
         throw new Error("Trasferimento non salvato: verifica di essere autenticato e di avere un workspace attivo.");
       }
 
-      const out = (data as any[]).find((r) => r.transfer_direction === "out");
-      const ins = (data as any[]).find((r) => r.transfer_direction === "in");
+      // Step 3: Verify both rows exist
+      const out = (txData as any[]).find((r) => r.transfer_direction === "out");
+      const ins = (txData as any[]).find((r) => r.transfer_direction === "in");
 
       if (!out?.id || !ins?.id) {
-        console.error("[TRANSFER] Missing out/in ids:", { out, ins, data });
+        console.error("[TRANSFER] Missing out/in ids:", { out, ins, txData });
+        await supabase.from("transfers").delete().eq("id", transferId).eq("workspace_id", workspaceId);
         throw new Error("Trasferimento incompleto: record mancanti.");
       }
 
-      console.log("[TRANSFER] Success:", { outId: out.id, inId: ins.id });
-      return { outId: out.id, inId: ins.id };
+      console.log("[TRANSFER] Success:", { transferId, outId: out.id, inId: ins.id });
+      return { transferId, outId: out.id, inId: ins.id };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["transfers"] });
     },
   });
 }
@@ -103,6 +174,20 @@ export function useUpdateTransfer() {
       amount: number;
       description: string;
     }) => {
+      // Update transfer header
+      const { error: hErr } = await supabase
+        .from("transfers")
+        .update({
+          date: t.date,
+          from_account_id: t.from_account_id,
+          to_account_id: t.to_account_id,
+          amount: Math.abs(t.amount),
+          description: t.description || null,
+        } as any)
+        .eq("id", t.transfer_id)
+        .eq("workspace_id", workspaceId);
+      if (hErr) throw hErr;
+
       // Update out row
       const { error: e1 } = await supabase
         .from("transactions")
@@ -136,6 +221,7 @@ export function useUpdateTransfer() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["transfers"] });
     },
   });
 }
@@ -146,16 +232,29 @@ export function useDeleteTransfer() {
 
   return useMutation({
     mutationFn: async (transferId: string) => {
-      const { error } = await supabase
+      console.log("[TRANSFER] Deleting transfer:", transferId);
+      // Delete transactions first (FK might not cascade)
+      const { error: txErr } = await supabase
         .from("transactions")
         .delete()
         .eq("transfer_id", transferId)
         .eq("workspace_id", workspaceId);
-      if (error) throw error;
+      if (txErr) throw txErr;
+
+      // Delete transfer header
+      const { error: hErr } = await supabase
+        .from("transfers")
+        .delete()
+        .eq("id", transferId)
+        .eq("workspace_id", workspaceId);
+      if (hErr) throw hErr;
+
+      console.log("[TRANSFER] Deleted successfully:", transferId);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["transfers"] });
     },
   });
 }
