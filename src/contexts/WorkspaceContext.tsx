@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface WorkspaceContextValue {
   workspaceId: string;
@@ -27,7 +28,7 @@ function clearWorkspaceCache() {
       }
     }
     keysToRemove.forEach((k) => localStorage.removeItem(k));
-    console.info("[BOOT] cleared workspace cache keys:", keysToRemove);
+    logger.info("[BOOT] cleared workspace cache keys:", keysToRemove);
   } catch { /* noop */ }
 }
 
@@ -43,7 +44,7 @@ async function rpcWithRetry<T>(
     
     if (attempt < BACKOFF_DELAYS.length) {
       const delay = BACKOFF_DELAYS[attempt];
-      console.warn(`[BOOT] ${label} failed (attempt ${attempt + 1}), retrying in ${delay}ms:`, result.error.message);
+      logger.warn(`[BOOT] ${label} failed (attempt ${attempt + 1}), retrying in ${delay}ms:`, result.error.message);
       await new Promise((r) => setTimeout(r, delay));
     } else {
       return result; // final failure
@@ -61,29 +62,29 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
 
   const bootstrap = useCallback(async (signal: AbortSignal) => {
     const t0 = performance.now();
-    console.info(`[BOOT] start | userId=${userId} | timestamp=${new Date().toISOString()}`);
+    logger.info(`[BOOT] start | userId=${userId} | timestamp=${new Date().toISOString()}`);
 
     try {
       // Step 0: Validate session is still alive (Safari fix)
       const { data: sessionData } = await supabase.auth.getSession();
       if (signal.aborted) return;
       if (!sessionData.session) {
-        console.warn("[BOOT] no active session during bootstrap — aborting");
+        logger.warn("[BOOT] no active session during bootstrap — aborting");
         setError("Sessione scaduta. Effettua nuovamente il login.");
         return;
       }
 
       // Step 1: ensure bootstrap (idempotent) with retry
-      console.info("[BOOT] ensure_user_bootstrap → start");
+      logger.info("[BOOT] ensure_user_bootstrap → start");
       const { data: bootstrapWid, error: rpcError } = await rpcWithRetry(
         () => Promise.resolve(supabase.rpc("ensure_user_bootstrap", { p_user_id: userId })),
         "ensure_user_bootstrap"
       );
       if (signal.aborted) return;
-      console.info(`[BOOT] ensure_user_bootstrap → end | result=${bootstrapWid} | error=${rpcError?.message ?? "none"} | ${(performance.now() - t0).toFixed(0)}ms`);
+      logger.info(`[BOOT] ensure_user_bootstrap → end | result=${bootstrapWid} | error=${rpcError?.message ?? "none"} | ${(performance.now() - t0).toFixed(0)}ms`);
 
       if (rpcError) {
-        console.error("[BOOT] bootstrap RPC failed:", rpcError);
+        logger.error("[BOOT] bootstrap RPC failed:", rpcError);
         clearWorkspaceCache();
         queryClient.clear();
         setError("Errore durante l'inizializzazione del workspace.");
@@ -91,16 +92,16 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       }
 
       // Step 2: authoritative fetch from DB with retry
-      console.info("[BOOT] get_user_workspace_id → start");
+      logger.info("[BOOT] get_user_workspace_id → start");
       const { data: dbWid, error: fetchErr } = await rpcWithRetry(
         () => Promise.resolve(supabase.rpc("get_user_workspace_id")),
         "get_user_workspace_id"
       );
       if (signal.aborted) return;
-      console.info(`[BOOT] get_user_workspace_id → end | wid=${dbWid} | error=${fetchErr?.message ?? "none"} | ${(performance.now() - t0).toFixed(0)}ms`);
+      logger.info(`[BOOT] get_user_workspace_id → end | wid=${dbWid} | error=${fetchErr?.message ?? "none"} | ${(performance.now() - t0).toFixed(0)}ms`);
 
       if (fetchErr || !dbWid) {
-        console.error("[BOOT] workspace fetch failed or null:", fetchErr);
+        logger.error("[BOOT] workspace fetch failed or null:", fetchErr);
         clearWorkspaceCache();
         queryClient.clear();
         setError("Workspace non trovato.");
@@ -113,7 +114,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       try {
         const cachedId = localStorage.getItem(WS_STORAGE_KEY);
         if (cachedId && cachedId !== freshId) {
-          console.warn(`[BOOT] MISMATCH! cached=${cachedId} vs db=${freshId} — clearing all caches`);
+          logger.warn(`[BOOT] MISMATCH! cached=${cachedId} vs db=${freshId} — clearing all caches`);
           clearWorkspaceCache();
           queryClient.clear();
         }
@@ -121,12 +122,12 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
       } catch { /* noop */ }
 
       // Step 4: set state → unblock children
-      console.info(`[BOOT] setState workspaceId=${freshId} | total=${(performance.now() - t0).toFixed(0)}ms | render children`);
+      logger.info(`[BOOT] setState workspaceId=${freshId} | total=${(performance.now() - t0).toFixed(0)}ms | render children`);
       setWorkspaceId(freshId);
       setError(null);
     } catch (err) {
       if (!signal.aborted) {
-        console.error("[BOOT] unexpected error:", err);
+        logger.error("[BOOT] unexpected error:", err);
         clearWorkspaceCache();
         queryClient.clear();
         setError("Errore durante l'inizializzazione.");
@@ -143,7 +144,7 @@ export function WorkspaceProvider({ userId, children }: { userId: string; childr
   }, [bootstrap, retryCount]);
 
   const handleRetry = useCallback(() => {
-    console.info("[BOOT] manual retry triggered");
+    logger.info("[BOOT] manual retry triggered");
     clearWorkspaceCache();
     queryClient.clear();
     setRetryCount((c) => c + 1);

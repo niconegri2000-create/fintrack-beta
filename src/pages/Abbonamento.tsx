@@ -90,38 +90,13 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
       return;
     }
 
-    // Redeem code
-    const { error: updateErr } = await supabase
-      .from("access_codes")
-      .update({ is_used: true, used_by: user.id })
-      .eq("id", record.id);
+    // Redeem code via secure RPC (handles access_codes update + subscription insert server-side)
+    const { error: rpcErr } = await supabase.rpc("redeem_access_code", { p_code: code.trim() });
 
-    if (updateErr) {
+    if (rpcErr) {
       toast({
         title: "Errore",
         description: "Impossibile attivare il codice. Riprova.",
-        variant: "destructive",
-      });
-      setSubmitting(false);
-      return;
-    }
-
-    // Create subscription record
-    const { error: subErr } = await supabase
-      .from("subscriptions")
-      .insert({
-        user_id: user.id,
-        plan: "premium",
-        is_active: true,
-        price: 0,
-        source: "invite_code",
-        started_at: new Date().toISOString(),
-      });
-
-    if (subErr) {
-      toast({
-        title: "Errore",
-        description: "Codice attivato ma errore nella creazione dell'abbonamento. Riprova.",
         variant: "destructive",
       });
       setSubmitting(false);

@@ -1,4 +1,5 @@
-import * as XLSX from "xlsx";
+import * as XLSX from "@e965/xlsx";
+import { logger } from "@/lib/logger";
 
 /**
  * Parse an XLS/XLSX file into structured rows (same format as CSV parser output).
@@ -63,7 +64,7 @@ export async function parseExcelFile(file: File): Promise<string> {
   }
 
   const totalDataRows = lines.length - 1;
-  console.info(`[STATEMENT_IMPORT] Excel letto correttamente: ${totalDataRows} righe trovate`);
+  logger.info(`[STATEMENT_IMPORT] Excel letto correttamente: ${totalDataRows} righe trovate`);
 
   if (totalDataRows === 0) throw new Error("Nessuna riga trovata nel file Excel.");
 

@@ -81,7 +81,7 @@ export function TransferFormDialog({ trigger }: { trigger?: React.ReactNode } = 
               await syncTransactionTags(outId, tagIds);
               await syncTransactionTags(inId, tagIds);
             } catch (e) {
-              console.warn("[TRANSFER] Tag sync failed:", e);
+              if (import.meta.env.DEV) console.warn("[TRANSFER] Tag sync failed:", e);
             }
           }
           toast.success("Trasferimento creato");
@@ -91,7 +91,7 @@ export function TransferFormDialog({ trigger }: { trigger?: React.ReactNode } = 
         onError: (err: any) => {
           const msg = err?.message || "Errore sconosciuto";
           const code = err?.code;
-          console.error("[TRANSFER] Save error:", { message: msg, code, details: err?.details, hint: err?.hint });
+          if (import.meta.env.DEV) console.error("[TRANSFER] Save error:", { message: msg, code, details: err?.details, hint: err?.hint });
           toast.error(`Errore nel salvataggio: ${msg}`, {
             description: code ? `Codice: ${code}` : undefined,
           });

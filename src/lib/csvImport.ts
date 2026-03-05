@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 /* ── Fingerprint / Dedup ─────────────────────────────────────── */
 
@@ -236,7 +237,7 @@ export async function executeCsvImport(
   rows: NormalizedRow[],
   importTagId: string | null = null
 ): Promise<ImportResult> {
-  console.info(`[CSV_IMPORT] start | rows=${rows.length} | account=${accountId} | tagId=${importTagId}`);
+  logger.info(`[CSV_IMPORT] start | rows=${rows.length} | account=${accountId} | tagId=${importTagId}`);
 
   // 1) Create import record
   const { data: importRec, error: importErr } = await supabase
@@ -254,12 +255,12 @@ export async function executeCsvImport(
     .single();
 
   if (importErr) {
-    console.error("[CSV_IMPORT] failed to create import record:", importErr.message, importErr.code);
+    logger.error("[CSV_IMPORT] failed to create import record:", importErr.message, importErr.code);
     throw new Error(`Errore creazione record import: ${importErr.message}`);
   }
 
   const importId = importRec.id;
-  console.info(`[CSV_IMPORT] import record created | id=${importId}`);
+  logger.info(`[CSV_IMPORT] import record created | id=${importId}`);
 
   let created = 0;
   let duplicate = 0;
@@ -294,12 +295,12 @@ export async function executeCsvImport(
           status = "duplicate";
           reason = "Fingerprint già presente";
           duplicate++;
-          console.info(`[CSV_IMPORT] row ${i}: duplicate (dedup_key collision)`);
+          logger.info(`[CSV_IMPORT] row ${i}: duplicate (dedup_key collision)`);
         } else {
           status = "error";
           reason = `${txErr.message} (code: ${txErr.code})`;
           errors++;
-          console.error(`[CSV_IMPORT] row ${i}: error:`, txErr.message, txErr.code);
+          logger.error(`[CSV_IMPORT] row ${i}: error:`, txErr.message, txErr.code);
         }
       } else {
         status = "created";
@@ -324,7 +325,7 @@ export async function executeCsvImport(
       });
     } catch (err: any) {
       errors++;
-      console.error(`[CSV_IMPORT] row ${i}: unexpected error:`, err?.message);
+      logger.error(`[CSV_IMPORT] row ${i}: unexpected error:`, err?.message);
       await supabase.from("csv_import_rows").insert({
         import_id: importId,
         raw: row.raw as any,
@@ -339,6 +340,6 @@ export async function executeCsvImport(
   const stats = { total: rows.length, created, duplicate, skipped, errors };
   await supabase.from("csv_imports").update({ stats: stats as any }).eq("id", importId);
 
-  console.info(`[CSV_IMPORT] done | id=${importId} | created=${created} duplicate=${duplicate} skipped=${skipped} errors=${errors}`);
+  logger.info(`[CSV_IMPORT] done | id=${importId} | created=${created} duplicate=${duplicate} skipped=${skipped} errors=${errors}`);
   return { importId, ...stats };
 }

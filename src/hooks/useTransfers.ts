@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
+import { logger } from "@/lib/logger";
 
 export interface TransferRow {
   id: string;
@@ -51,9 +52,9 @@ export function useCreateTransfer() {
 
   return useMutation({
     mutationFn: async (t: NewTransfer): Promise<{ transferId: string; outId: string; inId: string }> => {
-      console.log("[TRANSFER] Starting transfer creation...");
-      console.log("[TRANSFER] workspaceId:", workspaceId);
-      console.log("[TRANSFER] payload:", JSON.stringify(t, null, 2));
+      logger.log("[TRANSFER] Starting transfer creation...");
+      logger.log("[TRANSFER] workspaceId:", workspaceId);
+      logger.log("[TRANSFER] payload:", JSON.stringify(t, null, 2));
 
       // Step 1: Insert into transfers table
       const { data: transferData, error: transferError } = await supabase
@@ -70,17 +71,17 @@ export function useCreateTransfer() {
         .single();
 
       if (transferError) {
-        console.error("[TRANSFER] transfers insert failed:", { message: transferError.message, code: transferError.code, details: transferError.details, hint: transferError.hint });
+        logger.error("[TRANSFER] transfers insert failed:", { message: transferError.message, code: transferError.code, details: transferError.details, hint: transferError.hint });
         throw transferError;
       }
 
       if (!transferData?.id) {
-        console.error("[TRANSFER] transfers insert returned no id. RLS may be blocking.");
+        logger.error("[TRANSFER] transfers insert returned no id. RLS may be blocking.");
         throw new Error("Trasferimento non salvato: verifica di essere autenticato.");
       }
 
       const transferId = transferData.id;
-      console.log("[TRANSFER] Transfer header created:", transferId);
+      logger.log("[TRANSFER] Transfer header created:", transferId);
 
       // Step 2: Insert 2 transaction rows
       const txRows = [
@@ -116,25 +117,25 @@ export function useCreateTransfer() {
         },
       ];
 
-      console.log("[TRANSFER] Inserting transaction rows:", JSON.stringify(txRows, null, 2));
+      logger.log("[TRANSFER] Inserting transaction rows:", JSON.stringify(txRows, null, 2));
 
       const { data: txData, error: txError, status, statusText } = await supabase
         .from("transactions")
         .insert(txRows)
         .select("id, transfer_direction");
 
-      console.log("[TRANSFER] Transactions response:", { status, statusText, dataLength: txData?.length, error: txError });
+      logger.log("[TRANSFER] Transactions response:", { status, statusText, dataLength: txData?.length, error: txError });
 
       if (txError) {
-        console.error("[TRANSFER] transactions insert failed:", { message: txError.message, code: txError.code, details: txError.details, hint: txError.hint });
+        logger.error("[TRANSFER] transactions insert failed:", { message: txError.message, code: txError.code, details: txError.details, hint: txError.hint });
         // Cleanup: delete transfer header
         await supabase.from("transfers").delete().eq("id", transferId).eq("workspace_id", workspaceId);
-        console.log("[TRANSFER] Rolled back transfer header:", transferId);
+        logger.log("[TRANSFER] Rolled back transfer header:", transferId);
         throw txError;
       }
 
       if (!txData || txData.length < 2) {
-        console.error("[TRANSFER] transactions insert returned insufficient rows. RLS may be blocking. data:", txData);
+        logger.error("[TRANSFER] transactions insert returned insufficient rows. RLS may be blocking. data:", txData);
         // Cleanup
         await supabase.from("transfers").delete().eq("id", transferId).eq("workspace_id", workspaceId);
         throw new Error("Trasferimento non salvato: verifica di essere autenticato e di avere un workspace attivo.");
@@ -145,12 +146,12 @@ export function useCreateTransfer() {
       const ins = (txData as any[]).find((r) => r.transfer_direction === "in");
 
       if (!out?.id || !ins?.id) {
-        console.error("[TRANSFER] Missing out/in ids:", { out, ins, txData });
+        logger.error("[TRANSFER] Missing out/in ids:", { out, ins, txData });
         await supabase.from("transfers").delete().eq("id", transferId).eq("workspace_id", workspaceId);
         throw new Error("Trasferimento incompleto: record mancanti.");
       }
 
-      console.log("[TRANSFER] Success:", { transferId, outId: out.id, inId: ins.id });
+      logger.log("[TRANSFER] Success:", { transferId, outId: out.id, inId: ins.id });
       return { transferId, outId: out.id, inId: ins.id };
     },
     onSuccess: () => {
@@ -232,7 +233,7 @@ export function useDeleteTransfer() {
 
   return useMutation({
     mutationFn: async (transferId: string) => {
-      console.log("[TRANSFER] Deleting transfer:", transferId);
+      logger.log("[TRANSFER] Deleting transfer:", transferId);
       // Delete transactions first (FK might not cascade)
       const { error: txErr } = await supabase
         .from("transactions")
@@ -249,7 +250,7 @@ export function useDeleteTransfer() {
         .eq("workspace_id", workspaceId);
       if (hErr) throw hErr;
 
-      console.log("[TRANSFER] Deleted successfully:", transferId);
+      logger.log("[TRANSFER] Deleted successfully:", transferId);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });

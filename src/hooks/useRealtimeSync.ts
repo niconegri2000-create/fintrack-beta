@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
+import { logger } from "@/lib/logger";
 
 /**
  * Subscribes to Supabase realtime changes on key tables
@@ -13,13 +14,13 @@ export function useRealtimeSync() {
   const lastEventRef = useRef<{ table: string; event: string; id: string; ts: number } | null>(null);
 
   useEffect(() => {
-    console.info(`[RT] subscribing | workspaceId=${workspaceId}`);
+    logger.info(`[RT] subscribing | workspaceId=${workspaceId}`);
 
     const logAndInvalidate = (table: string, payload: any, keys: string[][]) => {
       const eventType = payload.eventType;
       const recordId = payload.new?.id ?? payload.old?.id ?? "unknown";
       const wsId = payload.new?.workspace_id ?? payload.old?.workspace_id ?? "n/a";
-      console.info(`[RT] event | table=${table} | type=${eventType} | id=${recordId} | workspace_id=${wsId}`);
+      logger.info(`[RT] event | table=${table} | type=${eventType} | id=${recordId} | workspace_id=${wsId}`);
       lastEventRef.current = { table, event: eventType, id: recordId, ts: Date.now() };
 
       // Emit custom event for debug panel
@@ -76,11 +77,11 @@ export function useRealtimeSync() {
         ])
       )
       .subscribe((status) => {
-        console.info(`[RT] subscription status=${status} | workspaceId=${workspaceId}`);
+        logger.info(`[RT] subscription status=${status} | workspaceId=${workspaceId}`);
       });
 
     return () => {
-      console.info(`[RT] unsubscribing | workspaceId=${workspaceId}`);
+      logger.info(`[RT] unsubscribing | workspaceId=${workspaceId}`);
       supabase.removeChannel(channel);
     };
   }, [workspaceId, qc]);
