@@ -79,9 +79,24 @@ function parseNumericDate(s: string, format: string): string | null {
   return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
 }
 
+/**
+ * Strip time portion from datetime strings.
+ * "2025-08-23 21:16:50" → "2025-08-23"
+ * "2025-08-23T21:16:50Z" → "2025-08-23"
+ */
+function stripTimePart(s: string): string {
+  // ISO with T
+  if (/^\d{4}-\d{1,2}-\d{1,2}T/.test(s)) return s.split("T")[0];
+  // Date + space + time (HH:mm or HH:mm:ss)
+  if (/^\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}:/.test(s)) return s.split(/\s+/)[0];
+  // DD/MM/YYYY HH:mm:ss or similar
+  if (/^\d{1,2}[\/\.\-]\d{1,2}[\/\.\-]\d{4}\s+\d{1,2}:/.test(s)) return s.split(/\s+/)[0];
+  return s;
+}
+
 export function parseDate(raw: string, format: string): string | null {
   if (!raw) return null;
-  const s = raw.trim();
+  const s = stripTimePart(raw.trim());
 
   // "Auto" mode: try all formats
   if (format === "auto") {
@@ -112,15 +127,16 @@ export function parseDate(raw: string, format: string): string | null {
  * Auto-detect date format from a sample of values.
  */
 export function autoDetectDateFormat(samples: string[]): string {
+  const cleaned = samples.map((s) => stripTimePart(s.trim()));
   // Check Italian text dates first
-  const italianCount = samples.filter((s) => parseItalianTextDate(s.trim()) !== null).length;
+  const italianCount = cleaned.filter((s) => parseItalianTextDate(s) !== null).length;
   if (italianCount >= 2) return "auto";
 
   const formats = ["dd/mm/yyyy", "yyyy-mm-dd", "dd-mm-yyyy", "dd.mm.yyyy", "mm/dd/yyyy"];
   let best = "dd/mm/yyyy";
   let bestCount = 0;
   for (const fmt of formats) {
-    const count = samples.filter((s) => parseNumericDate(s.trim(), fmt) !== null).length;
+    const count = cleaned.filter((s) => parseNumericDate(s, fmt) !== null).length;
     if (count > bestCount) {
       bestCount = count;
       best = fmt;
