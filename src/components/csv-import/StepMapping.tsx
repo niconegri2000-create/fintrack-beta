@@ -4,7 +4,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Info } from "lucide-react";
+import { parseRawNumber } from "@/lib/csvImport";
 import type { WizardState } from "./CsvImportWizard";
 
 interface Props {
@@ -23,6 +24,11 @@ const DATE_FORMATS = [
 ];
 
 const NONE = "__none__";
+
+/** Column name patterns for auto-suggest */
+const DEBIT_COL_PATTERNS = [/^dare$/i, /^debit/i, /^addebiti?$/i, /^uscit[ae]$/i];
+const CREDIT_COL_PATTERNS = [/^avere$/i, /^credit/i, /^accrediti?$/i, /^entrat[ae]$/i];
+const DIRECTION_COL_PATTERNS = [/^stato$/i, /^segno$/i, /^direzione$/i, /^d[\-\/]a$/i, /^a[\-\/]d$/i, /^tipo\s*(mov|operazione)?$/i];
 
 export function StepMapping({ state, setState }: Props) {
   const { headers, rawRows, mapping } = state;
@@ -52,25 +58,80 @@ export function StepMapping({ state, setState }: Props) {
     }));
   };
 
-  // Auto-detect direction column (e.g. "Stato" with values like D/A)
+  // Auto-detect: separate columns (Dare/Avere, Entrate/Uscite)
   useEffect(() => {
-    if (useSeparateColumns || mapping.direction_col) return;
-    const statoCol = headers.find((h) => /^stato$/i.test(h.trim()));
-    if (!statoCol) return;
-    const vals = rawRows.slice(0, 20).map((r) => (r[statoCol] ?? "").trim().toUpperCase()).filter(Boolean);
-    const singleLetters = vals.filter((v) => v.length === 1);
-    if (singleLetters.length >= vals.length * 0.7 && vals.length >= 3) {
+    if (mapping.debit_col || mapping.credit_col || mapping.direction_col) return;
+    const debitCol = headers.find((h) => DEBIT_COL_PATTERNS.some((p) => p.test(h.trim())));
+    const creditCol = headers.find((h) => CREDIT_COL_PATTERNS.some((p) => p.test(h.trim())));
+    if (debitCol && creditCol) {
       setState((s) => ({
         ...s,
         mapping: {
           ...s.mapping,
-          direction_col: statoCol,
-          debit_values: ["D"],
-          credit_values: ["A"],
+          amount_col: undefined,
+          debit_col: debitCol,
+          credit_col: creditCol,
         },
       }));
+      return;
     }
-  }, [headers, rawRows, useSeparateColumns]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Auto-detect direction column
+    const dirCol = headers.find((h) => DIRECTION_COL_PATTERNS.some((p) => p.test(h.trim())));
+    if (dirCol) {
+      const vals = rawRows.slice(0, 20).map((r) => (r[dirCol] ?? "").trim().toUpperCase()).filter(Boolean);
+      const singleLetters = vals.filter((v) => v.length <= 2);
+      if (singleLetters.length >= vals.length * 0.7 && vals.length >= 3) {
+        setState((s) => ({
+          ...s,
+          mapping: {
+            ...s.mapping,
+            direction_col: dirCol,
+            debit_values: ["D"],
+            credit_values: ["A"],
+          },
+        }));
+      }
+    }
+  }, [headers, rawRows]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hint detection for direction column
+  const directionHint = useMemo(() => {
+    if (useSeparateColumns || useDirectionCol) return null;
+    const dirCol = headers.find((h) => DIRECTION_COL_PATTERNS.some((p) => p.test(h.trim())));
+    if (!dirCol) return null;
+    const vals = rawRows.slice(0, 10).map((r) => (r[dirCol] ?? "").trim()).filter(Boolean);
+    const unique = [...new Set(vals)];
+    if (unique.length > 0 && unique.length <= 5) {
+      return `Colonna "${dirCol}" trovata con valori: ${unique.join(", ")}. Potrebbe definire la direzione (A=Entrata / D=Uscita).`;
+    }
+    return null;
+  }, [headers, rawRows, useSeparateColumns, useDirectionCol]);
+
+  // Amount parsing preview (shows how parseRawNumber reads values)
+  const amountPreview = useMemo(() => {
+    if (useSeparateColumns) {
+      if (!mapping.debit_col || !mapping.credit_col) return null;
+      return sampleRows.slice(0, 3).map((r, i) => {
+        const debitRaw = r[mapping.debit_col!] ?? "";
+        const creditRaw = r[mapping.credit_col!] ?? "";
+        const debitParsed = parseRawNumber(debitRaw);
+        const creditParsed = parseRawNumber(creditRaw);
+        return {
+          idx: i,
+          debitRaw, creditRaw,
+          debitParsed, creditParsed,
+          type: (creditParsed && creditParsed !== 0) ? "Entrata" : (debitParsed && debitParsed !== 0) ? "Uscita" : "—",
+        };
+      });
+    }
+    if (!mapping.amount_col) return null;
+    return sampleRows.slice(0, 3).map((r, i) => {
+      const raw = r[mapping.amount_col!] ?? "";
+      const parsed = parseRawNumber(raw);
+      return { idx: i, raw, parsed };
+    });
+  }, [sampleRows, mapping, useSeparateColumns]);
 
   return (
     <div className="space-y-4">
@@ -165,11 +226,41 @@ export function StepMapping({ state, setState }: Props) {
         </div>
       </div>
 
+      {/* Direction hint */}
+      {directionHint && (
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3 text-sm text-blue-700 dark:text-blue-400 flex items-start gap-2">
+          <Info className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>{directionHint}</span>
+        </div>
+      )}
+
+      {/* Amount parsing debug preview */}
+      {amountPreview && amountPreview.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">Verifica parsing importi:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {useSeparateColumns ? (
+              (amountPreview as any[]).map((p, i) => (
+                <Badge key={i} variant="secondary" className="text-[10px] font-normal gap-1">
+                  {p.debitRaw || p.creditRaw} → {p.type === "Entrata" ? `+${p.creditParsed}` : p.type === "Uscita" ? `-${p.debitParsed}` : "—"} ({p.type})
+                </Badge>
+              ))
+            ) : (
+              (amountPreview as any[]).map((p, i) => (
+                <Badge key={i} variant="secondary" className="text-[10px] font-normal gap-1">
+                  "{p.raw}" → {p.parsed !== null ? p.parsed : "❌ errore"}
+                </Badge>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Preview — responsive: cards on mobile, table on desktop */}
       <div className="space-y-1.5">
         <p className="text-sm font-medium">Anteprima ({Math.min(previewRows.length, 15)} di {rawRows.length} righe)</p>
 
-        {/* Desktop table — hidden on small screens */}
+        {/* Desktop table */}
         <div className="hidden md:block rounded-lg border overflow-hidden">
           <div className="max-h-[200px] overflow-y-auto">
             <table className="w-full text-xs">
@@ -197,10 +288,9 @@ export function StepMapping({ state, setState }: Props) {
           </div>
         </div>
 
-        {/* Mobile cards — visible only on small screens */}
+        {/* Mobile cards */}
         <div className="md:hidden space-y-1.5 max-h-[250px] overflow-y-auto rounded-lg border p-2">
           {previewRows.slice(0, 10).map((row, i) => {
-            // Show mapped columns prominently, rest in collapsible
             const dateVal = mapping.date_col ? row[mapping.date_col] : null;
             const descVal = mapping.desc_col ? row[mapping.desc_col] : null;
             const amountVal = mapping.amount_col ? row[mapping.amount_col] : (mapping.debit_col ? (row[mapping.debit_col] || row[mapping.credit_col ?? ""]) : null);
