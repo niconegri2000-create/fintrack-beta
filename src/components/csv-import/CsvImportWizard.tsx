@@ -8,7 +8,7 @@ import { StepConfirm } from "./StepConfirm";
 import { parseCsvText, normalizeRows, autoDetectDateFormat, type CsvMapping, type NormalizedRow } from "@/lib/csvImport";
 import { useRunCsvImport } from "@/hooks/useCsvImport";
 import { toast } from "@/hooks/use-toast";
-import { ChevronLeft, ChevronRight, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -19,6 +19,7 @@ interface Props {
 export type WizardState = {
   accountId: string;
   fileName: string;
+  fileType: "csv" | "xls" | "xlsx";
   csvText: string;
   rawRows: Record<string, string>[];
   headers: string[];
@@ -163,8 +164,8 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Import CSV Banca
+            <FileDown className="h-5 w-5" />
+            Importa estratto conto
           </DialogTitle>
         </DialogHeader>
 
@@ -222,6 +223,7 @@ function makeInitialState(defaultAccountId?: string): WizardState {
   return {
     accountId: defaultAccountId ?? "",
     fileName: "",
+    fileType: "csv",
     csvText: "",
     rawRows: [],
     headers: [],
