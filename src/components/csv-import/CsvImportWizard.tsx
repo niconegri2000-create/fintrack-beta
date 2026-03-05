@@ -6,9 +6,11 @@ import { StepMapping } from "./StepMapping";
 import { StepControls } from "./StepControls";
 import { StepConfirm } from "./StepConfirm";
 import { parseCsvText, normalizeRows, autoDetectDateFormat, type CsvMapping, type NormalizedRow } from "@/lib/csvImport";
+import { parseExcelFile, suggestMapping, rowsToCsvText } from "@/lib/excelParser";
 import { useRunCsvImport } from "@/hooks/useCsvImport";
 import { toast } from "@/hooks/use-toast";
 import { ChevronLeft, ChevronRight, FileDown } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface Props {
   open: boolean;
@@ -28,6 +30,10 @@ export type WizardState = {
   errors: { row: number; reason: string }[];
   autoTag: boolean;
   saveMapping: boolean;
+  /** Original file for re-parsing with different sheet */
+  file: File | null;
+  sheetNames: string[];
+  sheetIndex: number;
 };
 
 const STEP_LABELS = ["Upload", "Mapping", "Controlli", "Conferma"];
@@ -48,15 +54,63 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
     setTimeout(reset, 300);
   }, [onOpenChange, reset]);
 
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback(async () => {
     if (step === 0) {
-      // Parse CSV with auto-detect delimiter
+      const isExcel = state.fileType === "xls" || state.fileType === "xlsx";
+
+      let rawRows: Record<string, string>[];
+      let headers: string[];
+      let csvText = state.csvText;
+
+      if (isExcel && state.file) {
+        try {
+          const result = await parseExcelFile(state.file, state.sheetIndex);
+          rawRows = result.rows;
+          headers = result.headers;
+          csvText = rowsToCsvText(headers, rawRows);
+
+          // Auto-suggest mapping
+          const suggestion = suggestMapping(headers, rawRows);
+
+          // Auto-detect date format from suggested date column
+          let detectedFormat = "dd/mm/yyyy";
+          if (suggestion.date_col) {
+            const samples = rawRows.slice(0, 20).map((r) => r[suggestion.date_col!]).filter(Boolean);
+            detectedFormat = autoDetectDateFormat(samples);
+          }
+
+          setState((s) => ({
+            ...s,
+            rawRows,
+            headers,
+            csvText,
+            sheetNames: result.sheetNames,
+            mapping: {
+              ...s.mapping,
+              date_col: suggestion.date_col ?? "",
+              desc_col: suggestion.desc_col ?? "",
+              amount_col: suggestion.useSeparateColumns ? undefined : (suggestion.amount_col ?? ""),
+              debit_col: suggestion.useSeparateColumns ? (suggestion.debit_col ?? "") : undefined,
+              credit_col: suggestion.useSeparateColumns ? (suggestion.credit_col ?? "") : undefined,
+              date_format: detectedFormat,
+              delimiter: ",",
+            },
+          }));
+          setStep(1);
+          return;
+        } catch (err: any) {
+          toast({ title: "Errore lettura file Excel", description: err?.message, variant: "destructive" });
+          return;
+        }
+      }
+
+      // CSV path
       let delimiter = state.mapping.delimiter ?? ",";
-      let rawRows = parseCsvText(state.csvText, delimiter);
+      rawRows = parseCsvText(csvText, delimiter);
 
       // Auto-detect: try ; if , gives 1 column
       if (rawRows.length > 0 && Object.keys(rawRows[0]).length <= 1 && delimiter === ",") {
-        const semiRows = parseCsvText(state.csvText, ";");
+        const semiRows = parseCsvText(csvText, ";");
         if (semiRows.length > 0 && Object.keys(semiRows[0]).length > 1) {
           rawRows = semiRows;
           delimiter = ";";
@@ -68,11 +122,9 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
         return;
       }
 
-      if (import.meta.env.DEV) console.info(`[STATEMENT_IMPORT] File parsato: ${rawRows.length} righe, ${Object.keys(rawRows[0]).length} colonne`);
+      headers = Object.keys(rawRows[0]);
 
-      const headers = Object.keys(rawRows[0]);
-
-      // Auto-detect date format from first column that looks like dates
+      // Auto-detect date format
       let detectedFormat = state.mapping.date_format;
       const firstCol = headers[0];
       if (firstCol) {
@@ -80,11 +132,25 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
         detectedFormat = autoDetectDateFormat(samples);
       }
 
+      // Auto-suggest mapping for CSV too
+      const suggestion = suggestMapping(headers, rawRows);
+
+      logger.info(`[STATEMENT_IMPORT] File parsato: ${rawRows.length} righe, ${headers.length} colonne`);
+
       setState((s) => ({
         ...s,
         rawRows,
         headers,
-        mapping: { ...s.mapping, delimiter, date_format: detectedFormat },
+        mapping: {
+          ...s.mapping,
+          delimiter,
+          date_format: detectedFormat,
+          date_col: suggestion.date_col ?? s.mapping.date_col ?? "",
+          desc_col: suggestion.desc_col ?? s.mapping.desc_col ?? "",
+          amount_col: suggestion.useSeparateColumns ? undefined : (suggestion.amount_col ?? s.mapping.amount_col ?? ""),
+          debit_col: suggestion.useSeparateColumns ? (suggestion.debit_col ?? "") : s.mapping.debit_col,
+          credit_col: suggestion.useSeparateColumns ? (suggestion.credit_col ?? "") : s.mapping.credit_col,
+        },
       }));
       setStep(1);
     } else if (step === 1) {
@@ -163,8 +229,8 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="w-[92vw] max-w-[1100px] max-h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <FileDown className="h-5 w-5" />
             Importa estratto conto
@@ -172,7 +238,7 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
         </DialogHeader>
 
         {/* Step indicator */}
-        <div className="flex items-center gap-1 mb-4">
+        <div className="flex items-center gap-1 px-6 pb-3 shrink-0">
           {STEP_LABELS.map((label, i) => (
             <div key={i} className="flex items-center gap-1 flex-1">
               <div
@@ -194,13 +260,16 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
           ))}
         </div>
 
-        {step === 0 && <StepUpload state={state} setState={setState} />}
-        {step === 1 && <StepMapping state={state} setState={setState} />}
-        {step === 2 && <StepControls state={state} />}
-        {step === 3 && <StepConfirm state={state} setState={setState} />}
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-6 pb-2">
+          {step === 0 && <StepUpload state={state} setState={setState} />}
+          {step === 1 && <StepMapping state={state} setState={setState} />}
+          {step === 2 && <StepControls state={state} />}
+          {step === 3 && <StepConfirm state={state} setState={setState} />}
+        </div>
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between pt-4 border-t">
+        {/* Navigation — fixed footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t shrink-0">
           <Button variant="outline" onClick={() => (step === 0 ? handleClose() : setStep(step - 1))}>
             <ChevronLeft className="h-4 w-4 mr-1" />
             {step === 0 ? "Annulla" : "Indietro"}
@@ -234,5 +303,8 @@ function makeInitialState(defaultAccountId?: string): WizardState {
     errors: [],
     autoTag: true,
     saveMapping: true,
+    file: null,
+    sheetNames: [],
+    sheetIndex: 0,
   };
 }
