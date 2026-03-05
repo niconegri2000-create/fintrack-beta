@@ -21,12 +21,12 @@ import { Label } from "@/components/ui/label";
 import { useDateRange, type PeriodPreset } from "@/contexts/DateRangeContext";
 
 const PRESETS: { value: PeriodPreset; label: string }[] = [
+  { value: "all", label: "Tutto" },
   { value: "current_month", label: "Mese corrente" },
   { value: "previous_month", label: "Mese precedente" },
   { value: "last_3_months", label: "Ultimi 3 mesi" },
   { value: "last_6_months", label: "Ultimi 6 mesi" },
   { value: "ytd", label: "Da inizio anno" },
-  { value: "all", label: "Tutto" },
   { value: "custom", label: "Personalizzato…" },
 ];
 
