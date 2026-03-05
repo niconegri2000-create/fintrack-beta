@@ -147,27 +147,29 @@ export function autoDetectDateFormat(samples: string[]): string {
   return best;
 }
 
+/**
+ * Parse a raw string into a number, handling European/US formats.
+ * Returns the numeric value (preserving sign) or null if unparseable/zero.
+ */
+export function parseRawNumber(raw: string): number | null {
+  if (!raw) return null;
+  let cleaned = raw.replace(/[€$£\s]/g, "");
+  if (/\d{1,3}(\.\d{3})*(,\d+)?$/.test(cleaned) && cleaned.includes(",")) {
+    cleaned = cleaned.replace(/\./g, "").replace(",", ".");
+  } else if (/\d+,\d{2}$/.test(cleaned) && !cleaned.includes(".")) {
+    cleaned = cleaned.replace(",", ".");
+  }
+  const num = parseFloat(cleaned);
+  if (isNaN(num)) return null;
+  return num;
+}
+
 export function parseAmount(
   raw: string,
   opts?: { negativeIsExpense?: boolean }
 ): { amount: number; type: "income" | "expense" } | null {
-  if (!raw) return null;
-
-  // Clean currency symbols and whitespace
-  let cleaned = raw.replace(/[€$£\s]/g, "");
-
-  // Detect European number format: dots as thousands, comma as decimal
-  // e.g. "1.234,56" or "-1.234,56"
-  if (/\d{1,3}(\.\d{3})*(,\d+)?$/.test(cleaned) && cleaned.includes(",")) {
-    cleaned = cleaned.replace(/\./g, "").replace(",", ".");
-  } else if (/\d+,\d{2}$/.test(cleaned) && !cleaned.includes(".")) {
-    // Simple comma decimal: "1234,56"
-    cleaned = cleaned.replace(",", ".");
-  }
-  // Otherwise assume dots are decimals (US/UK format)
-
-  const num = parseFloat(cleaned);
-  if (isNaN(num) || num === 0) return null;
+  const num = parseRawNumber(raw);
+  if (num === null || num === 0) return null;
 
   if (opts?.negativeIsExpense !== false) {
     return num < 0
@@ -259,15 +261,22 @@ export function normalizeRows(
     let amountResult: { amount: number; type: "income" | "expense" } | null = null;
 
     if (mapping.debit_col && mapping.credit_col) {
-      // Separate debit/credit columns
-      const debitRaw = row[mapping.debit_col];
-      const creditRaw = row[mapping.credit_col];
-      const debit = parseAmount(debitRaw);
-      const credit = parseAmount(creditRaw);
-      if (debit && debit.amount > 0) {
-        amountResult = { amount: debit.amount, type: "expense" };
-      } else if (credit && credit.amount > 0) {
-        amountResult = { amount: credit.amount, type: "income" };
+      // Separate debit/credit columns — deterministic logic
+      const debitNum = parseRawNumber(row[mapping.debit_col] ?? "");
+      const creditNum = parseRawNumber(row[mapping.credit_col] ?? "");
+      const hasDebit = debitNum !== null && debitNum !== 0;
+      const hasCredit = creditNum !== null && creditNum !== 0;
+
+      if (hasDebit && hasCredit) {
+        errors.push({ row: i, reason: `Entrate e Uscite entrambe valorizzate (${row[mapping.debit_col]}, ${row[mapping.credit_col]})` });
+        continue;
+      } else if (hasDebit) {
+        amountResult = { amount: Math.abs(debitNum!), type: "expense" };
+      } else if (hasCredit) {
+        amountResult = { amount: Math.abs(creditNum!), type: "income" };
+      } else {
+        errors.push({ row: i, reason: "Importo mancante: entrambe le colonne vuote o zero" });
+        continue;
       }
     } else if (mapping.amount_col && mapping.direction_col) {
       // Direction column mode: amount is always positive, direction determines type
@@ -293,7 +302,8 @@ export function normalizeRows(
     }
 
     if (!amountResult || amountResult.amount <= 0) {
-      errors.push({ row: i, reason: `Importo non valido: "${row[mapping.amount_col ?? ""] ?? ""}"` });
+      const colName = mapping.amount_col || mapping.debit_col || mapping.credit_col || "";
+      errors.push({ row: i, reason: `Importo non valido: "${row[colName] ?? ""}"` });
       continue;
     }
 

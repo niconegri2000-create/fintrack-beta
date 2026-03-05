@@ -13,6 +13,9 @@ export function StepControls({ state }: Props) {
   const total = rawRows.length;
   const valid = normalized.length;
   const skipped = errors.length;
+  const countIncome = normalized.filter((r) => r.type === "income").length;
+  const countExpense = normalized.filter((r) => r.type === "expense").length;
+  const allSameDirection = valid > 1 && (countIncome === 0 || countExpense === 0);
 
   return (
     <div className="space-y-4">
@@ -26,6 +29,16 @@ export function StepControls({ state }: Props) {
       {valid === 0 && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
           Nessuna riga valida. Controlla il mapping colonne e il formato data.
+        </div>
+      )}
+
+      {allSameDirection && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            <strong>Attenzione:</strong> tutte le {valid} righe risultano {countIncome === 0 ? "Uscite" : "Entrate"}.
+            Verifica che il mapping sia corretto (colonne Entrate/Uscite o Direzione/Stato).
+          </span>
         </div>
       )}
 
@@ -68,10 +81,10 @@ export function StepControls({ state }: Props) {
       {valid > 0 && (
         <div className="flex gap-3">
           <Badge variant="outline" className="text-emerald-600">
-            Entrate: {normalized.filter((r) => r.type === "income").length}
+            Entrate: {countIncome}
           </Badge>
           <Badge variant="outline" className="text-red-500">
-            Uscite: {normalized.filter((r) => r.type === "expense").length}
+            Uscite: {countExpense}
           </Badge>
         </div>
       )}
