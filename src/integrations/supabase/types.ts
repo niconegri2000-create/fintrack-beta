@@ -305,6 +305,7 @@ export type Database = {
           file_hash: string | null
           file_name: string | null
           id: string
+          import_status: string
           mapping: Json | null
           period_end: string | null
           period_start: string | null
@@ -317,6 +318,7 @@ export type Database = {
           file_hash?: string | null
           file_name?: string | null
           id?: string
+          import_status?: string
           mapping?: Json | null
           period_end?: string | null
           period_start?: string | null
@@ -329,6 +331,7 @@ export type Database = {
           file_hash?: string | null
           file_name?: string | null
           id?: string
+          import_status?: string
           mapping?: Json | null
           period_end?: string | null
           period_start?: string | null

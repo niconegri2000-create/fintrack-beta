@@ -116,14 +116,19 @@ export function useRunCsvImport() {
 
       const { data: existing } = await supabase
         .from("csv_imports")
-        .select("id")
+        .select("id, import_status")
         .eq("workspace_id", workspaceId)
         .eq("account_id", accountId)
         .eq("file_hash", fileHash)
         .maybeSingle();
 
       if (existing) {
-        throw new Error("FILE_ALREADY_IMPORTED");
+        if ((existing as any).import_status === "success") {
+          throw new Error("FILE_ALREADY_IMPORTED");
+        }
+        // Previous failed/processing import exists — delete it to allow retry
+        await supabase.from("csv_import_rows").delete().eq("import_id", existing.id);
+        await supabase.from("csv_imports").delete().eq("id", existing.id);
       }
 
       // 2) Parse & normalize
