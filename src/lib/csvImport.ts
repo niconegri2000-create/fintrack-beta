@@ -186,6 +186,12 @@ export interface CsvMapping {
   debit_col?: string;
   credit_col?: string;
   negative_is_expense?: boolean;
+  /** Column that contains direction codes (e.g. "D"/"A") */
+  direction_col?: string;
+  /** Values in direction_col that mean debit/expense (default ["D"]) */
+  debit_values?: string[];
+  /** Values in direction_col that mean credit/income (default ["A"]) */
+  credit_values?: string[];
   date_format: string;
   skip_rows?: number;
   delimiter?: string;
@@ -253,6 +259,7 @@ export function normalizeRows(
     let amountResult: { amount: number; type: "income" | "expense" } | null = null;
 
     if (mapping.debit_col && mapping.credit_col) {
+      // Separate debit/credit columns
       const debitRaw = row[mapping.debit_col];
       const creditRaw = row[mapping.credit_col];
       const debit = parseAmount(debitRaw);
@@ -261,6 +268,23 @@ export function normalizeRows(
         amountResult = { amount: debit.amount, type: "expense" };
       } else if (credit && credit.amount > 0) {
         amountResult = { amount: credit.amount, type: "income" };
+      }
+    } else if (mapping.amount_col && mapping.direction_col) {
+      // Direction column mode: amount is always positive, direction determines type
+      const parsed = parseAmount(row[mapping.amount_col]);
+      if (parsed) {
+        const absAmount = Math.abs(parsed.amount);
+        const dirRaw = (row[mapping.direction_col] ?? "").trim().toUpperCase();
+        const debitVals = (mapping.debit_values ?? ["D"]).map((v) => v.trim().toUpperCase());
+        const creditVals = (mapping.credit_values ?? ["A"]).map((v) => v.trim().toUpperCase());
+        if (debitVals.includes(dirRaw)) {
+          amountResult = { amount: absAmount, type: "expense" };
+        } else if (creditVals.includes(dirRaw)) {
+          amountResult = { amount: absAmount, type: "income" };
+        } else {
+          errors.push({ row: i, reason: `Direzione non riconosciuta: "${dirRaw}"` });
+          continue;
+        }
       }
     } else if (mapping.amount_col) {
       amountResult = parseAmount(row[mapping.amount_col], {

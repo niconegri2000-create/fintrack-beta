@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import type { WizardState } from "./CsvImportWizard";
@@ -29,6 +30,7 @@ export function StepMapping({ state, setState }: Props) {
   const sampleRows = useMemo(() => rawRows.slice(0, 3), [rawRows]);
 
   const useSeparateColumns = !!(mapping.debit_col || mapping.credit_col);
+  const useDirectionCol = !!mapping.direction_col;
 
   const setField = (field: string, value: string) => {
     setState((s) => ({
@@ -45,9 +47,30 @@ export function StepMapping({ state, setState }: Props) {
         amount_col: checked ? undefined : (s.headers[0] ?? ""),
         debit_col: checked ? (s.headers[0] ?? "") : undefined,
         credit_col: checked ? (s.headers[1] ?? "") : undefined,
+        direction_col: checked ? undefined : s.mapping.direction_col,
       },
     }));
   };
+
+  // Auto-detect direction column (e.g. "Stato" with values like D/A)
+  useEffect(() => {
+    if (useSeparateColumns || mapping.direction_col) return;
+    const statoCol = headers.find((h) => /^stato$/i.test(h.trim()));
+    if (!statoCol) return;
+    const vals = rawRows.slice(0, 20).map((r) => (r[statoCol] ?? "").trim().toUpperCase()).filter(Boolean);
+    const singleLetters = vals.filter((v) => v.length === 1);
+    if (singleLetters.length >= vals.length * 0.7 && vals.length >= 3) {
+      setState((s) => ({
+        ...s,
+        mapping: {
+          ...s.mapping,
+          direction_col: statoCol,
+          debit_values: ["D"],
+          credit_values: ["A"],
+        },
+      }));
+    }
+  }, [headers, rawRows, useSeparateColumns]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-4">
@@ -69,13 +92,61 @@ export function StepMapping({ state, setState }: Props) {
         ) : (
           <>
             <MappingSelect label="Importo *" value={mapping.amount_col ?? ""} headers={headers} sampleRows={sampleRows} onChange={(v) => setField("amount_col", v)} />
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={mapping.negative_is_expense ?? true}
-                onCheckedChange={(c) => setState((s) => ({ ...s, mapping: { ...s.mapping, negative_is_expense: c } }))}
-              />
-              <span className="text-sm">Importi negativi = uscite</span>
-            </div>
+
+            <MappingSelect
+              label="Direzione / Stato (opzionale)"
+              value={mapping.direction_col ?? ""}
+              headers={headers}
+              sampleRows={sampleRows}
+              onChange={(v) => {
+                setState((s) => ({
+                  ...s,
+                  mapping: {
+                    ...s.mapping,
+                    direction_col: v === NONE ? undefined : v,
+                    debit_values: v === NONE ? undefined : (s.mapping.debit_values ?? ["D"]),
+                    credit_values: v === NONE ? undefined : (s.mapping.credit_values ?? ["A"]),
+                  },
+                }));
+              }}
+            />
+
+            {useDirectionCol ? (
+              <div className="sm:col-span-2 grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Valori Uscita (Debit)</label>
+                  <Input
+                    placeholder="D"
+                    value={(mapping.debit_values ?? ["D"]).join(", ")}
+                    onChange={(e) => {
+                      const vals = e.target.value.split(",").map((v) => v.trim()).filter(Boolean);
+                      setState((s) => ({ ...s, mapping: { ...s.mapping, debit_values: vals.length > 0 ? vals : ["D"] } }));
+                    }}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Separati da virgola, es: D, DARE</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Valori Entrata (Credit)</label>
+                  <Input
+                    placeholder="A"
+                    value={(mapping.credit_values ?? ["A"]).join(", ")}
+                    onChange={(e) => {
+                      const vals = e.target.value.split(",").map((v) => v.trim()).filter(Boolean);
+                      setState((s) => ({ ...s, mapping: { ...s.mapping, credit_values: vals.length > 0 ? vals : ["A"] } }));
+                    }}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Separati da virgola, es: A, AVERE</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={mapping.negative_is_expense ?? true}
+                  onCheckedChange={(c) => setState((s) => ({ ...s, mapping: { ...s.mapping, negative_is_expense: c } }))}
+                />
+                <span className="text-sm">Importi negativi = uscite</span>
+              </div>
+            )}
           </>
         )}
 
