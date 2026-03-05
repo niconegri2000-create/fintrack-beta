@@ -56,7 +56,6 @@ function parseItalianTextDate(s: string): string | null {
 function parseExcelSerialDate(value: string): string | null {
   const num = Number(value);
   if (!Number.isFinite(num) || num < 1 || num > 200000) return null;
-  // Excel serial: days since 1899-12-30
   const date = new Date(Date.UTC(1899, 11, 30 + num));
   if (isNaN(date.getTime())) return null;
   return date.toISOString().slice(0, 10);
@@ -79,17 +78,9 @@ function parseNumericDate(s: string, format: string): string | null {
   return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
 }
 
-/**
- * Strip time portion from datetime strings.
- * "2025-08-23 21:16:50" → "2025-08-23"
- * "2025-08-23T21:16:50Z" → "2025-08-23"
- */
 function stripTimePart(s: string): string {
-  // ISO with T
   if (/^\d{4}-\d{1,2}-\d{1,2}T/.test(s)) return s.split("T")[0];
-  // Date + space + time (HH:mm or HH:mm:ss)
   if (/^\d{4}-\d{1,2}-\d{1,2}\s+\d{1,2}:/.test(s)) return s.split(/\s+/)[0];
-  // DD/MM/YYYY HH:mm:ss or similar
   if (/^\d{1,2}[\/\.\-]\d{1,2}[\/\.\-]\d{4}\s+\d{1,2}:/.test(s)) return s.split(/\s+/)[0];
   return s;
 }
@@ -98,37 +89,27 @@ export function parseDate(raw: string, format: string): string | null {
   if (!raw) return null;
   const s = stripTimePart(raw.trim());
 
-  // "Auto" mode: try all formats
   if (format === "auto") {
-    // 1. Italian text date
     const it = parseItalianTextDate(s);
     if (it) return it;
-    // 2. Numeric formats
     for (const fmt of ["dd/mm/yyyy", "yyyy-mm-dd", "dd-mm-yyyy", "dd.mm.yyyy"]) {
       const r = parseNumericDate(s, fmt);
       if (r) return r;
     }
-    // 3. Excel serial
     const serial = parseExcelSerialDate(s);
     if (serial) return serial;
     return null;
   }
 
-  // Explicit "d MMMM yyyy" Italian text format
   if (format === "d-mmmm-yyyy-it") {
     return parseItalianTextDate(s);
   }
 
-  // Numeric format
   return parseNumericDate(s, format);
 }
 
-/**
- * Auto-detect date format from a sample of values.
- */
 export function autoDetectDateFormat(samples: string[]): string {
   const cleaned = samples.map((s) => stripTimePart(s.trim()));
-  // Check Italian text dates first
   const italianCount = cleaned.filter((s) => parseItalianTextDate(s) !== null).length;
   if (italianCount >= 2) return "auto";
 
@@ -142,41 +123,176 @@ export function autoDetectDateFormat(samples: string[]): string {
       best = fmt;
     }
   }
-  // If nothing matches well, default to auto
   if (bestCount < 2 && samples.length >= 2) return "auto";
   return best;
 }
 
+/* ── Robust amount parser (bank-agnostic) ────────────────────── */
+
 /**
- * Parse a raw string into a number, handling European/US formats.
- * Returns the numeric value (preserving sign) or null if unparseable/zero.
+ * Parse a raw value into a number, handling European/US/mixed formats.
+ * Accepts: €, EUR, spaces, NBSP, +/- signs, Italian/US number formats.
+ * Returns the numeric value (preserving sign) or null if unparseable.
  */
-export function parseRawNumber(raw: string): number | null {
-  if (!raw) return null;
-  let cleaned = raw.replace(/[€$£\s]/g, "");
-  if (/\d{1,3}(\.\d{3})*(,\d+)?$/.test(cleaned) && cleaned.includes(",")) {
-    cleaned = cleaned.replace(/\./g, "").replace(",", ".");
-  } else if (/\d+,\d{2}$/.test(cleaned) && !cleaned.includes(".")) {
-    cleaned = cleaned.replace(",", ".");
+export function parseRawNumber(raw: any): number | null {
+  if (raw === null || raw === undefined) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+
+  // Strip currency symbols, EUR text, all whitespace (including NBSP \u00A0)
+  let cleaned = s.replace(/[€$£]/g, "").replace(/EUR/gi, "").replace(/[\s\u00A0]/g, "");
+  if (!cleaned) return null;
+
+  // Extract sign
+  let sign = 1;
+  if (cleaned.startsWith("-")) { sign = -1; cleaned = cleaned.slice(1); }
+  else if (cleaned.startsWith("+")) { cleaned = cleaned.slice(1); }
+  // Handle trailing sign (rare)
+  if (cleaned.endsWith("-")) { sign = -1; cleaned = cleaned.slice(0, -1); }
+
+  if (!cleaned) return null;
+
+  // Determine decimal separator by position analysis
+  const lastComma = cleaned.lastIndexOf(",");
+  const lastDot = cleaned.lastIndexOf(".");
+
+  if (lastComma > -1 && lastDot > -1) {
+    // Both present: the one appearing LAST is the decimal separator
+    if (lastComma > lastDot) {
+      // e.g. 1.234,56 → European
+      cleaned = cleaned.replace(/\./g, "").replace(",", ".");
+    } else {
+      // e.g. 1,234.56 → US
+      cleaned = cleaned.replace(/,/g, "");
+    }
+  } else if (lastComma > -1) {
+    // Only comma: check if it looks like thousands separator (e.g. 1,234) or decimal (e.g. 123,45)
+    const afterComma = cleaned.slice(lastComma + 1);
+    const beforeComma = cleaned.slice(0, lastComma);
+    // Multiple commas = thousands separator (e.g. 1,234,567)
+    const commaCount = (cleaned.match(/,/g) || []).length;
+    if (commaCount > 1) {
+      cleaned = cleaned.replace(/,/g, "");
+    } else if (afterComma.length === 3 && beforeComma.length >= 1 && beforeComma.length <= 3 && /^\d+$/.test(afterComma)) {
+      // Ambiguous: 1,234 could be 1234 (thousands) or 1.234 (decimal)
+      // Default to European (decimal comma) since this is an Italian app
+      cleaned = cleaned.replace(",", ".");
+    } else {
+      // Treat comma as decimal separator (e.g. 123,45 or 0,5)
+      cleaned = cleaned.replace(",", ".");
+    }
   }
-  const num = parseFloat(cleaned);
-  if (isNaN(num)) return null;
-  return num;
+  // If only dot: it's already fine (either decimal or thousands)
+  // Check for multiple dots (thousands separator): 1.234.567
+  if (lastDot > -1 && lastComma === -1) {
+    const dotCount = (cleaned.match(/\./g) || []).length;
+    if (dotCount > 1) {
+      cleaned = cleaned.replace(/\./g, "");
+    }
+  }
+
+  const num = Number(cleaned);
+  if (isNaN(num) || !isFinite(num)) return null;
+  return sign * num;
 }
 
-export function parseAmount(
-  raw: string,
-  opts?: { negativeIsExpense?: boolean }
-): { amount: number; type: "income" | "expense" } | null {
-  const num = parseRawNumber(raw);
-  if (num === null || num === 0) return null;
+/* ── Transaction derivation ──────────────────────────────────── */
 
-  if (opts?.negativeIsExpense !== false) {
-    return num < 0
-      ? { amount: Math.abs(num), type: "expense" }
-      : { amount: num, type: "income" };
+/** Default debit direction values (case-insensitive) */
+const DEFAULT_DEBIT_VALUES = ["D", "DEBIT", "DEBITO", "USCITA", "DARE"];
+/** Default credit direction values (case-insensitive) */
+const DEFAULT_CREDIT_VALUES = ["A", "CREDIT", "CREDITO", "ENTRATA", "AVERE"];
+
+export interface DeriveResult {
+  amount: number;
+  type: "income" | "expense";
+  isValid: true;
+}
+
+export interface DeriveError {
+  isValid: false;
+  reason: string;
+}
+
+/**
+ * Derive signed amount + type from a raw row based on mapping mode.
+ * Returns a deterministic result for one of three modes:
+ *   A) Separate columns (debit_col + credit_col)
+ *   B) Single amount + sign toggle (negative_is_expense)
+ *   C) Single amount + direction column
+ */
+export function deriveTransaction(
+  row: Record<string, string>,
+  mapping: CsvMapping
+): DeriveResult | DeriveError {
+  // ── Mode A: separate debit/credit columns ──
+  if (mapping.debit_col && mapping.credit_col) {
+    const debitRaw = (row[mapping.debit_col] ?? "").trim();
+    const creditRaw = (row[mapping.credit_col] ?? "").trim();
+    const debitNum = parseRawNumber(debitRaw);
+    const creditNum = parseRawNumber(creditRaw);
+    const hasDebit = debitNum !== null && debitNum !== 0;
+    const hasCredit = creditNum !== null && creditNum !== 0;
+
+    if (hasDebit && hasCredit) {
+      return { isValid: false, reason: `Entrate e Uscite entrambe valorizzate (${debitRaw}, ${creditRaw})` };
+    }
+    if (!hasDebit && !hasCredit) {
+      return { isValid: false, reason: "Importo mancante: entrambe le colonne vuote o zero" };
+    }
+    if (hasDebit) {
+      return { isValid: true, amount: Math.abs(debitNum!), type: "expense" };
+    }
+    return { isValid: true, amount: Math.abs(creditNum!), type: "income" };
   }
-  return { amount: Math.abs(num), type: num >= 0 ? "income" : "expense" };
+
+  // ── Mode B & C: single amount column ──
+  if (!mapping.amount_col) {
+    return { isValid: false, reason: "Nessuna colonna importo configurata" };
+  }
+
+  const amountRaw = (row[mapping.amount_col] ?? "").trim();
+  const parsedNum = parseRawNumber(amountRaw);
+  if (parsedNum === null) {
+    return { isValid: false, reason: `Importo non valido (parsing fallito): "${amountRaw}"` };
+  }
+  if (parsedNum === 0) {
+    return { isValid: false, reason: "Importo uguale a zero" };
+  }
+
+  // ── Mode C: direction column ──
+  if (mapping.direction_col) {
+    const dirRaw = (row[mapping.direction_col] ?? "").trim().toUpperCase();
+    if (!dirRaw) {
+      return { isValid: false, reason: "Direzione/Stato vuoto" };
+    }
+    const debitVals = (mapping.debit_values && mapping.debit_values.length > 0)
+      ? mapping.debit_values.map((v) => v.trim().toUpperCase())
+      : DEFAULT_DEBIT_VALUES;
+    const creditVals = (mapping.credit_values && mapping.credit_values.length > 0)
+      ? mapping.credit_values.map((v) => v.trim().toUpperCase())
+      : DEFAULT_CREDIT_VALUES;
+
+    if (debitVals.includes(dirRaw)) {
+      return { isValid: true, amount: Math.abs(parsedNum), type: "expense" };
+    }
+    if (creditVals.includes(dirRaw)) {
+      return { isValid: true, amount: Math.abs(parsedNum), type: "income" };
+    }
+    return { isValid: false, reason: `Direzione non riconosciuta: "${dirRaw}"` };
+  }
+
+  // ── Mode B: sign-based ──
+  if (mapping.negative_is_expense !== false) {
+    return parsedNum < 0
+      ? { isValid: true, amount: Math.abs(parsedNum), type: "expense" }
+      : { isValid: true, amount: parsedNum, type: "income" };
+  }
+
+  // Fallback: treat abs value, positive = income
+  return parsedNum < 0
+    ? { isValid: true, amount: Math.abs(parsedNum), type: "expense" }
+    : { isValid: true, amount: parsedNum, type: "income" };
 }
 
 /* ── CSV Parsing ─────────────────────────────────────────────── */
@@ -188,11 +304,8 @@ export interface CsvMapping {
   debit_col?: string;
   credit_col?: string;
   negative_is_expense?: boolean;
-  /** Column that contains direction codes (e.g. "D"/"A") */
   direction_col?: string;
-  /** Values in direction_col that mean debit/expense (default ["D"]) */
   debit_values?: string[];
-  /** Values in direction_col that mean credit/income (default ["A"]) */
   credit_values?: string[];
   date_format: string;
   skip_rows?: number;
@@ -240,6 +353,10 @@ function splitCsvLine(line: string, delimiter: string): string[] {
   return result;
 }
 
+/**
+ * Normalize rows using deterministic deriveTransaction logic.
+ * Debug logging included for first 5 rows.
+ */
 export function normalizeRows(
   rows: Record<string, string>[],
   mapping: CsvMapping
@@ -249,6 +366,8 @@ export function normalizeRows(
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
+
+    // 1) Parse date
     const rawDate = row[mapping.date_col];
     const date = parseDate(rawDate, mapping.date_format);
     if (!date) {
@@ -256,67 +375,62 @@ export function normalizeRows(
       continue;
     }
 
+    // 2) Parse description
     const description = normalizeDescription(row[mapping.desc_col] ?? "");
 
-    let amountResult: { amount: number; type: "income" | "expense" } | null = null;
+    // 3) Derive amount + type using unified logic
+    const result = deriveTransaction(row, mapping);
 
-    if (mapping.debit_col && mapping.credit_col) {
-      // Separate debit/credit columns — deterministic logic
-      const debitNum = parseRawNumber(row[mapping.debit_col] ?? "");
-      const creditNum = parseRawNumber(row[mapping.credit_col] ?? "");
-      const hasDebit = debitNum !== null && debitNum !== 0;
-      const hasCredit = creditNum !== null && creditNum !== 0;
-
-      if (hasDebit && hasCredit) {
-        errors.push({ row: i, reason: `Entrate e Uscite entrambe valorizzate (${row[mapping.debit_col]}, ${row[mapping.credit_col]})` });
-        continue;
-      } else if (hasDebit) {
-        amountResult = { amount: Math.abs(debitNum!), type: "expense" };
-      } else if (hasCredit) {
-        amountResult = { amount: Math.abs(creditNum!), type: "income" };
-      } else {
-        errors.push({ row: i, reason: "Importo mancante: entrambe le colonne vuote o zero" });
-        continue;
-      }
-    } else if (mapping.amount_col && mapping.direction_col) {
-      // Direction column mode: amount is always positive, direction determines type
-      const parsed = parseAmount(row[mapping.amount_col]);
-      if (parsed) {
-        const absAmount = Math.abs(parsed.amount);
-        const dirRaw = (row[mapping.direction_col] ?? "").trim().toUpperCase();
-        const debitVals = (mapping.debit_values ?? ["D"]).map((v) => v.trim().toUpperCase());
-        const creditVals = (mapping.credit_values ?? ["A"]).map((v) => v.trim().toUpperCase());
-        if (debitVals.includes(dirRaw)) {
-          amountResult = { amount: absAmount, type: "expense" };
-        } else if (creditVals.includes(dirRaw)) {
-          amountResult = { amount: absAmount, type: "income" };
-        } else {
-          errors.push({ row: i, reason: `Direzione non riconosciuta: "${dirRaw}"` });
-          continue;
-        }
-      }
-    } else if (mapping.amount_col) {
-      amountResult = parseAmount(row[mapping.amount_col], {
-        negativeIsExpense: mapping.negative_is_expense ?? true,
-      });
+    if (!result.isValid) {
+      errors.push({ row: i, reason: (result as DeriveError).reason });
+      continue;
     }
 
-    if (!amountResult || amountResult.amount <= 0) {
-      const colName = mapping.amount_col || mapping.debit_col || mapping.credit_col || "";
-      errors.push({ row: i, reason: `Importo non valido: "${row[colName] ?? ""}"` });
+    if (result.amount <= 0) {
+      errors.push({ row: i, reason: `Importo non valido (${result.amount})` });
       continue;
+    }
+
+    // Debug logging for first 5 rows
+    if (i < 5) {
+      const mode = (mapping.debit_col && mapping.credit_col) ? "A:separate"
+        : mapping.direction_col ? "C:direction"
+        : "B:signed";
+      logger.info(`[CSV_IMPORT] row ${i}: mode=${mode} → amount=${result.amount} type=${result.type} date=${date}`);
     }
 
     normalized.push({
       date,
       description,
-      amount: amountResult.amount,
-      type: amountResult.type,
+      amount: result.amount,
+      type: result.type,
       raw: row,
     });
   }
 
+  // Summary log
+  const incomeCount = normalized.filter((r) => r.type === "income").length;
+  const expenseCount = normalized.filter((r) => r.type === "expense").length;
+  logger.info(`[CSV_IMPORT] normalizeRows: ${normalized.length} valid (${incomeCount} income, ${expenseCount} expense), ${errors.length} errors`);
+
   return { normalized, errors };
+}
+
+/* ── Legacy compat exports ───────────────────────────────────── */
+
+export function parseAmount(
+  raw: string,
+  opts?: { negativeIsExpense?: boolean }
+): { amount: number; type: "income" | "expense" } | null {
+  const num = parseRawNumber(raw);
+  if (num === null || num === 0) return null;
+
+  if (opts?.negativeIsExpense !== false) {
+    return num < 0
+      ? { amount: Math.abs(num), type: "expense" }
+      : { amount: num, type: "income" };
+  }
+  return { amount: Math.abs(num), type: num >= 0 ? "income" : "expense" };
 }
 
 /* ── Import execution ────────────────────────────────────────── */
@@ -342,7 +456,6 @@ export async function executeCsvImport(
 ): Promise<ImportResult> {
   logger.info(`[CSV_IMPORT] start | rows=${rows.length} | account=${accountId} | tagId=${importTagId}`);
 
-  // 1) Create import record
   const { data: importRec, error: importErr } = await supabase
     .from("csv_imports")
     .insert({
@@ -368,18 +481,14 @@ export async function executeCsvImport(
   let created = 0;
   let duplicate = 0;
   let skipped = 0;
-  let errors = 0;
+  let importErrors = 0;
   const errorDetails: { row: number; reason: string }[] = [];
 
-  // 2) Process each row
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     try {
       const dedupKey = await generateDedupKey(workspaceId, accountId, row.date, row.amount, row.description);
 
-      logger.info(`[CSV_IMPORT] inserting row ${i}: date=${row.date} amount=${row.amount} type=${row.type} desc="${(row.description ?? "").slice(0, 40)}"`);
-
-      // Insert transaction
       const { data: txData, error: txErr } = await supabase.from("transactions").insert({
         workspace_id: workspaceId,
         account_id: accountId,
@@ -401,11 +510,10 @@ export async function executeCsvImport(
           status = "duplicate";
           reason = "Fingerprint già presente";
           duplicate++;
-          logger.info(`[CSV_IMPORT] row ${i}: duplicate (dedup_key collision)`);
         } else {
           status = "error";
           reason = `${txErr.message} (code: ${txErr.code})`;
-          errors++;
+          importErrors++;
           errorDetails.push({ row: i, reason });
           logger.error(`[CSV_IMPORT] row ${i}: DB error:`, txErr.message, txErr.code);
         }
@@ -413,7 +521,6 @@ export async function executeCsvImport(
         status = "created";
         created++;
 
-        // Tag the transaction if autoTag and we have a tag ID
         if (importTagId && txData?.id) {
           await supabase.from("transaction_tags").insert({
             transaction_id: txData.id,
@@ -422,7 +529,6 @@ export async function executeCsvImport(
         }
       }
 
-      // Audit row
       await supabase.from("csv_import_rows").insert({
         import_id: importId,
         raw: row.raw as any,
@@ -431,7 +537,7 @@ export async function executeCsvImport(
         reason,
       });
     } catch (err: any) {
-      errors++;
+      importErrors++;
       const reason = err?.message ?? "Unknown error";
       errorDetails.push({ row: i, reason });
       logger.error(`[CSV_IMPORT] row ${i}: unexpected error:`, reason);
@@ -445,18 +551,16 @@ export async function executeCsvImport(
     }
   }
 
-  // 3) Update stats and status
   const importStatus = created > 0 ? "success" : "failed";
-  const stats = { total: rows.length, created, duplicate, skipped, errors };
+  const stats = { total: rows.length, created, duplicate, skipped, errors: importErrors };
   await supabase.from("csv_imports").update({ stats: stats as any, import_status: importStatus } as any).eq("id", importId);
 
-  // If completely failed, clean up import record so user can retry
   if (importStatus === "failed") {
     await supabase.from("csv_import_rows").delete().eq("import_id", importId);
     await supabase.from("csv_imports").delete().eq("id", importId);
   }
 
-  logger.info(`[CSV_IMPORT] done | id=${importId} | status=${importStatus} | created=${created} duplicate=${duplicate} skipped=${skipped} errors=${errors}`);
+  logger.info(`[CSV_IMPORT] done | id=${importId} | status=${importStatus} | created=${created} duplicate=${duplicate} skipped=${skipped} errors=${importErrors}`);
   if (errorDetails.length > 0) {
     logger.error(`[CSV_IMPORT] first errors:`, JSON.stringify(errorDetails.slice(0, 5)));
   }

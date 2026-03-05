@@ -182,8 +182,8 @@ export function suggestMapping(headers: string[], sampleRows: Record<string, str
   }
 
   // Debit/Credit columns
-  const debitCol = headers.find((h) => /^dare$/i.test(h.trim()) || /^debit/i.test(h.trim()));
-  const creditCol = headers.find((h) => /^avere$/i.test(h.trim()) || /^credit/i.test(h.trim()));
+  const debitCol = headers.find((h) => /^(dare|uscit[ae]|addebiti?)$/i.test(h.trim()) || /^debit/i.test(h.trim()));
+  const creditCol = headers.find((h) => /^(avere|entrat[ae]|accrediti?)$/i.test(h.trim()) || /^credit/i.test(h.trim()));
 
   if (debitCol && creditCol) {
     result.debit_col = debitCol;
