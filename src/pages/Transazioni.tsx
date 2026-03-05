@@ -10,7 +10,7 @@ import { FilterBar } from "@/components/filters/FilterBar";
 import { useTransactionTagsMap } from "@/hooks/useBatchTags";
 import { CsvImportWizard } from "@/components/csv-import/CsvImportWizard";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, ArrowRightLeft, FileUp } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRightLeft, FileDown } from "lucide-react";
 
 const Transazioni = () => {
   const { dateRange } = useDateRange();
@@ -62,8 +62,8 @@ const Transazioni = () => {
           <TransactionFormDialog />
           <TransferFormDialog />
           <Button variant="outline" size="sm" onClick={() => setCsvOpen(true)}>
-            <FileUp className="h-4 w-4 mr-1" />
-            Importa CSV
+            <FileDown className="h-4 w-4 mr-1" />
+            Importa estratto
           </Button>
         </div>
       </div>

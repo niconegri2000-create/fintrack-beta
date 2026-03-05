@@ -1,15 +1,26 @@
-import { useCallback, useRef, useEffect } from "react";
+import { useCallback, useRef } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCsvImportTemplates } from "@/hooks/useCsvImport";
-import { Upload, FileText, History } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Upload, FileText, History, Info } from "lucide-react";
 import type { WizardState } from "./CsvImportWizard";
 import type { CsvMapping } from "@/lib/csvImport";
+import { toast } from "@/hooks/use-toast";
+import { parseExcelFile } from "@/lib/excelParser";
 
 interface Props {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
+}
+
+const SUPPORTED_EXTENSIONS = [".csv", ".xls", ".xlsx"];
+
+function getFileType(name: string): "csv" | "xls" | "xlsx" | null {
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".xlsx")) return "xlsx";
+  if (lower.endsWith(".xls")) return "xls";
+  if (lower.endsWith(".csv")) return "csv";
+  return null;
 }
 
 export function StepUpload({ state, setState }: Props) {
@@ -18,16 +29,34 @@ export function StepUpload({ state, setState }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(
-    (file: File) => {
-      if (!file.name.toLowerCase().endsWith(".csv")) {
+    async (file: File) => {
+      const fileType = getFileType(file.name);
+      if (!fileType) {
+        toast({ title: "Formato non supportato. Usa CSV o Excel (XLS/XLSX).", variant: "destructive" });
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        setState((s) => ({ ...s, csvText: text, fileName: file.name }));
-      };
-      reader.readAsText(file);
+
+      if (fileType === "csv") {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const text = e.target?.result as string;
+          setState((s) => ({ ...s, csvText: text, fileName: file.name, fileType: "csv" }));
+        };
+        reader.readAsText(file);
+      } else {
+        try {
+          const csvText = await parseExcelFile(file);
+          setState((s) => ({
+            ...s,
+            csvText,
+            fileName: file.name,
+            fileType,
+            mapping: { ...s.mapping, delimiter: "," },
+          }));
+        } catch (err: any) {
+          toast({ title: "Errore lettura file Excel", description: err?.message, variant: "destructive" });
+        }
+      }
     },
     [setState]
   );
@@ -50,6 +79,8 @@ export function StepUpload({ state, setState }: Props) {
     },
     [templates, setState]
   );
+
+  const isCsv = state.fileType === "csv";
 
   return (
     <div className="space-y-4">
@@ -114,14 +145,14 @@ export function StepUpload({ state, setState }: Props) {
         ) : (
           <div className="flex flex-col items-center gap-2">
             <Upload className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm font-medium">Trascina un file CSV qui</p>
-            <p className="text-xs text-muted-foreground">oppure clicca per selezionare</p>
+            <p className="text-sm font-medium">Trascina un file CSV o Excel qui</p>
+            <p className="text-xs text-muted-foreground">CSV / XLS / XLSX — oppure clicca per selezionare</p>
           </div>
         )}
         <input
           ref={fileInputRef}
           type="file"
-          accept=".csv"
+          accept=".csv,.xls,.xlsx"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -130,22 +161,43 @@ export function StepUpload({ state, setState }: Props) {
         />
       </div>
 
-      {/* Delimiter selector */}
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Separatore colonne</label>
-        <Select
-          value={state.mapping.delimiter ?? ","}
-          onValueChange={(v) => setState((s) => ({ ...s, mapping: { ...s.mapping, delimiter: v } }))}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value=",">Virgola (,)</SelectItem>
-            <SelectItem value=";">Punto e virgola (;)</SelectItem>
-            <SelectItem value="\t">Tab</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Delimiter selector — CSV only */}
+      {isCsv && (
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Separatore colonne</label>
+          <Select
+            value={state.mapping.delimiter ?? ","}
+            onValueChange={(v) => setState((s) => ({ ...s, mapping: { ...s.mapping, delimiter: v } }))}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value=",">Virgola (,)</SelectItem>
+              <SelectItem value=";">Punto e virgola (;)</SelectItem>
+              <SelectItem value="\t">Tab</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Excel detected info */}
+      {state.csvText && !isCsv && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+          <Info className="h-3.5 w-3.5 shrink-0" />
+          File Excel rilevato: separatore non necessario.
+        </div>
+      )}
+
+      {/* BPER hint */}
+      <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
+        <p className="text-xs font-medium flex items-center gap-1.5">
+          <Info className="h-3.5 w-3.5 text-primary" />
+          BPER: come scaricare il file
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Da Home Banking: Conti → scorri in fondo → Scarica → XLS. Poi carica qui il file.
+        </p>
       </div>
 
       <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
