@@ -12,11 +12,13 @@ interface Props {
 }
 
 const DATE_FORMATS = [
+  { value: "auto", label: "Auto (consigliato)" },
   { value: "dd/mm/yyyy", label: "dd/mm/yyyy" },
   { value: "mm/dd/yyyy", label: "mm/dd/yyyy" },
   { value: "yyyy-mm-dd", label: "yyyy-mm-dd" },
   { value: "dd-mm-yyyy", label: "dd-mm-yyyy" },
   { value: "dd.mm.yyyy", label: "dd.mm.yyyy" },
+  { value: "d-mmmm-yyyy-it", label: "d MMMM yyyy (IT) — es. 27 febbraio 2026" },
 ];
 
 const NONE = "__none__";
