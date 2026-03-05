@@ -193,8 +193,8 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
         });
       } else if (result.created === 0) {
         toast({
-          title: "Import fallito",
-          description: `${result.errors} errori, nessuna transazione creata.`,
+          title: "Import non completato",
+          description: `${result.errors} errori, nessuna transazione creata. Puoi riprovare.`,
           variant: "destructive",
         });
       } else {

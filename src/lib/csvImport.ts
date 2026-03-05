@@ -388,10 +388,17 @@ export async function executeCsvImport(
     }
   }
 
-  // 3) Update stats
+  // 3) Update stats and status
+  const importStatus = created > 0 ? "success" : "failed";
   const stats = { total: rows.length, created, duplicate, skipped, errors };
-  await supabase.from("csv_imports").update({ stats: stats as any }).eq("id", importId);
+  await supabase.from("csv_imports").update({ stats: stats as any, import_status: importStatus } as any).eq("id", importId);
 
-  logger.info(`[CSV_IMPORT] done | id=${importId} | created=${created} duplicate=${duplicate} skipped=${skipped} errors=${errors}`);
+  // If completely failed, clean up import record so user can retry
+  if (importStatus === "failed") {
+    await supabase.from("csv_import_rows").delete().eq("import_id", importId);
+    await supabase.from("csv_imports").delete().eq("id", importId);
+  }
+
+  logger.info(`[CSV_IMPORT] done | id=${importId} | status=${importStatus} | created=${created} duplicate=${duplicate} skipped=${skipped} errors=${errors}`);
   return { importId, ...stats };
 }

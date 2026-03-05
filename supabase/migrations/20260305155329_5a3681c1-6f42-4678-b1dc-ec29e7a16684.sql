@@ -1,0 +1,1 @@
+ALTER TABLE public.csv_imports ADD COLUMN IF NOT EXISTS import_status text NOT NULL DEFAULT 'processing';
