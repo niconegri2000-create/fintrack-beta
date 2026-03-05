@@ -338,7 +338,7 @@ export async function executeCsvImport(
         amount: row.amount,
         type: row.type,
         is_fixed: false,
-        source: "csv_import",
+        source: "import",
         import_id: importId,
         dedup_key: dedupKey,
       }).select("id").maybeSingle();
