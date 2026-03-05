@@ -278,6 +278,7 @@ export interface ImportResult {
   duplicate: number;
   skipped: number;
   errors: number;
+  errorDetails: { row: number; reason: string }[];
 }
 
 export async function executeCsvImport(
@@ -318,12 +319,15 @@ export async function executeCsvImport(
   let duplicate = 0;
   let skipped = 0;
   let errors = 0;
+  const errorDetails: { row: number; reason: string }[] = [];
 
   // 2) Process each row
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     try {
       const dedupKey = await generateDedupKey(workspaceId, accountId, row.date, row.amount, row.description);
+
+      logger.info(`[CSV_IMPORT] inserting row ${i}: date=${row.date} amount=${row.amount} type=${row.type} desc="${(row.description ?? "").slice(0, 40)}"`);
 
       // Insert transaction
       const { data: txData, error: txErr } = await supabase.from("transactions").insert({
@@ -352,7 +356,8 @@ export async function executeCsvImport(
           status = "error";
           reason = `${txErr.message} (code: ${txErr.code})`;
           errors++;
-          logger.error(`[CSV_IMPORT] row ${i}: error:`, txErr.message, txErr.code);
+          errorDetails.push({ row: i, reason });
+          logger.error(`[CSV_IMPORT] row ${i}: DB error:`, txErr.message, txErr.code);
         }
       } else {
         status = "created";
@@ -377,13 +382,15 @@ export async function executeCsvImport(
       });
     } catch (err: any) {
       errors++;
-      logger.error(`[CSV_IMPORT] row ${i}: unexpected error:`, err?.message);
+      const reason = err?.message ?? "Unknown error";
+      errorDetails.push({ row: i, reason });
+      logger.error(`[CSV_IMPORT] row ${i}: unexpected error:`, reason);
       await supabase.from("csv_import_rows").insert({
         import_id: importId,
         raw: row.raw as any,
         normalized: {} as any,
         status: "error",
-        reason: err?.message ?? "Unknown error",
+        reason,
       });
     }
   }
@@ -400,5 +407,8 @@ export async function executeCsvImport(
   }
 
   logger.info(`[CSV_IMPORT] done | id=${importId} | status=${importStatus} | created=${created} duplicate=${duplicate} skipped=${skipped} errors=${errors}`);
-  return { importId, ...stats };
+  if (errorDetails.length > 0) {
+    logger.error(`[CSV_IMPORT] first errors:`, JSON.stringify(errorDetails.slice(0, 5)));
+  }
+  return { importId, ...stats, errorDetails };
 }
