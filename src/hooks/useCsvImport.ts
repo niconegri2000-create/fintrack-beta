@@ -8,6 +8,7 @@ import {
   generateFileHash,
   executeCsvImport,
   type CsvMapping,
+  type NormalizedRow,
   type ImportResult,
 } from "@/lib/csvImport";
 
@@ -101,6 +102,8 @@ interface RunImportInput {
   mapping: CsvMapping;
   autoTag: boolean;
   saveMapping: boolean;
+  /** Pre-validated normalized rows from the wizard – skips re-parsing when provided */
+  preNormalized?: NormalizedRow[];
 }
 
 export function useRunCsvImport() {
@@ -109,7 +112,7 @@ export function useRunCsvImport() {
   const saveTemplate = useSaveCsvImportTemplate();
 
   return useMutation<ImportResult, Error, RunImportInput>({
-    mutationFn: async ({ accountId, fileName, csvText, mapping, autoTag, saveMapping }) => {
+    mutationFn: async ({ accountId, fileName, csvText, mapping, autoTag, saveMapping, preNormalized }) => {
       // 1) File hash check
       const fileHash = await generateFileHash(csvText);
       logger.info(`[CSV_IMPORT] file hash: ${fileHash.slice(0, 16)}…`);
@@ -131,20 +134,29 @@ export function useRunCsvImport() {
         await supabase.from("csv_imports").delete().eq("id", existing.id);
       }
 
-      // 2) Parse & normalize
-      const rawRows = parseCsvText(csvText, mapping.delimiter);
-      if (rawRows.length === 0) {
-        throw new Error("CSV_EMPTY");
-      }
+      // 2) Use pre-normalized rows if available, otherwise parse & normalize
+      let normalized: NormalizedRow[];
 
-      const { normalized, errors } = normalizeRows(rawRows, mapping);
-      logger.info(`[CSV_IMPORT] parsed ${rawRows.length} rows → ${normalized.length} valid, ${errors.length} parse errors`);
-
-      if (normalized.length === 0) {
-        if (errors.length > 0) {
-          throw new Error(`PARSE_ERRORS:${errors.slice(0, 3).map((e) => e.reason).join("; ")}`);
+      if (preNormalized && preNormalized.length > 0) {
+        normalized = preNormalized;
+        logger.info(`[CSV_IMPORT] using ${normalized.length} pre-validated rows (skip re-parse)`);
+      } else {
+        const rawRows = parseCsvText(csvText, mapping.delimiter);
+        if (rawRows.length === 0) {
+          throw new Error("CSV_EMPTY");
         }
-        throw new Error("NO_VALID_ROWS");
+
+        const result = normalizeRows(rawRows, mapping);
+        normalized = result.normalized;
+        const errors = result.errors;
+        logger.info(`[CSV_IMPORT] parsed ${rawRows.length} rows → ${normalized.length} valid, ${errors.length} parse errors`);
+
+        if (normalized.length === 0) {
+          if (errors.length > 0) {
+            throw new Error(`PARSE_ERRORS:${errors.slice(0, 3).map((e) => e.reason).join("; ")}`);
+          }
+          throw new Error("NO_VALID_ROWS");
+        }
       }
 
       // 3) Ensure #import-csv tag exists if autoTag

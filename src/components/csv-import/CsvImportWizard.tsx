@@ -183,6 +183,7 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
         mapping: state.mapping,
         autoTag: state.autoTag,
         saveMapping: state.saveMapping,
+        preNormalized: state.normalized,
       });
 
       if (result.created === 0 && result.duplicate > 0) {
@@ -192,9 +193,10 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
           variant: "destructive",
         });
       } else if (result.created === 0) {
+        const details = result.errorDetails?.slice(0, 3).map((e) => e.reason).join("; ") || "";
         toast({
           title: "Import non completato",
-          description: `${result.errors} errori, nessuna transazione creata. Puoi riprovare.`,
+          description: `${result.errors} errori, nessuna transazione creata. ${details ? `Dettaglio: ${details}` : "Puoi riprovare."}`,
           variant: "destructive",
         });
       } else {
