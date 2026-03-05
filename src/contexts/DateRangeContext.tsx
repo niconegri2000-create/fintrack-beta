@@ -48,8 +48,8 @@ export function presetToRange(preset: Exclude<PeriodPreset, "custom">): { from: 
 }
 
 function buildDefault(): DateRange {
-  const r = presetToRange("current_month");
-  return { ...r, preset: "current_month" as const };
+  const r = presetToRange("all");
+  return { ...r, preset: "all" as const };
 }
 
 function loadFromStorage(): DateRange {
