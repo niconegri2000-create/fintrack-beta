@@ -6,14 +6,11 @@ import { Upload, FileText, History, Info } from "lucide-react";
 import type { WizardState } from "./CsvImportWizard";
 import type { CsvMapping } from "@/lib/csvImport";
 import { toast } from "@/hooks/use-toast";
-import { parseExcelFile } from "@/lib/excelParser";
 
 interface Props {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
 }
-
-const SUPPORTED_EXTENSIONS = [".csv", ".xls", ".xlsx"];
 
 function getFileType(name: string): "csv" | "xls" | "xlsx" | null {
   const lower = name.toLowerCase();
@@ -40,22 +37,19 @@ export function StepUpload({ state, setState }: Props) {
         const reader = new FileReader();
         reader.onload = (e) => {
           const text = e.target?.result as string;
-          setState((s) => ({ ...s, csvText: text, fileName: file.name, fileType: "csv" }));
+          setState((s) => ({ ...s, csvText: text, fileName: file.name, fileType: "csv", file }));
         };
         reader.readAsText(file);
       } else {
-        try {
-          const csvText = await parseExcelFile(file);
-          setState((s) => ({
-            ...s,
-            csvText,
-            fileName: file.name,
-            fileType,
-            mapping: { ...s.mapping, delimiter: "," },
-          }));
-        } catch (err: any) {
-          toast({ title: "Errore lettura file Excel", description: err?.message, variant: "destructive" });
-        }
+        // Store file for later parsing in handleNext (keeps raw File for sheet selection)
+        setState((s) => ({
+          ...s,
+          csvText: "__excel_pending__",
+          fileName: file.name,
+          fileType,
+          file,
+          mapping: { ...s.mapping, delimiter: "," },
+        }));
       }
     },
     [setState]
@@ -81,6 +75,7 @@ export function StepUpload({ state, setState }: Props) {
   );
 
   const isCsv = state.fileType === "csv";
+  const hasFile = !!state.csvText;
 
   return (
     <div className="space-y-4">
@@ -124,22 +119,49 @@ export function StepUpload({ state, setState }: Props) {
         </div>
       )}
 
+      {/* Sheet selector for multi-sheet Excel */}
+      {state.sheetNames.length > 1 && (
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Foglio Excel</label>
+          <Select
+            value={String(state.sheetIndex)}
+            onValueChange={(v) => setState((s) => ({ ...s, sheetIndex: parseInt(v, 10) }))}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {state.sheetNames.map((name, i) => (
+                <SelectItem key={i} value={String(i)}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       {/* File drop zone */}
       <div
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         onClick={() => fileInputRef.current?.click()}
         className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors hover:border-primary/50 hover:bg-muted/30 ${
-          state.csvText ? "border-primary/40 bg-primary/5" : "border-border"
+          hasFile ? "border-primary/40 bg-primary/5" : "border-border"
         }`}
       >
-        {state.csvText ? (
+        {hasFile ? (
           <div className="flex flex-col items-center gap-2">
             <FileText className="h-8 w-8 text-primary" />
             <p className="text-sm font-medium">{state.fileName}</p>
-            <p className="text-xs text-muted-foreground">
-              {state.csvText.split("\n").filter((l) => l.trim()).length - 1} righe rilevate
-            </p>
+            {isCsv && (
+              <p className="text-xs text-muted-foreground">
+                {state.csvText.split("\n").filter((l) => l.trim()).length - 1} righe rilevate
+              </p>
+            )}
+            {!isCsv && (
+              <p className="text-xs text-muted-foreground">File Excel — verrà analizzato al prossimo step</p>
+            )}
             <p className="text-xs text-primary cursor-pointer hover:underline">Clicca per cambiare file</p>
           </div>
         ) : (
@@ -162,7 +184,7 @@ export function StepUpload({ state, setState }: Props) {
       </div>
 
       {/* Delimiter selector — CSV only */}
-      {isCsv && (
+      {isCsv && hasFile && (
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Separatore colonne</label>
           <Select
@@ -175,17 +197,17 @@ export function StepUpload({ state, setState }: Props) {
             <SelectContent>
               <SelectItem value=",">Virgola (,)</SelectItem>
               <SelectItem value=";">Punto e virgola (;)</SelectItem>
-              <SelectItem value="\t">Tab</SelectItem>
+              <SelectItem value={"\t"}>Tab</SelectItem>
             </SelectContent>
           </Select>
         </div>
       )}
 
       {/* Excel detected info */}
-      {state.csvText && !isCsv && (
+      {hasFile && !isCsv && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
           <Info className="h-3.5 w-3.5 shrink-0" />
-          File Excel rilevato: separatore non necessario.
+          File Excel rilevato: la tabella movimenti verrà individuata automaticamente.
         </div>
       )}
 
