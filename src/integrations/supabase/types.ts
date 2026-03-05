@@ -982,6 +982,64 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      count_recurring_bulk: {
+        Args: {
+          p_account_id?: string
+          p_delete_all?: boolean
+          p_from?: string
+          p_kind: string
+          p_to?: string
+        }
+        Returns: number
+      }
+      count_transactions_bulk: {
+        Args: {
+          p_account_id?: string
+          p_delete_all?: boolean
+          p_from?: string
+          p_kind: string
+          p_to?: string
+        }
+        Returns: number
+      }
+      count_transfers_bulk: {
+        Args: {
+          p_account_id?: string
+          p_delete_all?: boolean
+          p_from?: string
+          p_to?: string
+        }
+        Returns: number
+      }
+      delete_recurring_bulk: {
+        Args: {
+          p_account_id?: string
+          p_delete_all?: boolean
+          p_from?: string
+          p_kind: string
+          p_to?: string
+        }
+        Returns: number
+      }
+      delete_transactions_bulk: {
+        Args: {
+          p_account_id?: string
+          p_delete_all?: boolean
+          p_from?: string
+          p_kind: string
+          p_to?: string
+        }
+        Returns: number
+      }
+      delete_transfers_bulk: {
+        Args: {
+          p_account_id?: string
+          p_delete_all?: boolean
+          p_from?: string
+          p_to?: string
+        }
+        Returns: number
+      }
       ensure_user_bootstrap: { Args: { p_user_id: string }; Returns: string }
       get_user_workspace_id: { Args: never; Returns: string }
       redeem_access_code: { Args: { p_code: string }; Returns: undefined }

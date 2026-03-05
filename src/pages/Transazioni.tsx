@@ -9,6 +9,7 @@ import { TransferFormDialog } from "@/components/transactions/TransferFormDialog
 import { FilterBar } from "@/components/filters/FilterBar";
 import { useTransactionTagsMap } from "@/hooks/useBatchTags";
 import { CsvImportWizard } from "@/components/csv-import/CsvImportWizard";
+import { BulkDeleteDialog } from "@/components/bulk-delete/BulkDeleteDialog";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, TrendingDown, ArrowRightLeft, FileDown } from "lucide-react";
 
@@ -88,6 +89,7 @@ const Transazioni = () => {
           <TrendingUp className="h-4 w-4 text-success" />
           <h2 className="text-base font-semibold">Entrate</h2>
           <span className="text-xs text-muted-foreground">({income.length})</span>
+          <BulkDeleteDialog entity="transactions" sectionKind="income" sectionLabel="Entrate" accountId={selectedAccountId} />
         </div>
         {isLoading ? (
           <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">Caricamento…</div>
@@ -104,6 +106,7 @@ const Transazioni = () => {
           <TrendingDown className="h-4 w-4 text-destructive" />
           <h2 className="text-base font-semibold">Uscite</h2>
           <span className="text-xs text-muted-foreground">({expense.length})</span>
+          <BulkDeleteDialog entity="transactions" sectionKind="expense" sectionLabel="Uscite" accountId={selectedAccountId} />
         </div>
         {isLoading ? (
           <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">Caricamento…</div>

@@ -13,6 +13,7 @@ import { AccountSwitcher } from "@/components/dashboard/AccountSwitcher";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { toast } from "sonner";
 import { FilterBar } from "@/components/filters/FilterBar";
+import { BulkDeleteDialog } from "@/components/bulk-delete/BulkDeleteDialog";
 import { useTransactionTagsMap } from "@/hooks/useBatchTags";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
@@ -115,6 +116,10 @@ const Trasferimenti = () => {
         onTagsChange={setFilterTagIds}
         showCategory={false}
       />
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">{filtered.length} trasferiment{filtered.length === 1 ? "o" : "i"}</span>
+        <BulkDeleteDialog entity="transfers" sectionKind="" sectionLabel="Trasferimenti" accountId={selectedAccountId} />
+      </div>
 
       <div className="rounded-xl border bg-card">
         {isLoading ? (

@@ -5,6 +5,7 @@ import { RecurringTable } from "@/components/recurring/RecurringTable";
 import { RecurringFormDialog } from "@/components/recurring/RecurringFormDialog";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { useRecurringTagsMap } from "@/hooks/useBatchTags";
+import { BulkDeleteDialog } from "@/components/bulk-delete/BulkDeleteDialog";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
 const Ricorrenti = () => {
@@ -64,6 +65,7 @@ const Ricorrenti = () => {
           <TrendingUp className="h-4 w-4 text-success" />
           <h2 className="text-base font-semibold">Entrate ricorrenti</h2>
           <span className="text-xs text-muted-foreground">({income.length})</span>
+          <BulkDeleteDialog entity="recurring" sectionKind="income" sectionLabel="Entrate ricorrenti" accountId={selectedAccountId} />
         </div>
         {isLoading ? (
           <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">Caricamento…</div>
@@ -80,6 +82,7 @@ const Ricorrenti = () => {
           <TrendingDown className="h-4 w-4 text-destructive" />
           <h2 className="text-base font-semibold">Uscite ricorrenti</h2>
           <span className="text-xs text-muted-foreground">({expense.length})</span>
+          <BulkDeleteDialog entity="recurring" sectionKind="expense" sectionLabel="Uscite ricorrenti" accountId={selectedAccountId} />
         </div>
         {isLoading ? (
           <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">Caricamento…</div>
