@@ -64,9 +64,11 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
       }
 
       if (rawRows.length === 0) {
-        toast({ title: "Il file CSV è vuoto o non valido", variant: "destructive" });
+        toast({ title: "Il file è vuoto o non valido", variant: "destructive" });
         return;
       }
+
+      console.info(`[STATEMENT_IMPORT] File parsato: ${rawRows.length} righe, ${Object.keys(rawRows[0]).length} colonne`);
 
       const headers = Object.keys(rawRows[0]);
 
@@ -141,9 +143,9 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
       if (msg === "FILE_ALREADY_IMPORTED") {
         toast({ title: "File già importato per questo conto", variant: "destructive" });
       } else if (msg === "CSV_EMPTY") {
-        toast({ title: "Il CSV è vuoto", variant: "destructive" });
+        toast({ title: "Il file è vuoto", variant: "destructive" });
       } else if (msg === "NO_VALID_ROWS") {
-        toast({ title: "Nessuna riga valida nel CSV", description: "Controlla mapping e formato data.", variant: "destructive" });
+        toast({ title: "Nessuna riga valida", description: "Controlla mapping e formato data.", variant: "destructive" });
       } else if (msg.startsWith("PARSE_ERRORS:")) {
         toast({ title: "Errori di parsing", description: msg.replace("PARSE_ERRORS:", ""), variant: "destructive" });
       } else {
