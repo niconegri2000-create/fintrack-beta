@@ -68,7 +68,7 @@ export function CsvImportWizard({ open, onOpenChange, defaultAccountId }: Props)
         return;
       }
 
-      console.info(`[STATEMENT_IMPORT] File parsato: ${rawRows.length} righe, ${Object.keys(rawRows[0]).length} colonne`);
+      if (import.meta.env.DEV) console.info(`[STATEMENT_IMPORT] File parsato: ${rawRows.length} righe, ${Object.keys(rawRows[0]).length} colonne`);
 
       const headers = Object.keys(rawRows[0]);
 

@@ -88,7 +88,7 @@ export function DateRangeProvider({ children }: { children: ReactNode }) {
   // Deterministic init: compute once on mount, then mark ready
   useEffect(() => {
     const loaded = loadFromStorage();
-    console.info(`[BOOT] DateRangeProvider init | from=${loaded.from} | to=${loaded.to} | preset=${loaded.preset}`);
+    if (import.meta.env.DEV) console.info(`[BOOT] DateRangeProvider init | from=${loaded.from} | to=${loaded.to} | preset=${loaded.preset}`);
     setDateRange(loaded);
     setIsReady(true);
   }, []);

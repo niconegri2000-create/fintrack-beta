@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
+import { logger } from "@/lib/logger";
 import {
   parseCsvText,
   normalizeRows,
@@ -55,7 +56,7 @@ export function useSaveCsvImportTemplate() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ accountId, name, mapping }: { accountId: string; name: string; mapping: CsvMapping }) => {
-      console.info("[CSV_IMPORT] saving template", { name, accountId });
+      logger.info("[CSV_IMPORT] saving template", { name, accountId });
       // Upsert: if template exists for this account+workspace with same name, update it
       const { data: existing } = await supabase
         .from("csv_import_templates")
@@ -71,7 +72,7 @@ export function useSaveCsvImportTemplate() {
           .update({ mapping: mapping as any, updated_at: new Date().toISOString() })
           .eq("id", existing.id);
         if (error) throw error;
-        console.info("[CSV_IMPORT] template updated", existing.id);
+        logger.info("[CSV_IMPORT] template updated", existing.id);
       } else {
         const { error } = await supabase
           .from("csv_import_templates")
@@ -82,7 +83,7 @@ export function useSaveCsvImportTemplate() {
             mapping: mapping as any,
           });
         if (error) throw error;
-        console.info("[CSV_IMPORT] template created");
+        logger.info("[CSV_IMPORT] template created");
       }
     },
     onSuccess: () => {
@@ -111,7 +112,7 @@ export function useRunCsvImport() {
     mutationFn: async ({ accountId, fileName, csvText, mapping, autoTag, saveMapping }) => {
       // 1) File hash check
       const fileHash = await generateFileHash(csvText);
-      console.info(`[CSV_IMPORT] file hash: ${fileHash.slice(0, 16)}…`);
+      logger.info(`[CSV_IMPORT] file hash: ${fileHash.slice(0, 16)}…`);
 
       const { data: existing } = await supabase
         .from("csv_imports")
@@ -132,7 +133,7 @@ export function useRunCsvImport() {
       }
 
       const { normalized, errors } = normalizeRows(rawRows, mapping);
-      console.info(`[CSV_IMPORT] parsed ${rawRows.length} rows → ${normalized.length} valid, ${errors.length} parse errors`);
+      logger.info(`[CSV_IMPORT] parsed ${rawRows.length} rows → ${normalized.length} valid, ${errors.length} parse errors`);
 
       if (normalized.length === 0) {
         if (errors.length > 0) {
@@ -162,7 +163,7 @@ export function useRunCsvImport() {
           if (!tagErr && newTag) {
             importTagId = newTag.id;
           }
-          console.info(`[CSV_IMPORT] created tag #import-csv: ${importTagId}`);
+          logger.info(`[CSV_IMPORT] created tag #import-csv: ${importTagId}`);
         }
       }
 
@@ -178,7 +179,7 @@ export function useRunCsvImport() {
             mapping,
           });
         } catch (e) {
-          console.warn("[CSV_IMPORT] failed to save template (non-blocking):", e);
+          logger.warn("[CSV_IMPORT] failed to save template (non-blocking):", e);
         }
       }
 

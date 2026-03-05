@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
+import { logger } from "@/lib/logger";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -9,11 +10,11 @@ export function useAuth() {
   const resolvedRef = useRef(false);
 
   useEffect(() => {
-    console.info(`[BOOT] useAuth mount | timestamp=${new Date().toISOString()}`);
+    logger.info(`[BOOT] useAuth mount | timestamp=${new Date().toISOString()}`);
     resolvedRef.current = false;
 
     const applySession = (s: Session | null, source: string) => {
-      console.info(`[BOOT] ${source} | user=${s?.user?.id ?? "null"} | session=${!!s}`);
+      logger.info(`[BOOT] ${source} | user=${s?.user?.id ?? "null"} | session=${!!s}`);
       setSession(s);
       setUser(s?.user ?? null);
       setLoading(false);
@@ -23,7 +24,7 @@ export function useAuth() {
     // Set up listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.info(`[BOOT] onAuthStateChange | event=${event}`);
+        logger.info(`[BOOT] onAuthStateChange | event=${event}`);
         // On Safari, INITIAL_SESSION fires before getSession resolves
         applySession(session, `onAuthStateChange(${event})`);
       }

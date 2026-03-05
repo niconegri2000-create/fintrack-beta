@@ -981,6 +981,7 @@ export type Database = {
     Functions: {
       ensure_user_bootstrap: { Args: { p_user_id: string }; Returns: string }
       get_user_workspace_id: { Args: never; Returns: string }
+      redeem_access_code: { Args: { p_code: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

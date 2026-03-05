@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 import { useQueryClient } from "@tanstack/react-query";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 
@@ -117,7 +118,7 @@ export function useAutoGenerateRecurring() {
             .select("id, recurring_rule_id");
           
           if (iErr) {
-            console.error("Auto-generate recurring error:", iErr);
+            logger.error("Auto-generate recurring error:", iErr);
           } else {
             // Propagate tags from recurring rules to generated transactions
             const tagInserts: Array<{ transaction_id: string; tag_id: string }> = [];
@@ -138,7 +139,7 @@ export function useAutoGenerateRecurring() {
           }
         }
       } catch (err) {
-        console.error("Auto-generate recurring error:", err);
+        logger.error("Auto-generate recurring error:", err);
       }
     })();
   }, [workspaceId, qc]);
