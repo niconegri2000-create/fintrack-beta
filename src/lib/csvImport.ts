@@ -35,10 +35,34 @@ export function normalizeDescription(desc: string): string {
     .trim();
 }
 
-export function parseDate(raw: string, format: string): string | null {
-  if (!raw) return null;
-  const s = raw.trim();
+const ITALIAN_MONTHS: Record<string, string> = {
+  gennaio: "01", febbraio: "02", marzo: "03", aprile: "04",
+  maggio: "05", giugno: "06", luglio: "07", agosto: "08",
+  settembre: "09", ottobre: "10", novembre: "11", dicembre: "12",
+};
 
+const ITALIAN_DATE_RE = /^(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})$/i;
+
+function parseItalianTextDate(s: string): string | null {
+  const m = s.replace(/\s+/g, " ").trim().match(ITALIAN_DATE_RE);
+  if (!m) return null;
+  const day = m[1].padStart(2, "0");
+  const month = ITALIAN_MONTHS[m[2].toLowerCase()];
+  const year = m[3];
+  if (!month) return null;
+  return `${year}-${month}-${day}`;
+}
+
+function parseExcelSerialDate(value: string): string | null {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num < 1 || num > 200000) return null;
+  // Excel serial: days since 1899-12-30
+  const date = new Date(Date.UTC(1899, 11, 30 + num));
+  if (isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function parseNumericDate(s: string, format: string): string | null {
   const patterns: Record<string, RegExp> = {
     "yyyy-mm-dd": /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
     "dd/mm/yyyy": /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
@@ -46,36 +70,64 @@ export function parseDate(raw: string, format: string): string | null {
     "dd-mm-yyyy": /^(\d{1,2})-(\d{1,2})-(\d{4})$/,
     "dd.mm.yyyy": /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/,
   };
-
   const re = patterns[format];
   if (!re) return null;
   const m = s.match(re);
   if (!m) return null;
-
-  if (format === "yyyy-mm-dd") {
-    return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
-  }
-  if (format === "mm/dd/yyyy") {
-    return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
-  }
-  // dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy
+  if (format === "yyyy-mm-dd") return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  if (format === "mm/dd/yyyy") return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
   return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+}
+
+export function parseDate(raw: string, format: string): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+
+  // "Auto" mode: try all formats
+  if (format === "auto") {
+    // 1. Italian text date
+    const it = parseItalianTextDate(s);
+    if (it) return it;
+    // 2. Numeric formats
+    for (const fmt of ["dd/mm/yyyy", "yyyy-mm-dd", "dd-mm-yyyy", "dd.mm.yyyy"]) {
+      const r = parseNumericDate(s, fmt);
+      if (r) return r;
+    }
+    // 3. Excel serial
+    const serial = parseExcelSerialDate(s);
+    if (serial) return serial;
+    return null;
+  }
+
+  // Explicit "d MMMM yyyy" Italian text format
+  if (format === "d-mmmm-yyyy-it") {
+    return parseItalianTextDate(s);
+  }
+
+  // Numeric format
+  return parseNumericDate(s, format);
 }
 
 /**
  * Auto-detect date format from a sample of values.
  */
 export function autoDetectDateFormat(samples: string[]): string {
+  // Check Italian text dates first
+  const italianCount = samples.filter((s) => parseItalianTextDate(s.trim()) !== null).length;
+  if (italianCount >= 2) return "auto";
+
   const formats = ["dd/mm/yyyy", "yyyy-mm-dd", "dd-mm-yyyy", "dd.mm.yyyy", "mm/dd/yyyy"];
   let best = "dd/mm/yyyy";
   let bestCount = 0;
   for (const fmt of formats) {
-    const count = samples.filter((s) => parseDate(s, fmt) !== null).length;
+    const count = samples.filter((s) => parseNumericDate(s.trim(), fmt) !== null).length;
     if (count > bestCount) {
       bestCount = count;
       best = fmt;
     }
   }
+  // If nothing matches well, default to auto
+  if (bestCount < 2 && samples.length >= 2) return "auto";
   return best;
 }
 
