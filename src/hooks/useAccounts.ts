@@ -115,10 +115,7 @@ export function useReorderAccounts() {
       const err = results.find((r) => r.error);
       if (err?.error) throw err.error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
-    },
+    onSuccess: () => invalidateAfterAccount(qc, "account reordered"),
   });
 }
 
