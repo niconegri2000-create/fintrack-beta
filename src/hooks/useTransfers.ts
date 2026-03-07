@@ -155,11 +155,7 @@ export function useCreateTransfer() {
       logger.log("[TRANSFER] Success:", { transferId, outId: out.id, inId: ins.id });
       return { transferId, outId: out.id, inId: ins.id };
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-      qc.invalidateQueries({ queryKey: ["transfers"] });
-    },
+    onSuccess: () => invalidateAfterTransfer(qc, "transfer created"),
   });
 }
 
