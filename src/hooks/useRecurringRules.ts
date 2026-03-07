@@ -66,7 +66,7 @@ export function useCreateRecurring() {
       if (error) throw error;
       return data.id;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["recurring_rules"] }),
+    onSuccess: () => invalidateAfterRecurring(qc, "recurring created"),
   });
 }
 
