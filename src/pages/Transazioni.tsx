@@ -8,25 +8,20 @@ import { TransactionFormDialog } from "@/components/transactions/TransactionForm
 import { TransferFormDialog } from "@/components/transactions/TransferFormDialog";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { useTransactionTagsMap } from "@/hooks/useBatchTags";
-import { CsvImportWizard } from "@/components/csv-import/CsvImportWizard";
 import { BulkDeleteDialog } from "@/components/bulk-delete/BulkDeleteDialog";
-import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, ArrowRightLeft, FileDown } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
 
 const Transazioni = () => {
   const { dateRange } = useDateRange();
   const { selectedAccountId } = useAccountContext();
   const { data = [], isLoading } = useTransactions(dateRange.from, dateRange.to, selectedAccountId);
-  const [csvOpen, setCsvOpen] = useState(false);
 
   const [filterCategoryId, setFilterCategoryId] = useState<string | null>(null);
   const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
 
-  // Fetch tags for all transactions in period for filtering
   const allTxIds = useMemo(() => data.map((t) => t.id), [data]);
   const { data: tagsMap = {} } = useTransactionTagsMap(allTxIds);
 
-  // Apply filters
   const filtered = useMemo(() => {
     let result = data;
     if (filterCategoryId) {
@@ -62,14 +57,8 @@ const Transazioni = () => {
           <PeriodPicker />
           <TransactionFormDialog />
           <TransferFormDialog />
-          <Button variant="outline" size="sm" onClick={() => setCsvOpen(true)}>
-            <FileDown className="h-4 w-4 mr-1" />
-            Importa estratto
-          </Button>
         </div>
       </div>
-
-      <CsvImportWizard open={csvOpen} onOpenChange={setCsvOpen} defaultAccountId={selectedAccountId ?? undefined} />
 
       <FilterBar
         selectedCategoryId={filterCategoryId}
@@ -83,7 +72,6 @@ const Transazioni = () => {
         {hasFilters && ` (filtrati da ${data.length})`}
       </p>
 
-      {/* Entrate */}
       <section className="space-y-2">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-success" />
@@ -100,7 +88,6 @@ const Transazioni = () => {
         )}
       </section>
 
-      {/* Uscite */}
       <section className="space-y-2">
         <div className="flex items-center gap-2">
           <TrendingDown className="h-4 w-4 text-destructive" />
@@ -117,7 +104,6 @@ const Transazioni = () => {
         )}
       </section>
 
-      {/* Trasferimenti */}
       {transfers.length > 0 && (
         <section className="space-y-2">
           <div className="flex items-center gap-2">
