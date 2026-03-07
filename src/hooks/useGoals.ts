@@ -85,7 +85,7 @@ export function useUpdateGoalStatus() {
       const { error } = await supabase.from("goals").update({ status } as any).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
+    onSuccess: () => invalidateAfterGoal(qc, "goal status updated"),
   });
 }
 
