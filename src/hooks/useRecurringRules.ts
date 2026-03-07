@@ -83,7 +83,7 @@ export function useUpdateRecurring() {
       }).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["recurring_rules"] }),
+    onSuccess: () => invalidateAfterRecurring(qc, "recurring updated"),
   });
 }
 
