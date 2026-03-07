@@ -17,8 +17,10 @@ const MONTH_LABELS: Record<string, string> = {
 
 export function useForecast(baseMonth: string, horizonMonths: number = 6, accountId: string | null = null, openingBalance: number = 0) {
   const workspaceId = useWorkspaceId();
+  const syncReady = useRecurringSyncReady();
   return useQuery({
     queryKey: ["forecast", baseMonth, horizonMonths, accountId, openingBalance, workspaceId],
+    enabled: syncReady,
     queryFn: async (): Promise<ForecastResult> => {
       const [baseY, baseM] = baseMonth.split("-").map(Number);
       const startDate = `${baseMonth}-01`;
