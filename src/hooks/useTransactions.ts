@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
+import { useRecurringSyncReady } from "@/contexts/RecurringSyncContext";
 
 export interface TransactionRow {
   id: string;
