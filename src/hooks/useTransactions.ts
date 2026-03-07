@@ -109,9 +109,6 @@ export function useDeleteTransaction() {
       const { error } = await supabase.from("transactions").delete().eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-    },
+    onSuccess: () => invalidateAfterTransaction(qc, "transaction deleted"),
   });
 }

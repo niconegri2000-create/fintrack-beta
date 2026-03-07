@@ -245,10 +245,6 @@ export function useDeleteTransfer() {
 
       logger.log("[TRANSFER] Deleted successfully:", transferId);
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-      qc.invalidateQueries({ queryKey: ["transfers"] });
-    },
+    onSuccess: () => invalidateAfterTransfer(qc, "transfer deleted"),
   });
 }

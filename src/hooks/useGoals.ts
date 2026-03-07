@@ -109,6 +109,6 @@ export function useDeleteGoal() {
       const { error } = await supabase.from("goals").delete().eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
+    onSuccess: () => invalidateAfterGoal(qc, "goal deleted"),
   });
 }

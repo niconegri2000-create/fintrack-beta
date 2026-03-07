@@ -101,9 +101,6 @@ export function useDeleteRecurring() {
       const { error } = await supabase.from("recurring_rules").delete().eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["recurring_rules"] });
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-    },
+    onSuccess: () => invalidateAfterRecurring(qc, "recurring deleted"),
   });
 }
