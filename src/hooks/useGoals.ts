@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
+import { invalidateAfterGoal } from "@/lib/queryKeys";
 
 export interface Goal {
   id: string;
@@ -72,7 +73,7 @@ export function useCreateGoal() {
       } as any);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
+    onSuccess: () => invalidateAfterGoal(qc, "goal created"),
   });
 }
 
@@ -84,7 +85,7 @@ export function useUpdateGoalStatus() {
       const { error } = await supabase.from("goals").update({ status } as any).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
+    onSuccess: () => invalidateAfterGoal(qc, "goal status updated"),
   });
 }
 
@@ -96,7 +97,7 @@ export function useUpdateGoal() {
       const { error } = await supabase.from("goals").update(updates as any).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
+    onSuccess: () => invalidateAfterGoal(qc, "goal updated"),
   });
 }
 
@@ -108,6 +109,6 @@ export function useDeleteGoal() {
       const { error } = await supabase.from("goals").delete().eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
+    onSuccess: () => invalidateAfterGoal(qc, "goal deleted"),
   });
 }

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
+import { invalidateAfterRecurring } from "@/lib/queryKeys";
 
 export interface RecurringRow {
   id: string;
@@ -65,7 +66,7 @@ export function useCreateRecurring() {
       if (error) throw error;
       return data.id;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["recurring_rules"] }),
+    onSuccess: () => invalidateAfterRecurring(qc, "recurring created"),
   });
 }
 
@@ -82,7 +83,7 @@ export function useUpdateRecurring() {
       }).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["recurring_rules"] }),
+    onSuccess: () => invalidateAfterRecurring(qc, "recurring updated"),
   });
 }
 
@@ -100,9 +101,6 @@ export function useDeleteRecurring() {
       const { error } = await supabase.from("recurring_rules").delete().eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["recurring_rules"] });
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-    },
+    onSuccess: () => invalidateAfterRecurring(qc, "recurring deleted"),
   });
 }

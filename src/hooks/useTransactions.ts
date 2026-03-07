@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 import { useRecurringSyncReady } from "@/contexts/RecurringSyncContext";
+import { invalidateAfterTransaction } from "@/lib/queryKeys";
 
 export interface TransactionRow {
   id: string;
@@ -76,10 +77,7 @@ export function useCreateTransaction() {
       if (error) throw error;
       return data.id;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-    },
+    onSuccess: () => invalidateAfterTransaction(qc, "transaction created"),
   });
 }
 
@@ -99,10 +97,7 @@ export function useUpdateTransaction() {
       }).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-    },
+    onSuccess: () => invalidateAfterTransaction(qc, "transaction updated"),
   });
 }
 
@@ -114,9 +109,6 @@ export function useDeleteTransaction() {
       const { error } = await supabase.from("transactions").delete().eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-    },
+    onSuccess: () => invalidateAfterTransaction(qc, "transaction deleted"),
   });
 }

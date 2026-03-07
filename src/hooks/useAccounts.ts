@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
+import { invalidateAfterAccount } from "@/lib/queryKeys";
 
 export interface AccountRow {
   id: string;
@@ -81,10 +82,7 @@ export function useCreateAccount() {
         .insert({ workspace_id: workspaceId, name, is_default, sort_order } as any);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
-    },
+    onSuccess: () => invalidateAfterAccount(qc, "account created"),
   });
 }
 
@@ -100,12 +98,7 @@ export function useUpdateAccount() {
         .eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["forecast"] });
-    },
+    onSuccess: () => invalidateAfterAccount(qc, "account updated"),
   });
 }
 
@@ -122,10 +115,7 @@ export function useReorderAccounts() {
       const err = results.find((r) => r.error);
       if (err?.error) throw err.error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
-    },
+    onSuccess: () => invalidateAfterAccount(qc, "account reordered"),
   });
 }
 
@@ -142,11 +132,7 @@ export function useArchiveAccount() {
         .eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["forecast"] });
-    },
+    onSuccess: () => invalidateAfterAccount(qc, "account archived"),
   });
 }
 
@@ -163,10 +149,7 @@ export function useRestoreAccount() {
         .eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
-    },
+    onSuccess: () => invalidateAfterAccount(qc, "account restored"),
   });
 }
 
@@ -194,9 +177,6 @@ export function useDeleteAccount() {
         .eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
-    },
+    onSuccess: () => invalidateAfterAccount(qc, "account deleted"),
   });
 }

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 import { logger } from "@/lib/logger";
+import { invalidateAfterTransfer } from "@/lib/queryKeys";
 
 export interface TransferRow {
   id: string;
@@ -154,11 +155,7 @@ export function useCreateTransfer() {
       logger.log("[TRANSFER] Success:", { transferId, outId: out.id, inId: ins.id });
       return { transferId, outId: out.id, inId: ins.id };
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-      qc.invalidateQueries({ queryKey: ["transfers"] });
-    },
+    onSuccess: () => invalidateAfterTransfer(qc, "transfer created"),
   });
 }
 
@@ -219,11 +216,7 @@ export function useUpdateTransfer() {
         .eq("workspace_id", workspaceId);
       if (e2) throw e2;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-      qc.invalidateQueries({ queryKey: ["transfers"] });
-    },
+    onSuccess: () => invalidateAfterTransfer(qc, "transfer updated"),
   });
 }
 
@@ -252,10 +245,6 @@ export function useDeleteTransfer() {
 
       logger.log("[TRANSFER] Deleted successfully:", transferId);
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-      qc.invalidateQueries({ queryKey: ["transfers"] });
-    },
+    onSuccess: () => invalidateAfterTransfer(qc, "transfer deleted"),
   });
 }
