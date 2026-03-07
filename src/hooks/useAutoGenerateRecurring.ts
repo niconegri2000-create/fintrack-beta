@@ -18,32 +18,47 @@ function logSync(msg: string, ...args: unknown[]) {
 export function useAutoGenerateRecurring() {
   const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
-  const ran = useRef(false);
+  const ranForWorkspace = useRef<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (ran.current) return;
-    ran.current = true;
+    // Skip if no workspaceId or already ran for this workspace
+    if (!workspaceId) return;
+    if (ranForWorkspace.current === workspaceId) return;
+    ranForWorkspace.current = workspaceId;
+
+    // Reset ready when workspace changes
+    setReady(false);
 
     (async () => {
       try {
-        logSync("checking due recurring transactions");
+        logSync("starting materialization for workspace", workspaceId);
 
         const { data: rules, error: rErr } = await supabase
           .from("recurring_rules")
           .select("id, name, type, amount, category_id, is_fixed, day_of_month, start_date, interval_months, end_date, account_id, category:categories(id, name, is_active)")
           .eq("workspace_id", workspaceId)
           .eq("is_active", true);
-        if (rErr || !rules || rules.length === 0) {
+
+        if (rErr) {
+          logger.error("[RECURRING_SYNC] error fetching rules:", rErr);
+          setReady(true);
+          return;
+        }
+
+        if (!rules || rules.length === 0) {
           logSync("no active rules found, marking ready");
           setReady(true);
           return;
         }
 
+        logSync("found active recurring rules:", rules.length);
+
         const eligible = rules.filter((r: any) => {
           if (r.category_id && r.category && r.category.is_active === false) return false;
           return true;
         });
+
         if (eligible.length === 0) {
           logSync("no eligible rules after filtering, marking ready");
           setReady(true);
@@ -72,8 +87,9 @@ export function useAutoGenerateRecurring() {
           .eq("workspace_id", workspaceId)
           .eq("source", "recurring_generated")
           .in("recurring_rule_id", ruleIds);
+
         if (eErr) {
-          logSync("error fetching existing transactions, marking ready anyway");
+          logger.error("[RECURRING_SYNC] error fetching existing transactions:", eErr);
           setReady(true);
           return;
         }
@@ -81,6 +97,8 @@ export function useAutoGenerateRecurring() {
         const existingSet = new Set(
           (existing || []).map((t: any) => `${t.recurring_rule_id}_${t.date}`)
         );
+
+        logSync("existing materialized transactions:", existingSet.size);
 
         // Pre-fetch recurring tags for all eligible rules
         const { data: allRecurringTags } = await supabase
@@ -121,32 +139,53 @@ export function useAutoGenerateRecurring() {
                   allInserts.push({
                     workspace_id: workspaceId, date: occDate, description: rule.name,
                     amount: rule.amount, type: rule.type, category_id: rule.category_id,
-                    is_fixed: rule.is_fixed, source: "recurring_generated",
+                    is_fixed: rule.is_fixed ?? true, source: "recurring_generated",
                     recurring_rule_id: rule.id, account_id: rule.account_id,
                   });
-                  logSync(`created occurrence for recurring_rule_id=${rule.id} date=${occDate}`);
+                  logSync(`will insert occurrence for rule="${rule.name}" recurring_rule_id=${rule.id} date=${occDate}`);
                 } else {
-                  logSync(`skipped existing occurrence for recurring_rule_id=${rule.id} date=${occDate}`);
+                  logSync(`skipped existing occurrence for rule="${rule.name}" recurring_rule_id=${rule.id} date=${occDate}`);
                 }
+              } else {
+                logSync(`skipped occurrence before start_date: rule="${rule.name}" occDate=${occDate} start_date=${rule.start_date}`);
               }
             }
             current.setMonth(current.getMonth() + 1);
           }
         }
 
+        logSync("due occurrences found:", allInserts.length);
+
         if (allInserts.length > 0) {
           logSync(`inserting ${allInserts.length} materialized transactions`);
-          const { data: insertedRows, error: iErr } = await supabase
-            .from("transactions")
-            .upsert(allInserts, { onConflict: "workspace_id,recurring_rule_id,date", ignoreDuplicates: true })
-            .select("id, recurring_rule_id");
-          
-          if (iErr) {
-            logger.error("[RECURRING_SYNC] Auto-generate recurring error:", iErr);
-          } else {
-            // Propagate tags from recurring rules to generated transactions
+
+          // Use plain insert with individual error handling instead of upsert
+          // because the partial unique index may not work with upsert's onConflict
+          const insertResults: any[] = [];
+          for (const ins of allInserts) {
+            const { data: row, error: iErr } = await supabase
+              .from("transactions")
+              .insert(ins)
+              .select("id, recurring_rule_id")
+              .single();
+
+            if (iErr) {
+              // 23505 = unique_violation — already exists, skip silently
+              if (iErr.code === "23505") {
+                logSync(`duplicate skipped for recurring_rule_id=${ins.recurring_rule_id} date=${ins.date}`);
+              } else {
+                logger.error("[RECURRING_MATERIALIZE_ERROR]", iErr, ins);
+              }
+            } else if (row) {
+              logSync(`inserted successfully: id=${row.id} recurring_rule_id=${row.recurring_rule_id} date=${ins.date}`);
+              insertResults.push(row);
+            }
+          }
+
+          // Propagate tags from recurring rules to generated transactions
+          if (insertResults.length > 0) {
             const tagInserts: Array<{ transaction_id: string; tag_id: string }> = [];
-            for (const row of (insertedRows || []) as any[]) {
+            for (const row of insertResults) {
               const tags = recurringTagMap.get(row.recurring_rule_id);
               if (tags) {
                 for (const tagId of tags) {
@@ -158,18 +197,21 @@ export function useAutoGenerateRecurring() {
               await supabase.from("transaction_tags").upsert(tagInserts, { onConflict: "transaction_id,tag_id", ignoreDuplicates: true });
             }
 
-            logSync(`done, invalidating queries`);
+            logSync(`done, ${insertResults.length} new transactions created, invalidating queries`);
             qc.invalidateQueries({ queryKey: ["transactions"] });
             qc.invalidateQueries({ queryKey: ["dashboard"] });
             qc.invalidateQueries({ queryKey: ["forecast"] });
+          } else {
+            logSync("all occurrences were duplicates, no new inserts");
           }
         } else {
           logSync("no new transactions to materialize");
         }
       } catch (err) {
-        logger.error("[RECURRING_SYNC] Auto-generate recurring error:", err);
+        logger.error("[RECURRING_MATERIALIZE_ERROR] unexpected:", err);
       } finally {
         setReady(true);
+        logSync("materialization complete, ready=true");
       }
     })();
   }, [workspaceId, qc]);
