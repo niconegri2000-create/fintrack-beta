@@ -77,10 +77,7 @@ export function useCreateTransaction() {
       if (error) throw error;
       return data.id;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-    },
+    onSuccess: () => invalidateAfterTransaction(qc, "transaction created"),
   });
 }
 
