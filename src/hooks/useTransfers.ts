@@ -216,11 +216,7 @@ export function useUpdateTransfer() {
         .eq("workspace_id", workspaceId);
       if (e2) throw e2;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-      qc.invalidateQueries({ queryKey: ["transfers"] });
-    },
+    onSuccess: () => invalidateAfterTransfer(qc, "transfer updated"),
   });
 }
 
