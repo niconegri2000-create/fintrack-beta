@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
+import { invalidateAfterAccount } from "@/lib/queryKeys";
 
 export interface AccountRow {
   id: string;
