@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
+import { useRecurringSyncReady } from "@/contexts/RecurringSyncContext";
 
 export interface DashboardData {
   income: number;
@@ -18,8 +19,11 @@ export interface DashboardData {
  */
 export function useDashboardData(startDate: string, endDate: string, accountId: string | null = null) {
   const workspaceId = useWorkspaceId();
+  const syncReady = useRecurringSyncReady();
+
   return useQuery({
     queryKey: ["dashboard", startDate, endDate, accountId, workspaceId],
+    enabled: syncReady,
     queryFn: async (): Promise<DashboardData> => {
       let q = supabase
         .from("transactions")
