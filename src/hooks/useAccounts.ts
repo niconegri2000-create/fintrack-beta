@@ -82,10 +82,7 @@ export function useCreateAccount() {
         .insert({ workspace_id: workspaceId, name, is_default, sort_order } as any);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
-    },
+    onSuccess: () => invalidateAfterAccount(qc, "account created"),
   });
 }
 
