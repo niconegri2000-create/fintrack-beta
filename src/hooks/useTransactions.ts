@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
+import { useRecurringSyncReady } from "@/contexts/RecurringSyncContext";
 
 export interface TransactionRow {
   id: string;
@@ -34,8 +35,10 @@ export interface NewTransaction {
  */
 export function useTransactions(from: string, to: string, accountId: string | null = null) {
   const workspaceId = useWorkspaceId();
+  const syncReady = useRecurringSyncReady();
   return useQuery({
     queryKey: ["transactions", from, to, accountId, workspaceId],
+    enabled: syncReady,
     queryFn: async () => {
       let q = supabase
         .from("transactions")

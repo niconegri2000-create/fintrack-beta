@@ -4,24 +4,27 @@ import { Outlet } from "react-router-dom";
 import { useAutoGenerateRecurring } from "@/hooks/useAutoGenerateRecurring";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { CurrentDateBadge } from "@/components/CurrentDateBadge";
+import { RecurringSyncContext } from "@/contexts/RecurringSyncContext";
 
 export function AppLayout() {
-  useAutoGenerateRecurring();
+  const { ready } = useAutoGenerateRecurring();
   useRealtimeSync();
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-        <div className="flex-1 min-w-0 flex flex-col">
-          <header className="h-14 flex items-center justify-between border-b px-4 bg-card">
-            <SidebarTrigger />
-            <CurrentDateBadge />
-          </header>
-          <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-            <Outlet />
-          </main>
+    <RecurringSyncContext.Provider value={ready}>
+      <SidebarProvider>
+        <div className="min-h-screen flex w-full">
+          <AppSidebar />
+          <div className="flex-1 min-w-0 flex flex-col">
+            <header className="h-14 flex items-center justify-between border-b px-4 bg-card">
+              <SidebarTrigger />
+              <CurrentDateBadge />
+            </header>
+            <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+              <Outlet />
+            </main>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </RecurringSyncContext.Provider>
   );
 }
