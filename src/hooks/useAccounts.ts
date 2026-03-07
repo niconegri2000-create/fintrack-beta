@@ -98,12 +98,7 @@ export function useUpdateAccount() {
         .eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["workspace", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["forecast"] });
-    },
+    onSuccess: () => invalidateAfterAccount(qc, "account updated"),
   });
 }
 
