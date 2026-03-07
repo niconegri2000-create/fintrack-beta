@@ -73,7 +73,7 @@ export function useCreateGoal() {
       } as any);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
+    onSuccess: () => invalidateAfterGoal(qc, "goal created"),
   });
 }
 
