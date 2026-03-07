@@ -149,10 +149,7 @@ export function useRestoreAccount() {
         .eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["accounts", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["accounts-all", workspaceId] });
-    },
+    onSuccess: () => invalidateAfterAccount(qc, "account restored"),
   });
 }
 
