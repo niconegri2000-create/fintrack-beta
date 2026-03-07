@@ -97,10 +97,7 @@ export function useUpdateTransaction() {
       }).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-    },
+    onSuccess: () => invalidateAfterTransaction(qc, "transaction updated"),
   });
 }
 
