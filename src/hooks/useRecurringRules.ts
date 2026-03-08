@@ -42,7 +42,7 @@ export function useRecurringRules(accountId: string | null = null) {
     queryFn: async () => {
       let q = supabase
         .from("recurring_rules")
-        .select("id, name, type, amount, day_of_month, is_fixed, is_active, category_id, interval_months, end_date, account_id, category:categories(id, name)")
+        .select("id, name, type, amount, day_of_month, is_fixed, is_active, category_id, interval_months, end_date, account_id, start_date, category:categories(id, name)")
         .eq("workspace_id", workspaceId)
         .order("name");
       if (accountId) q = q.eq("account_id", accountId);
