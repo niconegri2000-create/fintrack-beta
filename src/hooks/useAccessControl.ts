@@ -63,12 +63,7 @@ export function useAccessControl(user: User | null) {
   const recheck = () => {
     if (user) {
       setStatus("loading");
-      // trigger re-check
       const check = async () => {
-        if (ADMIN_EMAILS.includes(user.email ?? "")) {
-          setStatus("granted");
-          return;
-        }
         const { data: sub } = await supabase
           .from("subscriptions")
           .select("is_active")
