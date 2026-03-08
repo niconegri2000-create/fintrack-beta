@@ -45,7 +45,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
   const [amount, setAmount] = useState(String(rule.amount));
   const [accountId, setAccountId] = useState(rule.account_id || "");
   const [categoryId, setCategoryId] = useState(rule.category?.id || "");
-  const [dayOfMonth, setDayOfMonth] = useState(String(rule.day_of_month || 1));
+  const [startDate, setStartDate] = useState<Date>(new Date(rule.start_date));
   const [intervalMonths, setIntervalMonths] = useState(String(rule.interval_months));
   const [isActive, setIsActive] = useState(rule.is_active);
   const [endDate, setEndDate] = useState<Date | undefined>(rule.end_date ? new Date(rule.end_date) : undefined);
@@ -63,7 +63,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
       setAmount(String(rule.amount));
       setAccountId(rule.account_id || "");
       setCategoryId(rule.category?.id || "");
-      setDayOfMonth(String(rule.day_of_month || 1));
+      setStartDate(new Date(rule.start_date));
       setIntervalMonths(String(rule.interval_months));
       setIsActive(rule.is_active);
       setEndDate(rule.end_date ? new Date(rule.end_date) : undefined);
@@ -80,8 +80,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
     if (!name.trim()) { toast.error("Inserisci un nome"); return; }
     const num = parseFloat(amount);
     if (!num || num <= 0) { toast.error("Importo deve essere maggiore di 0"); return; }
-    const day = parseInt(dayOfMonth);
-    if (isNaN(day) || day < 1 || day > 31) { toast.error("Giorno non valido (1–31)"); return; }
+    const day = startDate.getDate();
     if (!accountId) { toast.error("Seleziona un conto"); return; }
 
     update.mutate(
@@ -89,6 +88,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
         id: rule.id,
         name: capitalizeFirst(name), type, amount: num,
         category_id: categoryId || null, day_of_month: day,
+        start_date: format(startDate, "yyyy-MM-dd"),
         interval_months: parseInt(intervalMonths) || 1,
         end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
         is_active: isActive, is_fixed: true, account_id: accountId,
@@ -165,10 +165,19 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Giorno del mese</Label>
-            <Input type="number" min="1" max="31" value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} />
+            <Label>Data inizio</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(startDate, "dd/MM/yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} initialFocus className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
           </div>
-
           <div className="space-y-1.5">
             <Label>Data fine (opzionale)</Label>
             <Popover>

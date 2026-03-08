@@ -18,6 +18,7 @@ export interface RecurringRow {
   interval_months: number;
   end_date: string | null;
   account_id: string;
+  start_date: string;
 }
 
 export interface NewRecurring {
@@ -41,7 +42,7 @@ export function useRecurringRules(accountId: string | null = null) {
     queryFn: async () => {
       let q = supabase
         .from("recurring_rules")
-        .select("id, name, type, amount, day_of_month, is_fixed, is_active, category_id, interval_months, end_date, account_id, category:categories(id, name)")
+        .select("id, name, type, amount, day_of_month, is_fixed, is_active, category_id, interval_months, end_date, account_id, start_date, category:categories(id, name)")
         .eq("workspace_id", workspaceId)
         .order("name");
       if (accountId) q = q.eq("account_id", accountId);
@@ -95,10 +96,11 @@ export function useUpdateRecurring() {
   const workspaceId = useWorkspaceId();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...r }: { id: string; name: string; type: string; amount: number; category_id: string | null; day_of_month: number; interval_months: number; end_date: string | null; is_active: boolean; is_fixed: boolean; account_id: string }) => {
+    mutationFn: async ({ id, ...r }: { id: string; name: string; type: string; amount: number; category_id: string | null; day_of_month: number; start_date: string; interval_months: number; end_date: string | null; is_active: boolean; is_fixed: boolean; account_id: string }) => {
       const { error } = await supabase.from("recurring_rules").update({
         name: r.name, type: r.type, amount: r.amount,
         category_id: r.category_id || null, day_of_month: r.day_of_month,
+        start_date: r.start_date,
         interval_months: r.interval_months, end_date: r.end_date || null,
         is_active: r.is_active, is_fixed: r.is_fixed, account_id: r.account_id,
       }).eq("id", id).eq("workspace_id", workspaceId);
@@ -106,28 +108,20 @@ export function useUpdateRecurring() {
 
       // Re-materialize after update if active
       if (r.is_active) {
-        if (import.meta.env.DEV) logger.info("[RECURRING_DEBUG] re-materializing updated rule:", id);
-        // Need start_date from existing data - fetch it
-        const { data: rule } = await supabase
-          .from("recurring_rules")
-          .select("start_date")
-          .eq("id", id)
-          .single();
-        if (rule) {
-          await materializeRecurringRules(workspaceId, [{
-            id,
-            name: r.name,
-            type: r.type,
-            amount: r.amount,
-            category_id: r.category_id,
-            is_fixed: r.is_fixed,
-            day_of_month: r.day_of_month,
-            start_date: rule.start_date,
-            interval_months: r.interval_months,
-            end_date: r.end_date,
-            account_id: r.account_id,
-          }]);
-        }
+        if (import.meta.env.DEV) logger.info("[RECURRING_DEBUG] update recurring -> materializing updated rule:", id);
+        await materializeRecurringRules(workspaceId, [{
+          id,
+          name: r.name,
+          type: r.type,
+          amount: r.amount,
+          category_id: r.category_id,
+          is_fixed: r.is_fixed,
+          day_of_month: r.day_of_month,
+          start_date: r.start_date,
+          interval_months: r.interval_months,
+          end_date: r.end_date,
+          account_id: r.account_id,
+        }]);
       }
     },
     onSuccess: () => invalidateAfterRecurring(qc, "recurring updated"),

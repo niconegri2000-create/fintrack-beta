@@ -1,0 +1,1 @@
+UPDATE public.recurring_rules SET day_of_month = EXTRACT(DAY FROM start_date)::integer WHERE day_of_month IS DISTINCT FROM EXTRACT(DAY FROM start_date)::integer;

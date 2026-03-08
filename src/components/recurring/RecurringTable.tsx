@@ -55,7 +55,7 @@ export function RecurringTable({ data, isLoading }: Props) {
               <TableHead className="text-right w-[110px]">Importo</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead>Tag</TableHead>
-              <TableHead className="w-[80px] text-center">Giorno</TableHead>
+              <TableHead className="w-[100px] text-center">Data inizio</TableHead>
               <TableHead className="w-[120px]">Frequenza</TableHead>
               <TableHead className="w-[100px]">Fine</TableHead>
               <TableHead className="w-[80px] text-center">Attiva</TableHead>
@@ -91,7 +91,9 @@ export function RecurringTable({ data, isLoading }: Props) {
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-center ft-number">{r.day_of_month ?? "—"}</TableCell>
+                  <TableCell className="text-center text-sm text-muted-foreground">
+                    {r.start_date ? new Date(r.start_date).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"}
+                  </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {(r.interval_months ?? 1) === 1 ? "Mensile" : `Ogni ${r.interval_months} mesi`}
                   </TableCell>

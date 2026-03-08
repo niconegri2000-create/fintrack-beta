@@ -41,7 +41,7 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
   const [amount, setAmount] = useState("");
   const [accountId, setAccountId] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [dayOfMonth, setDayOfMonth] = useState("1");
+  
   const [intervalMonths, setIntervalMonths] = useState("1");
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [isActive, setIsActive] = useState(true);
@@ -62,7 +62,7 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
   const reset = () => {
     setName(""); setType("expense"); setAmount("");
     setAccountId(resolvedDefault); setCategoryId("");
-    setDayOfMonth("1"); setIntervalMonths("1");
+    setIntervalMonths("1");
     setStartDate(new Date()); setIsActive(true);
     setEndDate(undefined); setTagIds([]);
   };
@@ -71,8 +71,7 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
     if (!name.trim()) { toast.error("Inserisci un nome"); return; }
     const num = parseFloat(amount);
     if (!num || num <= 0) { toast.error("Importo deve essere maggiore di 0"); return; }
-    const day = parseInt(dayOfMonth);
-    if (isNaN(day) || day < 1 || day > 31) { toast.error("Giorno del mese non valido (1–31)"); return; }
+    const day = startDate.getDate();
     if (endDate && endDate < startDate) { toast.error("La data fine deve essere uguale o successiva alla data inizio"); return; }
     if (!accountId) { toast.error("Seleziona un conto"); return; }
 
@@ -168,11 +167,6 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
                 <SelectItem value="12">Ogni 12 mesi</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Giorno del mese</Label>
-            <Input type="number" min="1" max="31" value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} />
           </div>
 
           <div className="space-y-1.5">
