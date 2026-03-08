@@ -28,7 +28,7 @@ export function useAccessControl(user: User | null) {
         return;
       }
 
-      // 3. Check tester access (used invite)
+      // 2. Check tester access (used invite)
       const { data: invite } = await supabase
         .from("invites")
         .select("id")
