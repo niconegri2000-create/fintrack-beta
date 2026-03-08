@@ -149,12 +149,28 @@ export function useDeleteRecurring() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error: unlinkError } = await supabase
+      // Delete all auto-generated transactions for this rule
+      if (import.meta.env.DEV) logger.info("[RECURRING_DELETE] deleting generated transactions for recurring_rule_id=", id);
+      const { data: deleted, error: delErr } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("recurring_rule_id", id)
+        .eq("workspace_id", workspaceId)
+        .eq("source", "recurring_generated")
+        .select("id");
+      if (delErr) {
+        logger.error("[RECURRING_DELETE_ERROR] failed to delete generated transactions:", delErr);
+      } else if (import.meta.env.DEV) {
+        logger.info("[RECURRING_DELETE] deleted generated transactions count=", deleted?.length ?? 0);
+      }
+
+      // Unlink any manually-created transactions that reference this rule
+      await supabase
         .from("transactions")
         .update({ recurring_rule_id: null })
         .eq("recurring_rule_id", id)
         .eq("workspace_id", workspaceId);
-      if (unlinkError) throw unlinkError;
+
       const { error } = await supabase.from("recurring_rules").delete().eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
