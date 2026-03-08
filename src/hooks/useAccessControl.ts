@@ -16,13 +16,7 @@ export function useAccessControl(user: User | null) {
     }
 
     const check = async () => {
-      // 1. Admin bypass
-      if (ADMIN_EMAILS.includes(user.email ?? "")) {
-        setStatus("granted");
-        return;
-      }
-
-      // 2. Check active subscription
+      // 1. Check active subscription
       const { data: sub } = await supabase
         .from("subscriptions")
         .select("is_active")
