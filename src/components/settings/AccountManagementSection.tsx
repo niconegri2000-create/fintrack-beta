@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Save, Check, Pencil, ChevronUp, ChevronDown, Archive, RotateCcw, Plus, Trash2 } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
 import { useAccountContext } from "@/contexts/AccountContext";
+import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 import {
   useUpdateAccount,
   useCreateAccount,
