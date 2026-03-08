@@ -62,7 +62,7 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
   const reset = () => {
     setName(""); setType("expense"); setAmount("");
     setAccountId(resolvedDefault); setCategoryId("");
-    setDayOfMonth("1"); setIntervalMonths("1");
+    setIntervalMonths("1");
     setStartDate(new Date()); setIsActive(true);
     setEndDate(undefined); setTagIds([]);
   };
