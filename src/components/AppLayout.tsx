@@ -1,16 +1,14 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet } from "react-router-dom";
-import { useAutoGenerateRecurring } from "@/hooks/useAutoGenerateRecurring";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { CurrentDateBadge } from "@/components/CurrentDateBadge";
 import { RecurringSyncContext } from "@/contexts/RecurringSyncContext";
 
 export function AppLayout() {
-  const { ready } = useAutoGenerateRecurring();
   useRealtimeSync();
   return (
-    <RecurringSyncContext.Provider value={ready}>
+    <RecurringSyncContext.Provider value={true}>
       <SidebarProvider>
         <div className="min-h-screen flex w-full">
           <AppSidebar />
