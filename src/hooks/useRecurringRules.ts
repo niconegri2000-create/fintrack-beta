@@ -108,28 +108,20 @@ export function useUpdateRecurring() {
 
       // Re-materialize after update if active
       if (r.is_active) {
-        if (import.meta.env.DEV) logger.info("[RECURRING_DEBUG] re-materializing updated rule:", id);
-        // Need start_date from existing data - fetch it
-        const { data: rule } = await supabase
-          .from("recurring_rules")
-          .select("start_date")
-          .eq("id", id)
-          .single();
-        if (rule) {
-          await materializeRecurringRules(workspaceId, [{
-            id,
-            name: r.name,
-            type: r.type,
-            amount: r.amount,
-            category_id: r.category_id,
-            is_fixed: r.is_fixed,
-            day_of_month: r.day_of_month,
-            start_date: rule.start_date,
-            interval_months: r.interval_months,
-            end_date: r.end_date,
-            account_id: r.account_id,
-          }]);
-        }
+        if (import.meta.env.DEV) logger.info("[RECURRING_DEBUG] update recurring -> materializing updated rule:", id);
+        await materializeRecurringRules(workspaceId, [{
+          id,
+          name: r.name,
+          type: r.type,
+          amount: r.amount,
+          category_id: r.category_id,
+          is_fixed: r.is_fixed,
+          day_of_month: r.day_of_month,
+          start_date: r.start_date,
+          interval_months: r.interval_months,
+          end_date: r.end_date,
+          account_id: r.account_id,
+        }]);
       }
     },
     onSuccess: () => invalidateAfterRecurring(qc, "recurring updated"),
