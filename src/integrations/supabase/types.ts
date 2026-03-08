@@ -22,6 +22,7 @@ export type Database = {
           expires_at: string | null
           id: string
           is_used: boolean
+          last_used_at: string | null
           used_by: string | null
         }
         Insert: {
@@ -31,6 +32,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_used?: boolean
+          last_used_at?: string | null
           used_by?: string | null
         }
         Update: {
@@ -40,6 +42,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_used?: boolean
+          last_used_at?: string | null
           used_by?: string | null
         }
         Relationships: []
@@ -1042,6 +1045,7 @@ export type Database = {
       }
       ensure_user_bootstrap: { Args: { p_user_id: string }; Returns: string }
       get_user_workspace_id: { Args: never; Returns: string }
+      is_admin_user: { Args: never; Returns: boolean }
       redeem_access_code: { Args: { p_code: string }; Returns: undefined }
     }
     Enums: {
