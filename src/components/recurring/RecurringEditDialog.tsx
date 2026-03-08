@@ -45,7 +45,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
   const [amount, setAmount] = useState(String(rule.amount));
   const [accountId, setAccountId] = useState(rule.account_id || "");
   const [categoryId, setCategoryId] = useState(rule.category?.id || "");
-  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [startDate, setStartDate] = useState<Date>(new Date(rule.start_date));
   const [intervalMonths, setIntervalMonths] = useState(String(rule.interval_months));
   const [isActive, setIsActive] = useState(rule.is_active);
   const [endDate, setEndDate] = useState<Date | undefined>(rule.end_date ? new Date(rule.end_date) : undefined);
