@@ -168,7 +168,7 @@ export function useDeleteAccount() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const hasData = await checkAccountHasLinkedData(id);
+      const hasData = await checkAccountHasLinkedData(id, workspaceId);
       if (hasData) throw new Error("HAS_LINKED_DATA");
       const { error } = await supabase
         .from("accounts")
