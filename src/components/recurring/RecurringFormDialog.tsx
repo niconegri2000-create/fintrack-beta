@@ -170,11 +170,6 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
           </div>
 
           <div className="space-y-1.5">
-            <Label>Giorno del mese</Label>
-            <Input type="number" min="1" max="31" value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} />
-          </div>
-
-          <div className="space-y-1.5">
             <Label>Data inizio</Label>
             <Popover>
               <PopoverTrigger asChild>
