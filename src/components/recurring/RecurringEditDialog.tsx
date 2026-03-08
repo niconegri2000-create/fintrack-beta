@@ -179,6 +179,8 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
               </PopoverContent>
             </Popover>
           </div>
+          <div className="space-y-1.5">
+            <Label>Data fine (opzionale)</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
