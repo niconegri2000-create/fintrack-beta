@@ -71,8 +71,7 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
     if (!name.trim()) { toast.error("Inserisci un nome"); return; }
     const num = parseFloat(amount);
     if (!num || num <= 0) { toast.error("Importo deve essere maggiore di 0"); return; }
-    const day = parseInt(dayOfMonth);
-    if (isNaN(day) || day < 1 || day > 31) { toast.error("Giorno del mese non valido (1–31)"); return; }
+    const day = startDate.getDate();
     if (endDate && endDate < startDate) { toast.error("La data fine deve essere uguale o successiva alla data inizio"); return; }
     if (!accountId) { toast.error("Seleziona un conto"); return; }
 
