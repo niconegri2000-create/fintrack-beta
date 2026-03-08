@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
-const ADMIN_EMAILS = ["niconegri.2000@gmail.com"];
+// Admin check removed — access is controlled server-side via subscriptions, invites, and access codes only.
 
 type AccessStatus = "loading" | "granted" | "needs_subscription";
 
@@ -16,13 +16,7 @@ export function useAccessControl(user: User | null) {
     }
 
     const check = async () => {
-      // 1. Admin bypass
-      if (ADMIN_EMAILS.includes(user.email ?? "")) {
-        setStatus("granted");
-        return;
-      }
-
-      // 2. Check active subscription
+      // 1. Check active subscription
       const { data: sub } = await supabase
         .from("subscriptions")
         .select("is_active")
@@ -34,7 +28,7 @@ export function useAccessControl(user: User | null) {
         return;
       }
 
-      // 3. Check tester access (used invite)
+      // 2. Check tester access (used invite)
       const { data: invite } = await supabase
         .from("invites")
         .select("id")
@@ -47,7 +41,7 @@ export function useAccessControl(user: User | null) {
         return;
       }
 
-      // 4. Check access_codes (redeemed)
+      // 3. Check access_codes (redeemed)
       const { data: accessCode } = await supabase
         .from("access_codes")
         .select("id")
@@ -69,12 +63,7 @@ export function useAccessControl(user: User | null) {
   const recheck = () => {
     if (user) {
       setStatus("loading");
-      // trigger re-check
       const check = async () => {
-        if (ADMIN_EMAILS.includes(user.email ?? "")) {
-          setStatus("granted");
-          return;
-        }
         const { data: sub } = await supabase
           .from("subscriptions")
           .select("is_active")

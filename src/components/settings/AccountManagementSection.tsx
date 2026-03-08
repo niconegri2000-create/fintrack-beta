@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Save, Check, Pencil, ChevronUp, ChevronDown, Archive, RotateCcw, Plus, Trash2 } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
 import { useAccountContext } from "@/contexts/AccountContext";
+import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 import {
   useUpdateAccount,
   useCreateAccount,
@@ -359,6 +360,7 @@ function AccountDetailRow({
 /* --- Archived accounts section --- */
 
 function ArchivedAccountsSection({ accounts }: { accounts: AccountRow[] }) {
+  const workspaceId = useWorkspaceId();
   const restoreMutation = useRestoreAccount();
   const deleteMutation = useDeleteAccount();
   const [open, setOpen] = useState(false);
@@ -370,7 +372,7 @@ function ArchivedAccountsSection({ accounts }: { accounts: AccountRow[] }) {
     if (!open) return;
     accounts.forEach((a) => {
       if (linkedDataMap[a.id] !== undefined) return;
-      checkAccountHasLinkedData(a.id).then((has) =>
+      checkAccountHasLinkedData(a.id, workspaceId).then((has) =>
         setLinkedDataMap((prev) => ({ ...prev, [a.id]: has }))
       );
     });

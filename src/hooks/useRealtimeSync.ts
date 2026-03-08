@@ -71,7 +71,7 @@ export function useRealtimeSync() {
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "categories" },
+        { event: "*", schema: "public", table: "categories", filter: `workspace_id=eq.${workspaceId}` },
         (payload) => logAndInvalidate("categories", payload, [
           ["categories"], ["category_budgets"], ["categories_names"],
         ])

@@ -153,11 +153,11 @@ export function useRestoreAccount() {
   });
 }
 
-/** Check if an account has linked transactions or recurring rules */
-export async function checkAccountHasLinkedData(accountId: string): Promise<boolean> {
+/** Check if an account has linked transactions or recurring rules (workspace-scoped via RLS) */
+export async function checkAccountHasLinkedData(accountId: string, workspaceId: string): Promise<boolean> {
   const [txRes, rrRes] = await Promise.all([
-    supabase.from("transactions").select("id", { count: "exact", head: true }).eq("account_id", accountId),
-    supabase.from("recurring_rules").select("id", { count: "exact", head: true }).eq("account_id", accountId),
+    supabase.from("transactions").select("id", { count: "exact", head: true }).eq("account_id", accountId).eq("workspace_id", workspaceId),
+    supabase.from("recurring_rules").select("id", { count: "exact", head: true }).eq("account_id", accountId).eq("workspace_id", workspaceId),
   ]);
   return ((txRes.count ?? 0) + (rrRes.count ?? 0)) > 0;
 }
@@ -168,7 +168,7 @@ export function useDeleteAccount() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const hasData = await checkAccountHasLinkedData(id);
+      const hasData = await checkAccountHasLinkedData(id, workspaceId);
       if (hasData) throw new Error("HAS_LINKED_DATA");
       const { error } = await supabase
         .from("accounts")
