@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
-const ADMIN_EMAILS = ["niconegri.2000@gmail.com"];
+// Admin check removed — access is controlled server-side via subscriptions, invites, and access codes only.
 
 type AccessStatus = "loading" | "granted" | "needs_subscription";
 
