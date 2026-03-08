@@ -41,7 +41,7 @@ export function useAccessControl(user: User | null) {
         return;
       }
 
-      // 4. Check access_codes (redeemed)
+      // 3. Check access_codes (redeemed)
       const { data: accessCode } = await supabase
         .from("access_codes")
         .select("id")
