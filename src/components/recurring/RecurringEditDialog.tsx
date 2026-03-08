@@ -81,8 +81,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
     if (!name.trim()) { toast.error("Inserisci un nome"); return; }
     const num = parseFloat(amount);
     if (!num || num <= 0) { toast.error("Importo deve essere maggiore di 0"); return; }
-    const day = parseInt(dayOfMonth);
-    if (isNaN(day) || day < 1 || day > 31) { toast.error("Giorno non valido (1–31)"); return; }
+    const day = startDate.getDate();
     if (!accountId) { toast.error("Seleziona un conto"); return; }
 
     update.mutate(
@@ -90,6 +89,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
         id: rule.id,
         name: capitalizeFirst(name), type, amount: num,
         category_id: categoryId || null, day_of_month: day,
+        start_date: format(startDate, "yyyy-MM-dd"),
         interval_months: parseInt(intervalMonths) || 1,
         end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
         is_active: isActive, is_fixed: true, account_id: accountId,
