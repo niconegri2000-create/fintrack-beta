@@ -45,6 +45,9 @@ export default function Account() {
         <TabsContent value="security"><SecurityTab signOut={signOut} /></TabsContent>
         <TabsContent value="subscription"><SubscriptionTab userId={user?.id} /></TabsContent>
       </Tabs>
+      {user?.email?.toLowerCase() === ADMIN_EMAIL && (
+        <TesterManagement />
+      )}
     </div>
   );
 }
