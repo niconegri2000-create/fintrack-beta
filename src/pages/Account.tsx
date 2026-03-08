@@ -13,6 +13,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
+import { TesterManagement } from "@/components/account/TesterManagement";
+
+const ADMIN_EMAIL = "niconegri.2000@gmail.com";
 
 export default function Account() {
   const { user, signOut } = useAuth();
