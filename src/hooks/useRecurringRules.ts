@@ -108,17 +108,37 @@ export function useUpdateRecurring() {
 
       // CLEANUP: remove all auto-generated transactions for this rule before re-materializing
       if (import.meta.env.DEV) logger.info("[RECURRING_UPDATE] before update cleanup recurring_rule_id=", id);
-      const { data: stale, error: delErr } = await supabase
+
+      // Find generated transaction IDs first
+      const { data: staleRows } = await supabase
         .from("transactions")
-        .delete()
+        .select("id")
         .eq("recurring_rule_id", id)
         .eq("workspace_id", workspaceId)
-        .eq("source", "recurring_generated")
-        .select("id");
-      if (delErr) {
-        logger.error("[RECURRING_UPDATE_ERROR] failed to cleanup stale transactions:", delErr);
+        .eq("source", "recurring_generated");
+
+      const staleIds = (staleRows || []).map((t: any) => t.id);
+
+      if (staleIds.length > 0) {
+        // Delete associated tags first
+        await supabase
+          .from("transaction_tags")
+          .delete()
+          .in("transaction_id", staleIds);
+
+        // Then delete the transactions
+        const { error: delErr } = await supabase
+          .from("transactions")
+          .delete()
+          .in("id", staleIds);
+
+        if (delErr) {
+          logger.error("[RECURRING_UPDATE_ERROR] failed to cleanup stale transactions:", delErr);
+        } else if (import.meta.env.DEV) {
+          logger.info("[RECURRING_UPDATE] removing stale materialized transactions count=", staleIds.length);
+        }
       } else if (import.meta.env.DEV) {
-        logger.info("[RECURRING_UPDATE] removing stale materialized transactions count=", stale?.length ?? 0);
+        logger.info("[RECURRING_UPDATE] no stale transactions to clean up");
       }
 
       // Re-materialize after update if active
