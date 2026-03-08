@@ -214,9 +214,9 @@ export function TransactionFormDialog({ trigger }: { trigger?: React.ReactNode }
 
           {/* Description */}
           <div className="space-y-1.5">
-            <Label>Descrizione</Label>
+            <Label>Nome</Label>
             <Input
-              placeholder="Descrizione"
+              placeholder="Nome"
               maxLength={200}
               value={description}
               onChange={(e) => setDescription(e.target.value)}

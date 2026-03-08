@@ -73,7 +73,7 @@ export function TransactionsTable({ data, isLoading }: Props) {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[100px]">Data</TableHead>
-              <TableHead>Descrizione</TableHead>
+              <TableHead>Nome</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead>Tag</TableHead>
               <TableHead className="w-[90px]">Tipo</TableHead>
