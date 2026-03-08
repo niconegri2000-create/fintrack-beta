@@ -106,9 +106,24 @@ export function useUpdateRecurring() {
       }).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
 
+      // CLEANUP: remove all auto-generated transactions for this rule before re-materializing
+      if (import.meta.env.DEV) logger.info("[RECURRING_UPDATE] before update cleanup recurring_rule_id=", id);
+      const { data: stale, error: delErr } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("recurring_rule_id", id)
+        .eq("workspace_id", workspaceId)
+        .eq("source", "recurring_generated")
+        .select("id");
+      if (delErr) {
+        logger.error("[RECURRING_UPDATE_ERROR] failed to cleanup stale transactions:", delErr);
+      } else if (import.meta.env.DEV) {
+        logger.info("[RECURRING_UPDATE] removing stale materialized transactions count=", stale?.length ?? 0);
+      }
+
       // Re-materialize after update if active
       if (r.is_active) {
-        if (import.meta.env.DEV) logger.info("[RECURRING_DEBUG] update recurring -> materializing updated rule:", id);
+        if (import.meta.env.DEV) logger.info("[RECURRING_UPDATE] rematerializing recurring_rule_id=", id);
         await materializeRecurringRules(workspaceId, [{
           id,
           name: r.name,
@@ -123,6 +138,7 @@ export function useUpdateRecurring() {
           account_id: r.account_id,
         }]);
       }
+      if (import.meta.env.DEV) logger.info("[RECURRING_UPDATE] completed");
     },
     onSuccess: () => invalidateAfterRecurring(qc, "recurring updated"),
   });
