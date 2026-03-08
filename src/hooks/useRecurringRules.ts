@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 import { invalidateAfterRecurring } from "@/lib/queryKeys";
+import { materializeRecurringRules } from "@/lib/materializeRecurring";
+import { logger } from "@/lib/logger";
 
 export interface RecurringRow {
   id: string;
@@ -64,6 +66,25 @@ export function useCreateRecurring() {
         end_date: r.end_date || null, account_id: r.account_id,
       }).select("id").single();
       if (error) throw error;
+
+      // Immediately materialize transactions for this new rule if active
+      if (r.is_active) {
+        if (import.meta.env.DEV) logger.info("[RECURRING_DEBUG] materializing new rule immediately:", data.id);
+        await materializeRecurringRules(workspaceId, [{
+          id: data.id,
+          name: r.name,
+          type: r.type,
+          amount: r.amount,
+          category_id: r.category_id,
+          is_fixed: r.is_fixed,
+          day_of_month: r.day_of_month,
+          start_date: r.start_date,
+          interval_months: r.interval_months,
+          end_date: r.end_date,
+          account_id: r.account_id,
+        }]);
+      }
+
       return data.id;
     },
     onSuccess: () => invalidateAfterRecurring(qc, "recurring created"),
@@ -82,6 +103,32 @@ export function useUpdateRecurring() {
         is_active: r.is_active, is_fixed: r.is_fixed, account_id: r.account_id,
       }).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
+
+      // Re-materialize after update if active
+      if (r.is_active) {
+        if (import.meta.env.DEV) logger.info("[RECURRING_DEBUG] re-materializing updated rule:", id);
+        // Need start_date from existing data - fetch it
+        const { data: rule } = await supabase
+          .from("recurring_rules")
+          .select("start_date")
+          .eq("id", id)
+          .single();
+        if (rule) {
+          await materializeRecurringRules(workspaceId, [{
+            id,
+            name: r.name,
+            type: r.type,
+            amount: r.amount,
+            category_id: r.category_id,
+            is_fixed: r.is_fixed,
+            day_of_month: r.day_of_month,
+            start_date: rule.start_date,
+            interval_months: r.interval_months,
+            end_date: r.end_date,
+            account_id: r.account_id,
+          }]);
+        }
+      }
     },
     onSuccess: () => invalidateAfterRecurring(qc, "recurring updated"),
   });
