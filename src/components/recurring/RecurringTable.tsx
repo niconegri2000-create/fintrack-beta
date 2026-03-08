@@ -55,7 +55,7 @@ export function RecurringTable({ data, isLoading }: Props) {
               <TableHead className="text-right w-[110px]">Importo</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead>Tag</TableHead>
-              <TableHead className="w-[80px] text-center">Giorno</TableHead>
+              <TableHead className="w-[100px] text-center">Data inizio</TableHead>
               <TableHead className="w-[120px]">Frequenza</TableHead>
               <TableHead className="w-[100px]">Fine</TableHead>
               <TableHead className="w-[80px] text-center">Attiva</TableHead>
