@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 import { invalidateAfterRecurring } from "@/lib/queryKeys";
+import { materializeRecurringRules } from "@/lib/materializeRecurring";
+import { logger } from "@/lib/logger";
 
 export interface RecurringRow {
   id: string;
@@ -65,6 +67,25 @@ export function useCreateRecurring() {
         end_date: r.end_date || null, account_id: r.account_id,
       }).select("id").single();
       if (error) throw error;
+
+      // Immediately materialize transactions for this new rule if active
+      if (r.is_active) {
+        if (import.meta.env.DEV) logger.info("[RECURRING_DEBUG] materializing new rule immediately:", data.id);
+        await materializeRecurringRules(workspaceId, [{
+          id: data.id,
+          name: r.name,
+          type: r.type,
+          amount: r.amount,
+          category_id: r.category_id,
+          is_fixed: r.is_fixed,
+          day_of_month: r.day_of_month,
+          start_date: r.start_date,
+          interval_months: r.interval_months,
+          end_date: r.end_date,
+          account_id: r.account_id,
+        }]);
+      }
+
       return data.id;
     },
     onSuccess: () => invalidateAfterRecurring(qc, "recurring created"),
@@ -84,6 +105,40 @@ export function useUpdateRecurring() {
         is_active: r.is_active, is_fixed: r.is_fixed, account_id: r.account_id,
       }).eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
+
+      // CLEANUP: remove all auto-generated transactions for this rule before re-materializing
+      if (import.meta.env.DEV) logger.info("[RECURRING_UPDATE] before update cleanup recurring_rule_id=", id);
+      const { data: stale, error: delErr } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("recurring_rule_id", id)
+        .eq("workspace_id", workspaceId)
+        .eq("source", "recurring_generated")
+        .select("id");
+      if (delErr) {
+        logger.error("[RECURRING_UPDATE_ERROR] failed to cleanup stale transactions:", delErr);
+      } else if (import.meta.env.DEV) {
+        logger.info("[RECURRING_UPDATE] removing stale materialized transactions count=", stale?.length ?? 0);
+      }
+
+      // Re-materialize after update if active
+      if (r.is_active) {
+        if (import.meta.env.DEV) logger.info("[RECURRING_UPDATE] rematerializing recurring_rule_id=", id);
+        await materializeRecurringRules(workspaceId, [{
+          id,
+          name: r.name,
+          type: r.type,
+          amount: r.amount,
+          category_id: r.category_id,
+          is_fixed: r.is_fixed,
+          day_of_month: r.day_of_month,
+          start_date: r.start_date,
+          interval_months: r.interval_months,
+          end_date: r.end_date,
+          account_id: r.account_id,
+        }]);
+      }
+      if (import.meta.env.DEV) logger.info("[RECURRING_UPDATE] completed");
     },
     onSuccess: () => invalidateAfterRecurring(qc, "recurring updated"),
   });
@@ -94,6 +149,28 @@ export function useDeleteRecurring() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      // Delete all auto-generated transactions for this rule
+      if (import.meta.env.DEV) logger.info("[RECURRING_DELETE] deleting generated transactions for recurring_rule_id=", id);
+      const { data: deleted, error: delErr } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("recurring_rule_id", id)
+        .eq("workspace_id", workspaceId)
+        .eq("source", "recurring_generated")
+        .select("id");
+      if (delErr) {
+        logger.error("[RECURRING_DELETE_ERROR] failed to delete generated transactions:", delErr);
+      } else if (import.meta.env.DEV) {
+        logger.info("[RECURRING_DELETE] deleted generated transactions count=", deleted?.length ?? 0);
+      }
+
+      // Unlink any manually-created transactions that reference this rule
+      await supabase
+        .from("transactions")
+        .update({ recurring_rule_id: null })
+        .eq("recurring_rule_id", id)
+        .eq("workspace_id", workspaceId);
+
       const { error } = await supabase.from("recurring_rules").delete().eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
