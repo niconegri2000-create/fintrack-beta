@@ -18,6 +18,7 @@ export interface RecurringRow {
   interval_months: number;
   end_date: string | null;
   account_id: string;
+  start_date: string;
 }
 
 export interface NewRecurring {
