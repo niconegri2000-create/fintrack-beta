@@ -41,7 +41,7 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
   const [amount, setAmount] = useState("");
   const [accountId, setAccountId] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [dayOfMonth, setDayOfMonth] = useState("1");
+  
   const [intervalMonths, setIntervalMonths] = useState("1");
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [isActive, setIsActive] = useState(true);
