@@ -39,8 +39,8 @@ export async function materializeRecurringRules(
   log(`active rules found: ${rules.length}`);
 
   const today = new Date();
-  const horizon = new Date(today);
-  horizon.setDate(horizon.getDate() + 30);
+  // Materialize only due occurrences (up to today, NOT future)
+  const horizon = today;
 
   const earliestAllowed = new Date(today);
   earliestAllowed.setMonth(earliestAllowed.getMonth() - MAX_HISTORY_MONTHS);
