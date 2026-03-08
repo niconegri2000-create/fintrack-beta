@@ -148,25 +148,45 @@ export async function materializeRecurringRules(
 
   if (allInserts.length === 0) return 0;
 
-  // Insert individually to handle unique constraint gracefully
+  // Insert in batches, handling unique constraint conflicts gracefully
   const insertResults: Array<{ id: string; recurring_rule_id: string }> = [];
+  const BATCH_SIZE = 50;
 
-  for (const ins of allInserts) {
-    const { data: row, error: iErr } = await supabase
+  for (let i = 0; i < allInserts.length; i += BATCH_SIZE) {
+    const batch = allInserts.slice(i, i + BATCH_SIZE);
+    const { data: rows, error: iErr } = await supabase
       .from("transactions")
-      .insert(ins)
-      .select("id, recurring_rule_id")
-      .single();
+      .insert(batch)
+      .select("id, recurring_rule_id");
 
     if (iErr) {
       if (iErr.code === "23505") {
-        log(`duplicate skipped for recurring_rule_id=${ins.recurring_rule_id} date=${ins.date}`);
+        // Batch had a conflict — fall back to individual inserts for this batch
+        log(`batch conflict detected, falling back to individual inserts for batch starting at index ${i}`);
+        for (const ins of batch) {
+          const { data: row, error: singleErr } = await supabase
+            .from("transactions")
+            .insert(ins)
+            .select("id, recurring_rule_id")
+            .single();
+          if (singleErr) {
+            if (singleErr.code === "23505") {
+              log(`duplicate skipped for recurring_rule_id=${ins.recurring_rule_id} date=${ins.date}`);
+            } else {
+              logger.error("[RECURRING_ERROR]", singleErr, ins);
+            }
+          } else if (row) {
+            insertResults.push(row);
+          }
+        }
       } else {
-        logger.error("[RECURRING_ERROR]", iErr, ins);
+        logger.error("[RECURRING_ERROR] batch insert failed:", iErr);
       }
-    } else if (row) {
-      log(`transaction created id=${row.id} recurring_rule_id=${row.recurring_rule_id} date=${ins.date}`);
-      insertResults.push(row);
+    } else if (rows) {
+      for (const row of rows) {
+        log(`transaction created id=${row.id} recurring_rule_id=${row.recurring_rule_id}`);
+      }
+      insertResults.push(...rows);
     }
   }
 
