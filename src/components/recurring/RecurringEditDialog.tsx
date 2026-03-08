@@ -63,8 +63,7 @@ export function RecurringEditDialog({ rule, open, onOpenChange }: Props) {
       setAmount(String(rule.amount));
       setAccountId(rule.account_id || "");
       setCategoryId(rule.category?.id || "");
-      // Fetch start_date from rule — we need to load it
-      setStartDate(new Date());
+      setStartDate(new Date(rule.start_date));
       setIntervalMonths(String(rule.interval_months));
       setIsActive(rule.is_active);
       setEndDate(rule.end_date ? new Date(rule.end_date) : undefined);
