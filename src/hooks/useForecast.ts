@@ -23,12 +23,12 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6, accoun
     enabled: syncReady,
     queryFn: async (): Promise<ForecastResult> => {
       const [baseY, baseM] = baseMonth.split("-").map(Number);
-      const startDate = `${baseMonth}-01`;
       const lastDay = new Date(baseY, baseM, 0).getDate();
       const endDate = `${baseMonth}-${String(lastDay).padStart(2, "0")}`;
 
+      // Fetch ALL transactions up to end of base month to compute real cumulative balance
       let txQ = supabase.from("transactions").select("amount, type")
-        .eq("workspace_id", workspaceId).gte("date", startDate).lte("date", endDate);
+        .eq("workspace_id", workspaceId).lte("date", endDate);
       if (accountId) txQ = txQ.eq("account_id", accountId);
       const { data: txns, error: tErr } = await txQ;
       if (tErr) throw tErr;
