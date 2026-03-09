@@ -76,8 +76,13 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6, accoun
         monthlyResults.push({ month: monthKey, label, income, expense, balance: income - expense, warnings: [...new Set(warnings)] });
       }
 
-      let cumulative = openingBalance;
-      for (const fm of monthlyResults) { cumulative += fm.balance; fm.balance = cumulative; }
+      // offset=0 already has the correct cumulative balance (openingBalance + all historical)
+      // For future months, accumulate from there
+      let cumulative = monthlyResults[0]?.balance ?? openingBalance;
+      for (let i = 1; i < monthlyResults.length; i++) {
+        cumulative += monthlyResults[i].balance;
+        monthlyResults[i].balance = cumulative;
+      }
 
       const granularity: ForecastGranularity = horizonMonths > 24 ? "yearly" : "monthly";
       if (granularity === "monthly") return { data: monthlyResults, granularity };
