@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,12 +92,22 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
     }
 
     // Redeem code via secure RPC (handles access_codes update + subscription insert server-side)
-    const { error: rpcErr } = await supabase.rpc("redeem_access_code", { p_code: code.trim() });
+    const { error: rpcErr } = await supabase.rpc("redeem_access_code", { p_code: trimmed });
 
     if (rpcErr) {
+      const msg = rpcErr.message || "";
+      let userMsg = "Impossibile attivare il codice. Riprova.";
+      if (msg.includes("not authenticated") || msg.includes("not_authenticated")) {
+        userMsg = "Devi effettuare l'accesso prima di riscattare un codice.";
+      } else if (msg.includes("email_not_verified")) {
+        userMsg = "Devi verificare la tua email prima di usare un codice di accesso.";
+      } else if (msg.includes("invalid_code")) {
+        userMsg = "Codice non trovato, già utilizzato o non associato a questa email.";
+      }
+      logger.error("[RedeemCode] RPC error:", msg);
       toast({
         title: "Errore",
-        description: "Impossibile attivare il codice. Riprova.",
+        description: userMsg,
         variant: "destructive",
       });
       setSubmitting(false);
@@ -195,7 +206,7 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
                 <Input
                   id="access-code"
                   type="text"
-                  placeholder="es. BETA-XXXX-YYYY"
+                  placeholder="es. TEST-ABC123"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   required
