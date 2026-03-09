@@ -98,7 +98,7 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              FinFlow Premium — €3,99 / mese
+              TrackMyMoney Premium — €3,99 / mese
             </CardTitle>
             <CardDescription>
               Accesso completo alla gestione delle finanze personali.

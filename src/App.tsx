@@ -84,7 +84,7 @@ function CheckoutPolling({ user, onActivated }: { user: any; onActivated: () => 
           <div className="flex flex-col gap-2">
             <Button onClick={() => poll()}>Riprova verifica</Button>
             <Button variant="outline" asChild>
-              <a href="mailto:support@finflow.app">Contatta supporto</a>
+              <a href="mailto:support@trackmymoney.app">Contatta supporto</a>
             </Button>
           </div>
         </div>

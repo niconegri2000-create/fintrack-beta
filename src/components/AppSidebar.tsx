@@ -57,7 +57,7 @@ export function AppSidebar() {
             <span className="text-sidebar-primary-foreground font-bold text-sm">₿</span>
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-sidebar-accent-foreground">FinFlow</h2>
+            <h2 className="text-sm font-semibold text-sidebar-accent-foreground">TrackMyMoney</h2>
             <p className="text-xs text-sidebar-muted truncate max-w-[140px]">Personale — {displayLabel}</p>
           </div>
         </div>
