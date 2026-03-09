@@ -49,10 +49,7 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
     if (!trimmed) return;
     setSubmitting(true);
 
-    // Refresh session so JWT email_verified claim is up-to-date
-    await supabase.auth.refreshSession();
-
-    // Redeem code via secure RPC (handles access_codes update + subscription insert server-side)
+    // Redeem code via secure RPC — verification is checked server-side against auth.users directly
     const { error: rpcErr } = await supabase.rpc("redeem_access_code", { p_code: trimmed });
 
     if (rpcErr) {
