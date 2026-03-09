@@ -64,7 +64,7 @@ export function useCreateCategory() {
         is_fixed_default: cat.is_fixed_default,
         is_active: cat.is_active,
       });
-      if (error) throw error;
+      if (error) { console.error("[useCreateCategory]", error); throw error; }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
   });
@@ -80,7 +80,7 @@ export function useUpdateCategory() {
         .update(updates)
         .eq("id", id)
         .eq("workspace_id", workspaceId);
-      if (error) throw error;
+      if (error) { console.error("[useUpdateCategory]", error); throw error; }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
   });
