@@ -75,7 +75,7 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
       return;
     }
 
-    toast({ title: "Accesso attivato!", description: "Benvenuto in FinFlow Premium." });
+    toast({ title: "Accesso attivato!", description: "Benvenuto in TrackMyMoney Premium." });
     setCodeModalOpen(false);
     onAccessGranted();
     setSubmitting(false);
