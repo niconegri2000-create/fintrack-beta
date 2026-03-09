@@ -56,7 +56,7 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6, accoun
         const monthKey = `${y}-${mm}`;
         const label = `${MONTH_LABELS[mm]} ${String(y).slice(2)}`;
 
-        if (offset === 0) { monthlyResults.push({ month: monthKey, label, income: baseIncome, expense: baseExpense, balance: baseIncome - baseExpense, warnings: [] }); continue; }
+        if (offset === 0) { monthlyResults.push({ month: monthKey, label, income: baseIncome, expense: baseExpense, balance: openingBalance + baseIncome - baseExpense, warnings: [] }); continue; }
 
         let income = 0, expense = 0;
         const warnings: string[] = [];
