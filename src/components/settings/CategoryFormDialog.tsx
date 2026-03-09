@@ -25,7 +25,7 @@ export function CategoryFormDialog() {
 
   const reset = () => {
     setName("");
-    setPriority("mandatory");
+    setPriority("none");
     
     setIsActive(true);
   };
