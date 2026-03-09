@@ -17,7 +17,7 @@ import { toast } from "sonner";
 export function CategoryFormDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [priority, setPriority] = useState("mandatory");
+  const [priority, setPriority] = useState("none");
   
   const [isActive, setIsActive] = useState(true);
 
