@@ -49,7 +49,7 @@ export function InviteGate({ children }: InviteGateProps) {
           </div>
           <h1 className="text-2xl font-bold">Accesso riservato</h1>
           <p className="text-sm text-muted-foreground">
-            Inserisci il codice invito ricevuto via email per accedere a FinFlow.
+            Inserisci il codice invito ricevuto via email per accedere a TrackMyMoney.
           </p>
         </div>
 

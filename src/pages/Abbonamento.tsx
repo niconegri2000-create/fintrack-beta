@@ -75,7 +75,7 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
       return;
     }
 
-    toast({ title: "Accesso attivato!", description: "Benvenuto in FinFlow Premium." });
+    toast({ title: "Accesso attivato!", description: "Benvenuto in TrackMyMoney Premium." });
     setCodeModalOpen(false);
     onAccessGranted();
     setSubmitting(false);
@@ -88,7 +88,7 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mb-2">
             <Crown className="h-7 w-7" />
           </div>
-          <h1 className="text-3xl font-bold">Sblocca FinFlow</h1>
+          <h1 className="text-3xl font-bold">Sblocca TrackMyMoney</h1>
           <p className="text-muted-foreground">
             Per accedere alla dashboard è necessario un abbonamento Premium attivo.
           </p>
@@ -98,7 +98,7 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              FinFlow Premium — €3,99 / mese
+              TrackMyMoney Premium — €3,99 / mese
             </CardTitle>
             <CardDescription>
               Accesso completo alla gestione delle finanze personali.
