@@ -23,13 +23,23 @@ export default function Auth() {
         toast({ title: "Errore", description: error.message, variant: "destructive" });
       }
     } else {
-      const { error } = await supabase.auth.signUp({
+      const { data: signUpData, error } = await supabase.auth.signUp({
         email,
         password,
         options: { emailRedirectTo: window.location.origin },
       });
       if (error) {
         toast({ title: "Errore", description: error.message, variant: "destructive" });
+      } else if (
+        signUpData?.user &&
+        signUpData.user.identities &&
+        signUpData.user.identities.length === 0
+      ) {
+        // Supabase returns a fake user with empty identities when email already exists
+        toast({
+          title: "Email già registrata",
+          description: "Questa email è già registrata. Accedi con la tua password.",
+        });
       } else {
         toast({ title: "Registrazione completata", description: "Controlla la tua email per confermare l'account." });
       }

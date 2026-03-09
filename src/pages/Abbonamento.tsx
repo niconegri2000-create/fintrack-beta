@@ -49,47 +49,8 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
     if (!trimmed) return;
     setSubmitting(true);
 
-    // Check access_codes table: code exists, not used, email matches
-    const { data, error: fetchErr } = await supabase
-      .from("access_codes")
-      .select("*")
-      .eq("code", trimmed)
-      .eq("is_used", false)
-      .limit(1);
-
-    if (fetchErr || !data || data.length === 0) {
-      toast({
-        title: "Codice non valido",
-        description: "Codice non valido o non autorizzato.",
-        variant: "destructive",
-      });
-      setSubmitting(false);
-      return;
-    }
-
-    const record = data[0];
-
-    // Verify email matches
-    if (record.email_allowed.toLowerCase() !== user.email!.toLowerCase()) {
-      toast({
-        title: "Codice non valido",
-        description: "Codice non valido o non autorizzato.",
-        variant: "destructive",
-      });
-      setSubmitting(false);
-      return;
-    }
-
-    // Check expiry
-    if (record.expires_at && new Date(record.expires_at) < new Date()) {
-      toast({
-        title: "Codice non valido",
-        description: "Codice non valido o non autorizzato.",
-        variant: "destructive",
-      });
-      setSubmitting(false);
-      return;
-    }
+    // Refresh session so JWT email_verified claim is up-to-date
+    await supabase.auth.refreshSession();
 
     // Redeem code via secure RPC (handles access_codes update + subscription insert server-side)
     const { error: rpcErr } = await supabase.rpc("redeem_access_code", { p_code: trimmed });
