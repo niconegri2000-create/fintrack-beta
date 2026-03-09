@@ -23,12 +23,12 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6, accoun
     enabled: syncReady,
     queryFn: async (): Promise<ForecastResult> => {
       const [baseY, baseM] = baseMonth.split("-").map(Number);
-      const startDate = `${baseMonth}-01`;
       const lastDay = new Date(baseY, baseM, 0).getDate();
       const endDate = `${baseMonth}-${String(lastDay).padStart(2, "0")}`;
 
+      // Fetch ALL transactions up to end of base month to compute real cumulative balance
       let txQ = supabase.from("transactions").select("amount, type")
-        .eq("workspace_id", workspaceId).gte("date", startDate).lte("date", endDate);
+        .eq("workspace_id", workspaceId).lte("date", endDate);
       if (accountId) txQ = txQ.eq("account_id", accountId);
       const { data: txns, error: tErr } = await txQ;
       if (tErr) throw tErr;
@@ -56,7 +56,7 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6, accoun
         const monthKey = `${y}-${mm}`;
         const label = `${MONTH_LABELS[mm]} ${String(y).slice(2)}`;
 
-        if (offset === 0) { monthlyResults.push({ month: monthKey, label, income: baseIncome, expense: baseExpense, balance: baseIncome - baseExpense, warnings: [] }); continue; }
+        if (offset === 0) { monthlyResults.push({ month: monthKey, label, income: baseIncome, expense: baseExpense, balance: openingBalance + baseIncome - baseExpense, warnings: [] }); continue; }
 
         let income = 0, expense = 0;
         const warnings: string[] = [];
@@ -65,8 +65,9 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6, accoun
           if (r.category_id && cat && cat.is_active === false) { warnings.push(r.name || "Senza nome"); continue; }
           const forecastMonthStart = `${y}-${mm}-01`;
           if ((r as any).end_date && (r as any).end_date < forecastMonthStart) continue;
-          const sd = new Date(r.start_date);
-          const monthsDiff = (y - sd.getFullYear()) * 12 + (m - 1 - sd.getMonth());
+          const sdParts = r.start_date.split("-").map(Number);
+          const sdYear = sdParts[0], sdMonth = sdParts[1];
+          const monthsDiff = (y - sdYear) * 12 + (m - sdMonth);
           if (monthsDiff < 0) continue;
           const interval = r.interval_months || 1;
           if (monthsDiff % interval !== 0) continue;
@@ -76,8 +77,13 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6, accoun
         monthlyResults.push({ month: monthKey, label, income, expense, balance: income - expense, warnings: [...new Set(warnings)] });
       }
 
-      let cumulative = openingBalance;
-      for (const fm of monthlyResults) { cumulative += fm.balance; fm.balance = cumulative; }
+      // offset=0 already has the correct cumulative balance (openingBalance + all historical)
+      // For future months, accumulate from there
+      let cumulative = monthlyResults[0]?.balance ?? openingBalance;
+      for (let i = 1; i < monthlyResults.length; i++) {
+        cumulative += monthlyResults[i].balance;
+        monthlyResults[i].balance = cumulative;
+      }
 
       const granularity: ForecastGranularity = horizonMonths > 24 ? "yearly" : "monthly";
       if (granularity === "monthly") return { data: monthlyResults, granularity };
