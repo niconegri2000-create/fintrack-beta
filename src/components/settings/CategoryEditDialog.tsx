@@ -62,6 +62,7 @@ export function CategoryEditDialog({ category }: Props) {
             <Select value={priority} onValueChange={setPriority}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">Nessuna priorità</SelectItem>
                 <SelectItem value="mandatory">Obbligatoria</SelectItem>
                 <SelectItem value="reducible">Riducibile</SelectItem>
                 <SelectItem value="eliminable">Eliminabile</SelectItem>
