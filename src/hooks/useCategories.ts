@@ -80,7 +80,7 @@ export function useUpdateCategory() {
         .update(updates)
         .eq("id", id)
         .eq("workspace_id", workspaceId);
-      if (error) throw error;
+      if (error) { console.error("[useUpdateCategory]", error); throw error; }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
   });
