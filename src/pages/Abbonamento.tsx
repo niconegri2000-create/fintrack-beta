@@ -206,7 +206,7 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
                 <Input
                   id="access-code"
                   type="text"
-                  placeholder="es. BETA-XXXX-YYYY"
+                  placeholder="es. TEST-ABC123"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   required
