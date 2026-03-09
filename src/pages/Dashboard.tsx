@@ -58,9 +58,10 @@ const Dashboard = () => {
 
   const forecastHorizon = workspace?.forecast_horizon_months ?? 6;
 
-  const currentMonth = dateRange.from.slice(0, 7);
+  // Forecast always starts from the current month (today), not the selected date range
+  const forecastBaseMonth = format(new Date(), "yyyy-MM");
   const { data: forecastResult, isLoading: forecastLoading } = useForecast(
-    currentMonth, forecastHorizon, selectedAccountId, openingBalance,
+    forecastBaseMonth, forecastHorizon, selectedAccountId, openingBalance,
   );
 
   const budgetMap = new Map<string, BudgetSummaryRow>();
