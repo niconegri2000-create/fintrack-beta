@@ -65,8 +65,9 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6, accoun
           if (r.category_id && cat && cat.is_active === false) { warnings.push(r.name || "Senza nome"); continue; }
           const forecastMonthStart = `${y}-${mm}-01`;
           if ((r as any).end_date && (r as any).end_date < forecastMonthStart) continue;
-          const sd = new Date(r.start_date);
-          const monthsDiff = (y - sd.getFullYear()) * 12 + (m - 1 - sd.getMonth());
+          const sdParts = r.start_date.split("-").map(Number);
+          const sdYear = sdParts[0], sdMonth = sdParts[1];
+          const monthsDiff = (y - sdYear) * 12 + (m - sdMonth);
           if (monthsDiff < 0) continue;
           const interval = r.interval_months || 1;
           if (monthsDiff % interval !== 0) continue;
