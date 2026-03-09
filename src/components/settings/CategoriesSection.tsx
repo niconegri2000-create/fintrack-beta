@@ -15,6 +15,7 @@ import { CategoryEditDialog } from "./CategoryEditDialog";
 import { toast } from "sonner";
 
 const priorityLabel: Record<string, string> = {
+  none: "Nessuna priorità",
   mandatory: "Obbligatoria",
   reducible: "Riducibile",
   eliminable: "Eliminabile",

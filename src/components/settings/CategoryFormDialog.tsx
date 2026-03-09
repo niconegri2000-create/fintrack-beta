@@ -17,7 +17,7 @@ import { toast } from "sonner";
 export function CategoryFormDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [priority, setPriority] = useState("mandatory");
+  const [priority, setPriority] = useState("none");
   
   const [isActive, setIsActive] = useState(true);
 
@@ -25,7 +25,7 @@ export function CategoryFormDialog() {
 
   const reset = () => {
     setName("");
-    setPriority("mandatory");
+    setPriority("none");
     
     setIsActive(true);
   };
@@ -63,6 +63,7 @@ export function CategoryFormDialog() {
             <Select value={priority} onValueChange={setPriority}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">Nessuna priorità</SelectItem>
                 <SelectItem value="mandatory">Obbligatoria</SelectItem>
                 <SelectItem value="reducible">Riducibile</SelectItem>
                 <SelectItem value="eliminable">Eliminabile</SelectItem>
