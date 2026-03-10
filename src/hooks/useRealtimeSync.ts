@@ -5,7 +5,7 @@ import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 import { logger } from "@/lib/logger";
 
 /**
- * Subscribes to Supabase realtime changes on key tables
+ * Subscribes to Supabase realtime changes on ALL key tables
  * scoped by workspace_id. Logs all events with [RT] prefix.
  */
 export function useRealtimeSync() {
@@ -21,6 +21,7 @@ export function useRealtimeSync() {
       const recordId = payload.new?.id ?? payload.old?.id ?? "unknown";
       const wsId = payload.new?.workspace_id ?? payload.old?.workspace_id ?? "n/a";
       logger.info(`[RT] event | table=${table} | type=${eventType} | id=${recordId} | workspace_id=${wsId}`);
+      logger.info(`[RT] invalidating keys: ${keys.map(k => k[0]).join(", ")}`);
       lastEventRef.current = { table, event: eventType, id: recordId, ts: Date.now() };
 
       // Emit custom event for debug panel
@@ -35,14 +36,16 @@ export function useRealtimeSync() {
 
     const channel = supabase
       .channel(`workspace-sync-${workspaceId}`)
+      // transactions
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "transactions", filter: `workspace_id=eq.${workspaceId}` },
         (payload) => logAndInvalidate("transactions", payload, [
           ["transactions"], ["dashboard"], ["forecast"], ["report"], ["category_spending"],
-          ["historical_monthly_totals"],
+          ["historical_monthly_totals"], ["accounts"], ["accounts-all"],
         ])
       )
+      // accounts
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "accounts", filter: `workspace_id=eq.${workspaceId}` },
@@ -50,18 +53,21 @@ export function useRealtimeSync() {
           ["accounts"], ["accounts-all"], ["forecast"], ["dashboard"],
         ])
       )
+      // recurring_rules
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "recurring_rules", filter: `workspace_id=eq.${workspaceId}` },
         (payload) => logAndInvalidate("recurring_rules", payload, [
-          ["recurring_rules"], ["forecast"],
+          ["recurring_rules"], ["forecast"], ["transactions"], ["dashboard"],
         ])
       )
+      // goals
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "goals", filter: `workspace_id=eq.${workspaceId}` },
         (payload) => logAndInvalidate("goals", payload, [["goals"]])
       )
+      // goal_contributions
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "goal_contributions", filter: `workspace_id=eq.${workspaceId}` },
@@ -69,11 +75,38 @@ export function useRealtimeSync() {
           ["goal_contributions"], ["goals"],
         ])
       )
+      // categories
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "categories", filter: `workspace_id=eq.${workspaceId}` },
         (payload) => logAndInvalidate("categories", payload, [
           ["categories"], ["category_budgets"], ["categories_names"],
+          ["dashboard"], ["report"], ["category_spending"],
+        ])
+      )
+      // category_budgets — WAS MISSING
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "category_budgets", filter: `workspace_id=eq.${workspaceId}` },
+        (payload) => logAndInvalidate("category_budgets", payload, [
+          ["category_budgets"], ["category_spending"], ["dashboard"],
+        ])
+      )
+      // transfers — WAS MISSING
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "transfers", filter: `workspace_id=eq.${workspaceId}` },
+        (payload) => logAndInvalidate("transfers", payload, [
+          ["transfers"], ["transactions"], ["accounts"], ["accounts-all"],
+          ["dashboard"], ["forecast"],
+        ])
+      )
+      // budget_settings — WAS MISSING
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "budget_settings", filter: `workspace_id=eq.${workspaceId}` },
+        (payload) => logAndInvalidate("budget_settings", payload, [
+          ["budget_settings"], ["category_budgets"], ["category_spending"],
         ])
       )
       .subscribe((status) => {

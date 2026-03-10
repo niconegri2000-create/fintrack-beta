@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
+import { invalidateAfterCategory } from "@/lib/queryKeys";
 
 export interface Category {
   id: string;
@@ -66,7 +67,7 @@ export function useCreateCategory() {
       });
       if (error) { console.error("[useCreateCategory]", error); throw error; }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+    onSuccess: () => invalidateAfterCategory(qc, "category created"),
   });
 }
 
@@ -82,7 +83,7 @@ export function useUpdateCategory() {
         .eq("workspace_id", workspaceId);
       if (error) { console.error("[useUpdateCategory]", error); throw error; }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+    onSuccess: () => invalidateAfterCategory(qc, "category updated"),
   });
 }
 
@@ -98,6 +99,6 @@ export function useDeleteCategory() {
         .eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+    onSuccess: () => invalidateAfterCategory(qc, "category deleted"),
   });
 }

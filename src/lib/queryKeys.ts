@@ -30,6 +30,21 @@ const GOAL_KEYS = [
   ["goal_contributions"],
 ] as const;
 
+const CATEGORY_KEYS = [
+  ["categories"],
+  ["categories_names"],
+  ["category_budgets"],
+  ["category_spending"],
+  ["dashboard"],
+  ["report"],
+] as const;
+
+const CATEGORY_BUDGET_KEYS = [
+  ["category_budgets"],
+  ["category_spending"],
+  ["dashboard"],
+] as const;
+
 function logInvalidation(label: string, keys: readonly (readonly string[])[]) {
   if (import.meta.env.DEV) {
     logger.info(`[UI_SYNC] ${label} → invalidating: ${keys.map(k => k[0]).join(", ")}`);
@@ -77,6 +92,20 @@ export function invalidateAfterAccount(qc: ReturnType<typeof useQueryClient>, la
 export function invalidateAfterGoal(qc: ReturnType<typeof useQueryClient>, label: string) {
   logInvalidation(label, GOAL_KEYS);
   for (const key of GOAL_KEYS) {
+    qc.invalidateQueries({ queryKey: [...key] });
+  }
+}
+
+export function invalidateAfterCategory(qc: ReturnType<typeof useQueryClient>, label: string) {
+  logInvalidation(label, CATEGORY_KEYS);
+  for (const key of CATEGORY_KEYS) {
+    qc.invalidateQueries({ queryKey: [...key] });
+  }
+}
+
+export function invalidateAfterCategoryBudget(qc: ReturnType<typeof useQueryClient>, label: string) {
+  logInvalidation(label, CATEGORY_BUDGET_KEYS);
+  for (const key of CATEGORY_BUDGET_KEYS) {
     qc.invalidateQueries({ queryKey: [...key] });
   }
 }

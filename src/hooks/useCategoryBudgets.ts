@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 import { getLimits } from "@/lib/categoryBudgets";
 import { getBudgetStatus } from "@/lib/budgetThresholds";
+import { invalidateAfterCategoryBudget } from "@/lib/queryKeys";
 
 export interface CategoryBudget {
   id: string;
@@ -40,7 +41,7 @@ export function useCategoryBudgets() {
         .upsert({ workspace_id: workspaceId, category_id: input.category_id, monthly_limit: input.monthly_limit, is_active: input.is_active ?? true }, { onConflict: "workspace_id,category_id" });
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["category_budgets"] }),
+    onSuccess: () => invalidateAfterCategoryBudget(qc, "category budget upserted"),
   });
 
   const toggleActive = useMutation({
@@ -48,7 +49,7 @@ export function useCategoryBudgets() {
       const { error } = await supabase.from("category_budgets").update({ is_active: input.is_active }).eq("id", input.id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["category_budgets"] }),
+    onSuccess: () => invalidateAfterCategoryBudget(qc, "category budget toggled"),
   });
 
   const remove = useMutation({
@@ -56,7 +57,7 @@ export function useCategoryBudgets() {
       const { error } = await supabase.from("category_budgets").delete().eq("id", id).eq("workspace_id", workspaceId);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["category_budgets"] }),
+    onSuccess: () => invalidateAfterCategoryBudget(qc, "category budget removed"),
   });
 
   return { list, upsert, toggleActive, remove };
