@@ -70,10 +70,7 @@ const Dashboard = () => {
   // KPI data (period-filtered)
   const { data: kpiData, isLoading: kpiLoading } = useDashboardData(kpiRange.from, kpiRange.to, selectedAccountId);
 
-  // Budget: ALWAYS current month, independent from KPI filter
-  const budgetMonthStart = useMemo(() => format(startOfMonth(new Date()), "yyyy-MM-dd"), []);
-  const budgetMonthEnd = useMemo(() => format(endOfMonth(new Date()), "yyyy-MM-dd"), []);
-  const { data: budgetRows } = useBudgetSummary(budgetMonthStart, budgetMonthEnd, selectedAccountId);
+  // Budget: now handled by BudgetWidget component with its own period filter
 
   const { enabled: healthScoreEnabled } = useHealthScoreEnabled();
   const { enabled: smartInsightsEnabled } = useSmartInsightsEnabled();
