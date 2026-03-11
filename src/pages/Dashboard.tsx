@@ -18,7 +18,6 @@ import { useSmartInsightsEnabled } from "@/hooks/useSmartInsightsEnabled";
 import { KpiDetailModal } from "@/components/dashboard/KpiDetailModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 import { useState, useMemo, useCallback } from "react";
