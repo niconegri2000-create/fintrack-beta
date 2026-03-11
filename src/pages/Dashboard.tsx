@@ -266,7 +266,7 @@ const Dashboard = () => {
                     const pctLabel = `${(percent * 100).toFixed(0)}%`;
                     return (
                       <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" fill="hsl(var(--foreground))" fontSize={11}>
-                        {`${name} ${pctLabel}${over}`}
+                        {`${name} ${pctLabel}`}
                       </text>
                     );
                   }}
