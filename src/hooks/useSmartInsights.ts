@@ -3,7 +3,6 @@ import { useDashboardData } from "@/hooks/useDashboardData";
 import { useBudgetSummary, type BudgetSummaryRow } from "@/hooks/useCategoryBudgets";
 import { useRecurringRules } from "@/hooks/useRecurringRules";
 import { useAccountContext } from "@/contexts/AccountContext";
-import { useDateRange } from "@/contexts/DateRangeContext";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 
 export type InsightLevel = "critical" | "warning" | "positive";
@@ -16,12 +15,10 @@ export interface Insight {
   detail: string;
 }
 
-// Priority tiers: 1=risk(critical), 2=behavior(warning), 3=positive
 const PRIORITY: Record<InsightLevel, number> = { critical: 3, warning: 2, positive: 1 };
 
-// ── Dedup helpers (localStorage, 7-day window) ──
 const DEDUP_KEY = "fintrack_insight_seen";
-const DEDUP_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+const DEDUP_TTL = 7 * 24 * 60 * 60 * 1000;
 
 function loadSeen(): Record<string, number> {
   try {
@@ -29,7 +26,6 @@ function loadSeen(): Record<string, number> {
     if (!raw) return {};
     const map = JSON.parse(raw) as Record<string, number>;
     const now = Date.now();
-    // Prune expired
     const pruned: Record<string, number> = {};
     for (const [k, ts] of Object.entries(map)) {
       if (now - ts < DEDUP_TTL) pruned[k] = ts;
@@ -60,14 +56,15 @@ function filterDedup(insights: Insight[]): Insight[] {
 }
 
 export function useSmartInsights(): { insights: Insight[]; isLoading: boolean } {
-  const { dateRange } = useDateRange();
   const { selectedAccountId, openingBalance, minBalanceThreshold } = useAccountContext();
-  const { data: dash, isLoading: dashLoading } = useDashboardData(dateRange.from, dateRange.to, selectedAccountId);
 
-  const budgetStart = format(startOfMonth(new Date(dateRange.from)), "yyyy-MM-dd");
-  const budgetEnd = format(endOfMonth(new Date(dateRange.from)), "yyyy-MM-dd");
-  const { data: budgetRows, isLoading: budgetLoading } = useBudgetSummary(budgetStart, budgetEnd, selectedAccountId);
+  // ── ALWAYS current month — independent of any period filter ──
+  const today = new Date();
+  const currentMonthFrom = format(startOfMonth(today), "yyyy-MM-dd");
+  const currentMonthTo = format(endOfMonth(today), "yyyy-MM-dd");
 
+  const { data: dash, isLoading: dashLoading } = useDashboardData(currentMonthFrom, currentMonthTo, selectedAccountId);
+  const { data: budgetRows, isLoading: budgetLoading } = useBudgetSummary(currentMonthFrom, currentMonthTo, selectedAccountId);
   const { data: recurring, isLoading: recLoading } = useRecurringRules(selectedAccountId);
 
   const isLoading = dashLoading || budgetLoading || recLoading;
@@ -75,15 +72,13 @@ export function useSmartInsights(): { insights: Insight[]; isLoading: boolean } 
   const insights = useMemo(() => {
     if (!dash || isLoading) return [];
 
-    const tier1: Insight[] = []; // RISK (critical)
-    const tier2: Insight[] = []; // BEHAVIOR (warning)
-    const tier3: Insight[] = []; // POSITIVE
+    const tier1: Insight[] = [];
+    const tier2: Insight[] = [];
+    const tier3: Insight[] = [];
 
     const { income, expense, balance, byCategory, savingsRate } = dash;
 
     // ═══ TIER 1 — RISK ═══
-
-    // Budget overspend
     for (const b of budgetRows.filter((r: BudgetSummaryRow) => r.status === "over")) {
       const pct = ((b.percent ?? 0) * 100 - 100).toFixed(0);
       tier1.push({
@@ -95,7 +90,6 @@ export function useSmartInsights(): { insights: Insight[]; isLoading: boolean } 
       });
     }
 
-    // Balance below threshold
     const saldo = openingBalance + balance;
     const threshold = minBalanceThreshold ?? 0;
     if (threshold > 0 && saldo < threshold) {
@@ -109,7 +103,6 @@ export function useSmartInsights(): { insights: Insight[]; isLoading: boolean } 
       });
     }
 
-    // High recurring burden (>60%)
     const recExpense = (recurring ?? [])
       .filter((r) => r.type === "expense" && r.is_active)
       .reduce((s, r) => s + r.amount, 0);
@@ -123,7 +116,6 @@ export function useSmartInsights(): { insights: Insight[]; isLoading: boolean } 
       });
     }
 
-    // No income
     if (income === 0 && expense > 0) {
       tier1.push({
         id: "no-income",
@@ -135,8 +127,6 @@ export function useSmartInsights(): { insights: Insight[]; isLoading: boolean } 
     }
 
     // ═══ TIER 2 — BEHAVIOR ═══
-
-    // Near budget (>80%)
     for (const b of budgetRows.filter((r: BudgetSummaryRow) => r.status !== "over" && (r.percent ?? 0) > 0.8)) {
       const pct = ((b.percent ?? 0) * 100).toFixed(0);
       tier2.push({
@@ -148,7 +138,6 @@ export function useSmartInsights(): { insights: Insight[]; isLoading: boolean } 
       });
     }
 
-    // Spike in a single category (>3x average or >300)
     if (byCategory.length > 0 && income > 0) {
       const avgCat = expense / byCategory.length;
       for (const cat of byCategory) {
@@ -160,12 +149,11 @@ export function useSmartInsights(): { insights: Insight[]; isLoading: boolean } 
             title: `Spesa anomala in "${cat.name}"`,
             detail: `${cat.amount.toLocaleString("it-IT", { style: "currency", currency: "EUR" })} — significativamente sopra la media.`,
           });
-          break; // only 1
+          break;
         }
       }
     }
 
-    // Dominant new category (single category >50% of total expense)
     if (byCategory.length > 1 && expense > 0) {
       const top = byCategory[0];
       if (top && top.amount / expense > 0.5) {
@@ -180,7 +168,6 @@ export function useSmartInsights(): { insights: Insight[]; isLoading: boolean } 
     }
 
     // ═══ TIER 3 — POSITIVE ═══
-
     if (savingsRate > 15) {
       tier3.push({
         id: "good-savings",
@@ -201,13 +188,11 @@ export function useSmartInsights(): { insights: Insight[]; isLoading: boolean } 
       });
     }
 
-    // ── Assemble: prioritise tiers, dedup, max 3 ──
     const all = [...tier1, ...tier2, ...tier3];
     all.sort((a, b) => PRIORITY[b.level] - PRIORITY[a.level]);
     const deduped = filterDedup(all);
     const final = deduped.slice(0, 3);
 
-    // Mark shown insights as seen
     if (final.length > 0) {
       markSeen(final.map((i) => i.id));
     }
