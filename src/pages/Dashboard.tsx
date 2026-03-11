@@ -84,8 +84,6 @@ const Dashboard = () => {
     forecastBaseMonth, forecastHorizon, selectedAccountId, openingBalance,
   );
 
-  const budgetMap = new Map<string, BudgetSummaryRow>();
-  for (const b of budgetRows) budgetMap.set(b.category_name, b);
 
   const safeIncome = kpiData ? Number(kpiData.income) || 0 : 0;
   const safeExpense = kpiData ? Number(kpiData.expense) || 0 : 0;
