@@ -282,19 +282,10 @@ const Dashboard = () => {
                     const entry = payload[0];
                     const name = entry.name as string;
                     const amount = Number(entry.value);
-                    const b = budgetMap.get(name);
                     return (
                       <div className="rounded-lg border bg-card p-2.5 text-xs shadow-md space-y-0.5 text-card-foreground">
                         <p className="font-medium">{name}</p>
                         <p>Speso: {formatAmount(amount)}</p>
-                        {b && b.monthly_limit > 0 && (
-                          <>
-                            <p>Limite: {formatAmount(b.monthly_limit)}</p>
-                            <p>Utilizzo: {((b.percent ?? 0) * 100).toFixed(0)}%
-                              {b.status === "over" && <span className="text-destructive font-semibold"> OVER</span>}
-                            </p>
-                          </>
-                        )}
                       </div>
                     );
                   }}
