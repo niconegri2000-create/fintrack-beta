@@ -317,65 +317,8 @@ const Dashboard = () => {
       {/* 6. Smart Insights — ALWAYS current month, NOT affected by KPI filter */}
       {smartInsightsEnabled && <SmartInsightsCard />}
 
-      {/* 7. Budget widget */}
-      {budgetRows.length > 0 && (
-        <div className="rounded-xl border bg-card p-5 space-y-3">
-          <p className="text-sm font-medium">Budget per categoria</p>
-          <div className="space-y-3">
-            {budgetRows
-              .filter((b) => b.monthly_limit > 0)
-              .sort((a, b) => {
-                const statusOrder: Record<string, number> = { over: 4, warn2: 3, warn1: 2, ok: 1 };
-                const sa = statusOrder[a.status] ?? 0;
-                const sb = statusOrder[b.status] ?? 0;
-                if (sb !== sa) return sb - sa;
-                return (b.percent ?? 0) - (a.percent ?? 0);
-              })
-              .map((b) => {
-                const rawPct = (b.percent ?? 0) * 100;
-                const barPct = Math.min(rawPct, 100);
-                return (
-                  <div key={b.category_id} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium">{b.category_name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground ft-number">
-                          {formatAmount(b.spent)} / {formatAmount(b.monthly_limit)}
-                        </span>
-                        <span className="ft-number font-semibold w-12 text-right">
-                          {isPrivacy ? "••" : `${rawPct.toFixed(0)}%`}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Progress
-                        value={isPrivacy ? 0 : barPct}
-                        className={`h-2 flex-1 ${
-                          b.status === "over"
-                            ? "[&>div]:bg-destructive"
-                            : b.status === "warn2"
-                            ? "[&>div]:bg-amber-500"
-                            : b.status === "warn1"
-                            ? "[&>div]:bg-yellow-500"
-                            : ""
-                        }`}
-                      />
-                      <Badge
-                        variant={b.status === "over" ? "destructive" : "secondary"}
-                        className={`text-[10px] w-14 justify-center ${
-                          b.status === "warn2" ? "bg-amber-500/20 text-amber-600 border-amber-500/30" :
-                          b.status === "warn1" ? "bg-yellow-500/20 text-yellow-600 border-yellow-500/30" : ""
-                        }`}
-                      >
-                        {b.status === "over" ? "OVER" : b.status === "warn2" ? "WARN" : b.status === "warn1" ? "WARN" : "OK"}
-                      </Badge>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-      )}
+      {/* 7. Budget widget — independent period filter */}
+      <BudgetWidget />
 
       {/* 8. Forecast widget */}
       <ForecastWidget
