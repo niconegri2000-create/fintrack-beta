@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useRecurringRules } from "@/hooks/useRecurringRules";
 import { useAccountContext } from "@/contexts/AccountContext";
-import { useDateRange } from "@/contexts/DateRangeContext";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 import { subMonths, startOfMonth, endOfMonth, format } from "date-fns";
 
@@ -21,7 +20,6 @@ export interface HealthScoreResult {
   stabilityDelta: number;
   isLoading: boolean;
   insufficientData: boolean;
-  // Trend
   trend: TrendResult;
 }
 
@@ -29,7 +27,7 @@ export type TrendDirection = "improving" | "declining" | "stable" | "unavailable
 
 export interface TrendResult {
   direction: TrendDirection;
-  delta: number; // score_current - avg_previous
+  delta: number;
   previousScores: { month: string; score: number }[];
   dominantCause: string | null;
 }
@@ -45,7 +43,6 @@ function getStatus(score: number): { status: HealthStatus; label: string } {
   return { status: "critico", label: "Critico" };
 }
 
-// ── Pure score calculation (reusable for historical months) ──
 export interface ScoreInput {
   income: number;
   expense: number;
@@ -53,7 +50,7 @@ export interface ScoreInput {
   recExpense: number;
   openingBalance: number;
   minBalanceThreshold: number;
-  avgExpensePrev?: number; // for stability
+  avgExpensePrev?: number;
 }
 
 export function computeHealthScore(input: ScoreInput): { score: number; savingsRate: number; bufferMonths: number; fixedBurden: number; stabilityDelta: number } {
@@ -61,7 +58,6 @@ export function computeHealthScore(input: ScoreInput): { score: number; savingsR
 
   if (income === 0) return { score: 0, savingsRate: 0, bufferMonths: 0, fixedBurden: 0, stabilityDelta: 0 };
 
-  // A) Savings rate (40%)
   const savingsRate = balance / income;
   let savingsScore: number;
   if (savingsRate >= 0.20) savingsScore = 1;
@@ -69,7 +65,6 @@ export function computeHealthScore(input: ScoreInput): { score: number; savingsR
   else if (savingsRate >= 0) savingsScore = 0.4;
   else savingsScore = clamp(0.2 + savingsRate, 0, 0.2);
 
-  // B) Stability (25%)
   let stabilityScore = 0.5;
   let stabilityDelta = 0;
   if (avgExpensePrev != null && avgExpensePrev > 0) {
@@ -80,7 +75,6 @@ export function computeHealthScore(input: ScoreInput): { score: number; savingsR
     else stabilityScore = clamp(0.2 - (stabilityDelta - 0.20), 0, 0.2);
   }
 
-  // C) Recurring burden (20%)
   const fixedBurden = clamp(recExpense / income, 0, 1);
   let burdenScore: number;
   if (fixedBurden <= 0.30) burdenScore = 1;
@@ -88,7 +82,6 @@ export function computeHealthScore(input: ScoreInput): { score: number; savingsR
   else if (fixedBurden <= 0.60) burdenScore = 0.3;
   else burdenScore = 0.1;
 
-  // D) Buffer (15%)
   const saldo = openingBalance + balance;
   const threshold = minBalanceThreshold ?? 0;
   const monthlyExpense = expense > 0 ? expense : 1;
@@ -105,7 +98,6 @@ export function computeHealthScore(input: ScoreInput): { score: number; savingsR
   return { score, savingsRate: savingsRate * 100, bufferMonths, fixedBurden, stabilityDelta };
 }
 
-// ── Fetch monthly totals (income + expense) for previous months ──
 function useHistoricalMonthlyTotals(accountId: string | null, months: number = 3, workspaceId: string) {
   const today = new Date();
   const from = format(startOfMonth(subMonths(today, months)), "yyyy-MM-dd");
@@ -140,7 +132,6 @@ function useHistoricalMonthlyTotals(accountId: string | null, months: number = 3
   });
 }
 
-// ── Fetch category spending for current period (for cause analysis) ──
 function useCategoryComparison(accountId: string | null, workspaceId: string) {
   const today = new Date();
   const curFrom = format(startOfMonth(today), "yyyy-MM-dd");
@@ -175,7 +166,6 @@ function useCategoryComparison(accountId: string | null, workspaceId: string) {
         else if (m === prevMonth) prevMap.set(cat, (prevMap.get(cat) ?? 0) + amt);
       }
 
-      // Find biggest absolute increase
       const allCats = new Set([...curMap.keys(), ...prevMap.keys()]);
       let maxDelta = 0;
       let maxCat = "";
@@ -198,9 +188,14 @@ function useCategoryComparison(accountId: string | null, workspaceId: string) {
 
 export function useHealthScore(): HealthScoreResult {
   const workspaceId = useWorkspaceId();
-  const { dateRange } = useDateRange();
   const { selectedAccountId, openingBalance, minBalanceThreshold } = useAccountContext();
-  const { data, isLoading: dashLoading } = useDashboardData(dateRange.from, dateRange.to, selectedAccountId);
+
+  // ── ALWAYS current month — independent of any period filter ──
+  const today = new Date();
+  const currentMonthFrom = format(startOfMonth(today), "yyyy-MM-dd");
+  const currentMonthTo = format(endOfMonth(today), "yyyy-MM-dd");
+
+  const { data, isLoading: dashLoading } = useDashboardData(currentMonthFrom, currentMonthTo, selectedAccountId);
   const { data: recurring, isLoading: recLoading } = useRecurringRules(selectedAccountId);
   const { data: histMonths, isLoading: histLoading } = useHistoricalMonthlyTotals(selectedAccountId, 3, workspaceId);
   const { data: catComparison } = useCategoryComparison(selectedAccountId, workspaceId);
@@ -242,7 +237,6 @@ export function useHealthScore(): HealthScoreResult {
 
     const { status, label } = getStatus(current.score);
 
-    // ── Trend: compute score for each historical month ──
     const previousScores: { month: string; score: number }[] = [];
     for (const m of hist) {
       if (m.income === 0) continue;
@@ -265,7 +259,6 @@ export function useHealthScore(): HealthScoreResult {
       else if (delta <= -5) direction = "declining";
       else direction = "stable";
 
-      // Dominant cause
       let dominantCause: string | null = null;
       if (catComparison && direction !== "stable") {
         const { maxCat, maxDelta: catDelta, maxPct } = catComparison;
@@ -286,7 +279,6 @@ export function useHealthScore(): HealthScoreResult {
       trend = { direction, delta, previousScores, dominantCause };
     }
 
-    // Pills
     const pills: string[] = [];
     pills.push(`Risparmio ${current.savingsRate.toFixed(0)}%`);
     if (hist.length >= 2) {

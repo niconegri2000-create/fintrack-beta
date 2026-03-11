@@ -4,9 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { PeriodPicker } from "@/components/dashboard/PeriodPicker";
 import { AccountSwitcher } from "@/components/dashboard/AccountSwitcher";
-import { useDateRange } from "@/contexts/DateRangeContext";
 import { useAccountContext } from "@/contexts/AccountContext";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useBudgetSummary, type BudgetSummaryRow } from "@/hooks/useCategoryBudgets";
@@ -23,10 +21,11 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { startOfMonth, endOfMonth, format } from "date-fns";
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { TransactionFormDialog } from "@/components/transactions/TransactionFormDialog";
 import { TransferFormDialog } from "@/components/transactions/TransferFormDialog";
 import { RecurringFormDialog } from "@/components/recurring/RecurringFormDialog";
+import { DashboardPeriodPicker, type DashboardPeriodPreset, presetToLocalRange } from "@/components/dashboard/DashboardPeriodPicker";
 
 const MONTH_LABELS: Record<string, string> = {
   "01": "Gen", "02": "Feb", "03": "Mar", "04": "Apr",
@@ -40,13 +39,40 @@ const PIE_COLORS = [
 ];
 
 const Dashboard = () => {
-  const { dateRange } = useDateRange();
   const { selectedAccountId, selectedAccount, openingBalance, minBalanceThreshold } = useAccountContext();
-  const { data, isLoading } = useDashboardData(dateRange.from, dateRange.to, selectedAccountId);
+  const { formatAmount, isPrivacy, renderSensitiveChart } = usePrivacy();
 
-  // Budget always on the month of "from"
-  const budgetMonthStart = format(startOfMonth(new Date(dateRange.from)), "yyyy-MM-dd");
-  const budgetMonthEnd = format(endOfMonth(new Date(dateRange.from)), "yyyy-MM-dd");
+  // ── A) BALANCE: always all-time ──
+  const allTimeEnd = useMemo(() => format(endOfMonth(new Date()), "yyyy-MM-dd"), []);
+  const { data: allTimeData, isLoading: balanceLoading } = useDashboardData("2000-01-01", allTimeEnd, selectedAccountId);
+  const allTimeBalance = allTimeData ? Number(allTimeData.balance) || 0 : 0;
+  const saldoConto = openingBalance + allTimeBalance;
+
+  // ── B) KPI PERIOD: local state, default "current_month" ──
+  const [kpiPreset, setKpiPreset] = useState<DashboardPeriodPreset>("current_month");
+  const [kpiCustomRange, setKpiCustomRange] = useState<{ from: string; to: string } | null>(null);
+
+  const kpiRange = useMemo(() => {
+    if (kpiPreset === "custom" && kpiCustomRange) return kpiCustomRange;
+    return presetToLocalRange(kpiPreset === "custom" ? "current_month" : kpiPreset);
+  }, [kpiPreset, kpiCustomRange]);
+
+  const handlePresetChange = useCallback((p: DashboardPeriodPreset) => {
+    setKpiPreset(p);
+    if (p !== "custom") setKpiCustomRange(null);
+  }, []);
+
+  const handleCustomChange = useCallback((from: string, to: string) => {
+    setKpiPreset("custom");
+    setKpiCustomRange({ from, to });
+  }, []);
+
+  // KPI data (period-filtered)
+  const { data: kpiData, isLoading: kpiLoading } = useDashboardData(kpiRange.from, kpiRange.to, selectedAccountId);
+
+  // Budget always on the month of KPI "from"
+  const budgetMonthStart = format(startOfMonth(new Date(kpiRange.from)), "yyyy-MM-dd");
+  const budgetMonthEnd = format(endOfMonth(new Date(kpiRange.from)), "yyyy-MM-dd");
   const { data: budgetRows } = useBudgetSummary(budgetMonthStart, budgetMonthEnd, selectedAccountId);
 
   const { enabled: healthScoreEnabled } = useHealthScoreEnabled();
@@ -54,11 +80,8 @@ const Dashboard = () => {
   const [kpiDetailOpen, setKpiDetailOpen] = useState(false);
   const { data: workspace } = useWorkspace();
   const updateWorkspace = useUpdateWorkspace();
-  const { formatAmount, isPrivacy, renderSensitiveChart } = usePrivacy();
 
   const forecastHorizon = workspace?.forecast_horizon_months ?? 6;
-
-  // Forecast always starts from the current month (today), not the selected date range
   const forecastBaseMonth = format(new Date(), "yyyy-MM");
   const { data: forecastResult, isLoading: forecastLoading } = useForecast(
     forecastBaseMonth, forecastHorizon, selectedAccountId, openingBalance,
@@ -67,28 +90,28 @@ const Dashboard = () => {
   const budgetMap = new Map<string, BudgetSummaryRow>();
   for (const b of budgetRows) budgetMap.set(b.category_name, b);
 
-  const safeIncome = data ? Number(data.income) || 0 : 0;
-  const safeExpense = data ? Number(data.expense) || 0 : 0;
-  const safeBalance = data ? Number(data.balance) || 0 : 0;
-  const safeSavingsRate = data ? Number(data.savingsRate) || 0 : 0;
+  const safeIncome = kpiData ? Number(kpiData.income) || 0 : 0;
+  const safeExpense = kpiData ? Number(kpiData.expense) || 0 : 0;
+  const safeNetPeriod = kpiData ? Number(kpiData.balance) || 0 : 0;
+  const safeSavingsRate = kpiData ? Number(kpiData.savingsRate) || 0 : 0;
 
-  const saldoConto = openingBalance + safeBalance;
   const minThreshold = minBalanceThreshold;
 
   const kpis = [
-    { label: "Entrate", value: isLoading ? null : formatAmount(safeIncome), icon: TrendingUp, accent: "text-accent" },
-    { label: "Uscite", value: isLoading ? null : formatAmount(safeExpense), icon: TrendingDown, accent: "text-destructive" },
-    { label: "Netto periodo", value: isLoading ? null : formatAmount(safeBalance), icon: Wallet, accent: safeBalance >= 0 ? "text-accent" : "text-destructive" },
-    { label: "% Risparmio", value: isLoading ? null : (isPrivacy ? "••••" : `${safeSavingsRate.toFixed(1)}%`), icon: PiggyBank, accent: "text-muted-foreground" },
+    { label: "Entrate", value: kpiLoading ? null : formatAmount(safeIncome), icon: TrendingUp, accent: "text-accent" },
+    { label: "Uscite", value: kpiLoading ? null : formatAmount(safeExpense), icon: TrendingDown, accent: "text-destructive" },
+    { label: "Netto periodo", value: kpiLoading ? null : formatAmount(safeNetPeriod), icon: Wallet, accent: safeNetPeriod >= 0 ? "text-accent" : "text-destructive" },
+    { label: "% Risparmio", value: kpiLoading ? null : (isPrivacy ? "••••" : `${safeSavingsRate.toFixed(1)}%`), icon: PiggyBank, accent: "text-muted-foreground" },
   ];
 
-  const barData = (data?.byMonth ?? []).map((m) => ({
+  const barData = (kpiData?.byMonth ?? []).map((m) => ({
     ...m,
     label: `${MONTH_LABELS[m.month.slice(5)] ?? m.month.slice(5)} ${m.month.slice(2, 4)}`,
   }));
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Dashboard</h1>
@@ -122,11 +145,10 @@ const Dashboard = () => {
             }
           />
           <AccountSwitcher />
-          <PeriodPicker />
         </div>
       </div>
 
-      {/* Hero: Saldo conto */}
+      {/* 1. Hero: Saldo conto — ALWAYS GLOBAL */}
       {(() => {
         const isMaster = !selectedAccountId;
         const isNegative = saldoConto < 0;
@@ -153,16 +175,27 @@ const Dashboard = () => {
               {isBelowThreshold && <Badge className="text-[10px] bg-amber-500/20 text-amber-600 border-amber-500/30">Sotto soglia</Badge>}
             </div>
             <p className={`text-4xl font-bold ft-number ${heroColor}`}>
-              {isLoading ? <Skeleton className="h-10 w-40" /> : formatAmount(saldoConto ?? 0)}
+              {balanceLoading ? <Skeleton className="h-10 w-40" /> : formatAmount(saldoConto ?? 0)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {isMaster ? "Saldo iniziale aggregato" : "Saldo iniziale"}: {formatAmount(openingBalance)} • Netto periodo: {formatAmount(safeBalance)}
+              Saldo complessivo reale {isMaster ? "(tutti i conti)" : `di "${selectedAccount?.name}"`}
             </p>
           </div>
         );
       })()}
 
-      {/* KPI cards */}
+      {/* 2. Period picker for KPIs — LOCAL, default "Mese corrente" */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-muted-foreground">Metriche di periodo</p>
+        <DashboardPeriodPicker
+          preset={kpiPreset}
+          customRange={kpiCustomRange}
+          onPresetChange={handlePresetChange}
+          onCustomChange={handleCustomChange}
+        />
+      </div>
+
+      {/* 3. KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((kpi) => (
           <div key={kpi.label} className="rounded-xl border bg-card p-5 space-y-1">
@@ -188,19 +221,13 @@ const Dashboard = () => {
       <KpiDetailModal
         open={kpiDetailOpen}
         onOpenChange={setKpiDetailOpen}
-        data={data}
+        data={kpiData}
         budgetRows={budgetRows}
         accountLabel={selectedAccount?.name ?? "Master"}
-        periodLabel={`${dateRange.from} — ${dateRange.to}`}
+        periodLabel={`${kpiRange.from} — ${kpiRange.to}`}
       />
 
-      {/* Health Score */}
-      {healthScoreEnabled && <HealthScoreCard />}
-
-      {/* Smart Insights */}
-      {smartInsightsEnabled && <SmartInsightsCard />}
-
-      {/* Charts row */}
+      {/* 4. Charts — same period as KPIs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-xl border bg-card p-5 space-y-3">
           <p className="text-sm font-medium">Entrate vs Uscite</p>
@@ -228,13 +255,13 @@ const Dashboard = () => {
 
         <div className="rounded-xl border bg-card p-5 space-y-3">
           <p className="text-sm font-medium">Spese per categoria</p>
-          {(data?.byCategory ?? []).length === 0 ? (
+          {(kpiData?.byCategory ?? []).length === 0 ? (
             <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">Nessun dato nel periodo</div>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie
-                  data={data!.byCategory}
+                  data={kpiData!.byCategory}
                   dataKey="amount"
                   nameKey="name"
                   cx="50%" cy="45%"
@@ -252,7 +279,7 @@ const Dashboard = () => {
                   }}
                   labelLine={false}
                 >
-                  {data!.byCategory.map((_, i) => (
+                  {kpiData!.byCategory.map((_, i) => (
                     <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                   ))}
                 </Pie>
@@ -289,7 +316,13 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Budget widget */}
+      {/* 5. Health Score — ALWAYS current month, NOT affected by KPI filter */}
+      {healthScoreEnabled && <HealthScoreCard />}
+
+      {/* 6. Smart Insights — ALWAYS current month, NOT affected by KPI filter */}
+      {smartInsightsEnabled && <SmartInsightsCard />}
+
+      {/* 7. Budget widget */}
       {budgetRows.length > 0 && (
         <div className="rounded-xl border bg-card p-5 space-y-3">
           <p className="text-sm font-medium">Budget per categoria</p>
@@ -349,7 +382,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Forecast widget */}
+      {/* 8. Forecast widget */}
       <ForecastWidget
         data={forecastResult?.data ?? []}
         isLoading={forecastLoading}
