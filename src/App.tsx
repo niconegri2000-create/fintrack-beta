@@ -30,7 +30,15 @@ import { DevDiagnostics } from "@/components/DevDiagnostics";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      staleTime: 0,
+    },
+  },
+});
 
 function CheckoutPolling({ user, onActivated }: { user: any; onActivated: () => void }) {
   const [attempts, setAttempts] = useState(0);
