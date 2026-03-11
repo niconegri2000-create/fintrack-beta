@@ -70,9 +70,9 @@ const Dashboard = () => {
   // KPI data (period-filtered)
   const { data: kpiData, isLoading: kpiLoading } = useDashboardData(kpiRange.from, kpiRange.to, selectedAccountId);
 
-  // Budget always on the month of KPI "from"
-  const budgetMonthStart = format(startOfMonth(new Date(kpiRange.from)), "yyyy-MM-dd");
-  const budgetMonthEnd = format(endOfMonth(new Date(kpiRange.from)), "yyyy-MM-dd");
+  // Budget: ALWAYS current month, independent from KPI filter
+  const budgetMonthStart = useMemo(() => format(startOfMonth(new Date()), "yyyy-MM-dd"), []);
+  const budgetMonthEnd = useMemo(() => format(endOfMonth(new Date()), "yyyy-MM-dd"), []);
   const { data: budgetRows } = useBudgetSummary(budgetMonthStart, budgetMonthEnd, selectedAccountId);
 
   const { enabled: healthScoreEnabled } = useHealthScoreEnabled();
