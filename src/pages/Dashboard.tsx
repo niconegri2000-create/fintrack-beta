@@ -263,9 +263,7 @@ const Dashboard = () => {
                   outerRadius={80}
                   innerRadius={30}
                   label={({ name, percent, x, y, textAnchor }) => {
-                    const b = budgetMap.get(name);
                     const pctLabel = `${(percent * 100).toFixed(0)}%`;
-                    const over = b && b.status === "over" ? " ⚠️" : "";
                     return (
                       <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" fill="hsl(var(--foreground))" fontSize={11}>
                         {`${name} ${pctLabel}${over}`}
