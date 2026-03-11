@@ -217,7 +217,7 @@ const Dashboard = () => {
         open={kpiDetailOpen}
         onOpenChange={setKpiDetailOpen}
         data={kpiData}
-        budgetRows={budgetRows}
+        budgetRows={[]}
         accountLabel={selectedAccount?.name ?? "Master"}
         periodLabel={`${kpiRange.from} — ${kpiRange.to}`}
       />
