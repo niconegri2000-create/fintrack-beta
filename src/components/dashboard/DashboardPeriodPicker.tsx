@@ -128,6 +128,8 @@ interface DashboardPeriodPickerProps {
   customRange: { from: string; to: string } | null;
   onPresetChange: (p: DashboardPeriodPreset) => void;
   onCustomChange: (from: string, to: string) => void;
+  /** If provided, only these preset values will be shown */
+  allowedPresets?: DashboardPeriodPreset[];
 }
 
 export function DashboardPeriodPicker({ preset, customRange, onPresetChange, onCustomChange }: DashboardPeriodPickerProps) {
