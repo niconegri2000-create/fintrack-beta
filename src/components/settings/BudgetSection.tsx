@@ -11,45 +11,43 @@ import {
 } from "@/components/ui/tooltip";
 import { Info, RotateCcw } from "lucide-react";
 import { useAllCategories } from "@/hooks/useCategories";
-import { useCategorySpending } from "@/hooks/useCategoryBudgets";
+import { useCategoryBudgets, useCategorySpending } from "@/hooks/useCategoryBudgets";
 import { useBudgetSettings } from "@/hooks/useBudgetSettings";
 import { useBudgetWindow } from "@/hooks/useBudgetWindow";
 import { useAccountContext } from "@/contexts/AccountContext";
-import {
-  getLimitForAccount, setLimitForAccount, resetLimitForAccount,
-  getLimits, sanitize,
-} from "@/lib/categoryBudgets";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { usePrivacy } from "@/contexts/PrivacyContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function BudgetSection() {
   const { formatAmount } = usePrivacy();
   const { data: settings } = useBudgetSettings();
   const { start, end } = useBudgetWindow();
-  const { selectedAccountId, accounts } = useAccountContext();
+  const { selectedAccountId } = useAccountContext();
   const isMaster = selectedAccountId === null;
 
   const { data: categories = [] } = useAllCategories();
   const spending = useCategorySpending(start, end, selectedAccountId);
   const spendingData = spending.data ?? [];
 
-  // Force re-render when localStorage budgets change
-  const [rev, setRev] = useState(0);
-  const bump = useCallback(() => setRev((r) => r + 1), []);
-
-  // Sanitize stale account entries
-  useEffect(() => {
-    if (accounts.length > 0) sanitize(accounts.map((a) => a.id));
-  }, [accounts]);
+  // Read budgets from Supabase (cross-device)
+  const { list: budgetsList, upsert, remove } = useCategoryBudgets();
+  const budgets = budgetsList.data ?? [];
+  const isLoading = budgetsList.isLoading || spending.isLoading;
 
   const [edits, setEdits] = useState<Record<string, string>>({});
 
   const activeCategories = categories.filter((c) => c.is_active);
   const spendMap = new Map(spendingData.map((s) => [s.category_id, s.total_spent]));
 
-  // Load limits from localStorage based on current account selection
-  const limitsMap = getLimits(selectedAccountId);
+  // Build limits map from Supabase data
+  const limitsMap = new Map<string, number>();
+  for (const b of budgets) {
+    if (b.is_active && b.monthly_limit > 0) {
+      limitsMap.set(b.category_id, b.monthly_limit);
+    }
+  }
 
   const alertsEnabled = settings?.alerts_enabled ?? true;
   const thresholds = getThresholds();
@@ -61,16 +59,17 @@ export function BudgetSection() {
       toast.error("Valore non valido");
       return;
     }
-    setLimitForAccount(selectedAccountId!, categoryId, val);
-    bump();
+    upsert.mutate({ category_id: categoryId, monthly_limit: val, is_active: val > 0 });
     toast.success("Budget salvato");
     setEdits((prev) => { const next = { ...prev }; delete next[categoryId]; return next; });
   };
 
   const handleReset = (categoryId: string) => {
     if (isMaster) return;
-    resetLimitForAccount(selectedAccountId!, categoryId);
-    bump();
+    const existing = budgets.find((b) => b.category_id === categoryId);
+    if (existing) {
+      remove.mutate(existing.id);
+    }
     toast.success("Budget azzerato");
     setEdits((prev) => { const next = { ...prev }; delete next[categoryId]; return next; });
   };
@@ -131,7 +130,13 @@ export function BudgetSection() {
         </p>
       )}
 
-      {activeCategories.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-2 py-4">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-3/4" />
+        </div>
+      ) : activeCategories.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">Nessuna categoria attiva</p>
       ) : (
         <div className="rounded-lg border overflow-hidden">
