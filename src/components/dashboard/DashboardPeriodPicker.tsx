@@ -24,6 +24,7 @@ export type DashboardPeriodPreset =
   | "previous_month"
   | "last_3_months"
   | "last_6_months"
+  | "last_12_months"
   | "ytd"
   | "all"
   | "custom";
@@ -33,6 +34,7 @@ const PRESETS: { value: DashboardPeriodPreset; label: string }[] = [
   { value: "previous_month", label: "Mese precedente" },
   { value: "last_3_months", label: "Ultimi 3 mesi" },
   { value: "last_6_months", label: "Ultimi 6 mesi" },
+  { value: "last_12_months", label: "Ultimi 12 mesi" },
   { value: "ytd", label: "Da inizio anno" },
   { value: "all", label: "Tutto" },
   { value: "custom", label: "Personalizzato…" },
@@ -55,11 +57,25 @@ export function presetToLocalRange(preset: Exclude<DashboardPeriodPreset, "custo
       return { from: fmt(startOfMonth(subMonths(today, 2))), to: fmt(endOfMonth(today)) };
     case "last_6_months":
       return { from: fmt(startOfMonth(subMonths(today, 5))), to: fmt(endOfMonth(today)) };
+    case "last_12_months":
+      return { from: fmt(startOfMonth(subMonths(today, 11))), to: fmt(endOfMonth(today)) };
     case "ytd":
       return { from: fmt(startOfYear(today)), to: fmt(endOfMonth(today)) };
     case "all":
       return { from: "2000-01-01", to: fmt(endOfMonth(today)) };
   }
+}
+
+/**
+ * Count the number of calendar months covered by a date range.
+ * E.g. 2025-01-01 to 2025-03-31 = 3 months.
+ * Partial months count as 1.
+ */
+export function countMonthsInRange(from: string, to: string): number {
+  const d1 = new Date(from);
+  const d2 = new Date(to);
+  const months = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth()) + 1;
+  return Math.max(1, months);
 }
 
 function DateField({
@@ -112,9 +128,12 @@ interface DashboardPeriodPickerProps {
   customRange: { from: string; to: string } | null;
   onPresetChange: (p: DashboardPeriodPreset) => void;
   onCustomChange: (from: string, to: string) => void;
+  /** If provided, only these preset values will be shown */
+  allowedPresets?: DashboardPeriodPreset[];
 }
 
-export function DashboardPeriodPicker({ preset, customRange, onPresetChange, onCustomChange }: DashboardPeriodPickerProps) {
+export function DashboardPeriodPicker({ preset, customRange, onPresetChange, onCustomChange, allowedPresets }: DashboardPeriodPickerProps) {
+  const visiblePresets = allowedPresets ? PRESETS.filter((p) => allowedPresets.includes(p.value)) : PRESETS;
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draftFrom, setDraftFrom] = useState<Date | undefined>(undefined);
@@ -155,7 +174,7 @@ export function DashboardPeriodPicker({ preset, customRange, onPresetChange, onC
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-48 p-1" align="end">
-          {PRESETS.map((p) => (
+          {visiblePresets.map((p) => (
             <button
               key={p.value}
               className={cn(
