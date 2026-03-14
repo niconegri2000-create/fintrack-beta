@@ -130,7 +130,13 @@ export function BudgetSection() {
         </p>
       )}
 
-      {activeCategories.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-2 py-4">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-3/4" />
+        </div>
+      ) : activeCategories.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">Nessuna categoria attiva</p>
       ) : (
         <div className="rounded-lg border overflow-hidden">
