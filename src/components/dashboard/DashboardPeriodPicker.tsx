@@ -174,7 +174,7 @@ export function DashboardPeriodPicker({ preset, customRange, onPresetChange, onC
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-48 p-1" align="end">
-          {PRESETS.map((p) => (
+          {visiblePresets.map((p) => (
             <button
               key={p.value}
               className={cn(
