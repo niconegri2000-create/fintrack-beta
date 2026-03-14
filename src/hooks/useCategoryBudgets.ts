@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
-import { getLimits } from "@/lib/categoryBudgets";
+
 import { getBudgetStatus } from "@/lib/budgetThresholds";
 import { invalidateAfterCategoryBudget } from "@/lib/queryKeys";
 
