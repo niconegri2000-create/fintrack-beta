@@ -132,7 +132,8 @@ interface DashboardPeriodPickerProps {
   allowedPresets?: DashboardPeriodPreset[];
 }
 
-export function DashboardPeriodPicker({ preset, customRange, onPresetChange, onCustomChange }: DashboardPeriodPickerProps) {
+export function DashboardPeriodPicker({ preset, customRange, onPresetChange, onCustomChange, allowedPresets }: DashboardPeriodPickerProps) {
+  const visiblePresets = allowedPresets ? PRESETS.filter((p) => allowedPresets.includes(p.value)) : PRESETS;
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draftFrom, setDraftFrom] = useState<Date | undefined>(undefined);
