@@ -103,7 +103,7 @@ export function useSmartInsights(startDate: string, endDate: string): { insights
           id: `dominant-category-${topCategory.name}`,
           level: categoryWeight >= 50 ? "critical" : "warning",
           priority: categoryWeight >= 50 ? 90 : 70,
-          title: `La categoria ${topCategory.name} pesa più di tutte nel periodo.",
+          title: `La categoria ${topCategory.name} pesa più di tutte nel periodo.`,
           detail: `Rappresenta il ${categoryWeight.toFixed(0)}% delle uscite, pari a ${formatCurrency(topCategory.amount)}.`,
         }));
       }
@@ -118,7 +118,7 @@ export function useSmartInsights(startDate: string, endDate: string): { insights
           id: `anomalous-transaction-${topTransaction.id}`,
           level: txWeight >= 35 ? "critical" : "warning",
           priority: txWeight >= 35 ? 85 : 65,
-          title: `La spesa “${txLabel}” ha inciso molto sul periodo.",
+          title: `La spesa “${txLabel}” ha inciso molto sul periodo.`,
           detail: `${formatCurrency(txAmount)} pari al ${txWeight.toFixed(0)}% delle uscite totali.`,
         }));
       }
@@ -130,7 +130,7 @@ export function useSmartInsights(startDate: string, endDate: string): { insights
         id: `budget-over-${row.category_id}`,
         level: "critical",
         priority: 88,
-        title: `La categoria ${row.category_name} ha superato il budget.",
+        title: `La categoria ${row.category_name} ha superato il budget.`,
         detail: `${formatCurrency(row.spent)} spesi su ${formatCurrency(row.monthly_limit)} (${pct}%).`,
       }));
     }
@@ -142,7 +142,7 @@ export function useSmartInsights(startDate: string, endDate: string): { insights
           id: `budget-warning-${row.category_id}`,
           level: "warning",
           priority: 60,
-          title: `La categoria ${row.category_name} è vicina al limite budget.",
+          title: `La categoria ${row.category_name} è vicina al limite budget.`,
           detail: `Hai già utilizzato il ${pct}% del budget nel periodo selezionato.`,
         }));
       }
