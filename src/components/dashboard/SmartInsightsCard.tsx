@@ -14,8 +14,13 @@ const LEVEL_BORDER: Record<InsightLevel, string> = {
   positive: "border-l-accent",
 };
 
-export function SmartInsightsCard() {
-  const { insights, isLoading } = useSmartInsights();
+interface SmartInsightsCardProps {
+  startDate: string;
+  endDate: string;
+}
+
+export function SmartInsightsCard({ startDate, endDate }: SmartInsightsCardProps) {
+  const { insights, isLoading } = useSmartInsights(startDate, endDate);
   const { isPrivacy } = usePrivacy();
 
   if (isLoading) {
