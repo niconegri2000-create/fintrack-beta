@@ -302,8 +302,8 @@ const Dashboard = () => {
       {/* 5. Health Score — ALWAYS current month, NOT affected by KPI filter */}
       {healthScoreEnabled && <HealthScoreCard />}
 
-      {/* 6. Smart Insights — ALWAYS current month, NOT affected by KPI filter */}
-      {smartInsightsEnabled && <SmartInsightsCard />}
+      {/* 6. Smart Insights — same period as KPI filter */}
+      {smartInsightsEnabled && <SmartInsightsCard startDate={kpiRange.from} endDate={kpiRange.to} />}
 
       {/* 7. Budget widget — independent period filter */}
       <BudgetWidget />

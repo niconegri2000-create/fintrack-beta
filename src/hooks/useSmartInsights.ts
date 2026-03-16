@@ -1,9 +1,10 @@
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useBudgetSummary, type BudgetSummaryRow } from "@/hooks/useCategoryBudgets";
-import { useRecurringRules } from "@/hooks/useRecurringRules";
 import { useAccountContext } from "@/contexts/AccountContext";
-import { startOfMonth, endOfMonth, format } from "date-fns";
+import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 
 export type InsightLevel = "critical" | "warning" | "positive";
 
@@ -13,192 +14,159 @@ export interface Insight {
   icon: string;
   title: string;
   detail: string;
+  priority: number;
 }
 
-const PRIORITY: Record<InsightLevel, number> = { critical: 3, warning: 2, positive: 1 };
-
-const DEDUP_KEY = "fintrack_insight_seen";
-const DEDUP_TTL = 7 * 24 * 60 * 60 * 1000;
-
-function loadSeen(): Record<string, number> {
-  try {
-    const raw = localStorage.getItem(DEDUP_KEY);
-    if (!raw) return {};
-    const map = JSON.parse(raw) as Record<string, number>;
-    const now = Date.now();
-    const pruned: Record<string, number> = {};
-    for (const [k, ts] of Object.entries(map)) {
-      if (now - ts < DEDUP_TTL) pruned[k] = ts;
-    }
-    return pruned;
-  } catch {
-    return {};
-  }
+function formatCurrency(value: number) {
+  return value.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
 }
 
-function markSeen(ids: string[]) {
-  const map = loadSeen();
-  const now = Date.now();
-  for (const id of ids) map[id] = now;
-  try {
-    localStorage.setItem(DEDUP_KEY, JSON.stringify(map));
-  } catch { /* noop */ }
+function buildInsight(input: Omit<Insight, "icon"> & { icon?: string }): Insight {
+  return {
+    icon: input.icon ?? "•",
+    ...input,
+  };
 }
 
-function filterDedup(insights: Insight[]): Insight[] {
-  const seen = loadSeen();
-  const now = Date.now();
-  return insights.filter((ins) => {
-    const ts = seen[ins.id];
-    if (!ts) return true;
-    return now - ts >= DEDUP_TTL;
+export function useSmartInsights(startDate: string, endDate: string): { insights: Insight[]; isLoading: boolean } {
+  const workspaceId = useWorkspaceId();
+  const { selectedAccountId } = useAccountContext();
+
+  const { data: dash, isLoading: dashLoading } = useDashboardData(startDate, endDate, selectedAccountId);
+  const { data: budgetRows, isLoading: budgetLoading } = useBudgetSummary(startDate, endDate, selectedAccountId);
+
+  const transactionsQuery = useQuery({
+    queryKey: ["smart_insights_transactions", workspaceId, selectedAccountId, startDate, endDate],
+    queryFn: async () => {
+      let query = supabase
+        .from("transactions")
+        .select("id, date, amount, type, description, category:categories(name)")
+        .eq("workspace_id", workspaceId)
+        .eq("type", "expense")
+        .gte("date", startDate)
+        .lte("date", endDate)
+        .order("amount", { ascending: false });
+
+      if (selectedAccountId) query = query.eq("account_id", selectedAccountId);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        date: string;
+        amount: number;
+        type: string;
+        description: string | null;
+        category: { name: string } | null;
+      }>;
+    },
   });
-}
 
-export function useSmartInsights(): { insights: Insight[]; isLoading: boolean } {
-  const { selectedAccountId, openingBalance, minBalanceThreshold } = useAccountContext();
-
-  // ── ALWAYS current month — independent of any period filter ──
-  const today = new Date();
-  const currentMonthFrom = format(startOfMonth(today), "yyyy-MM-dd");
-  const currentMonthTo = format(endOfMonth(today), "yyyy-MM-dd");
-
-  const { data: dash, isLoading: dashLoading } = useDashboardData(currentMonthFrom, currentMonthTo, selectedAccountId);
-  const { data: budgetRows, isLoading: budgetLoading } = useBudgetSummary(currentMonthFrom, currentMonthTo, selectedAccountId);
-  const { data: recurring, isLoading: recLoading } = useRecurringRules(selectedAccountId);
-
-  const isLoading = dashLoading || budgetLoading || recLoading;
+  const isLoading = dashLoading || budgetLoading || transactionsQuery.isLoading;
 
   const insights = useMemo(() => {
     if (!dash || isLoading) return [];
 
-    const tier1: Insight[] = [];
-    const tier2: Insight[] = [];
-    const tier3: Insight[] = [];
-
     const { income, expense, balance, byCategory, savingsRate } = dash;
+    const candidates: Insight[] = [];
+    const transactions = transactionsQuery.data ?? [];
+    const negativeNet = income > 0 && expense > income;
+    const overBudgetRows = budgetRows.filter((row: BudgetSummaryRow) => row.status === "over");
+    const warningBudgetRows = budgetRows.filter((row: BudgetSummaryRow) => row.status === "warn1" || row.status === "warn2");
+    const topCategory = byCategory[0];
+    const topTransaction = transactions[0];
 
-    // ═══ TIER 1 — RISK ═══
-    for (const b of budgetRows.filter((r: BudgetSummaryRow) => r.status === "over")) {
-      const pct = ((b.percent ?? 0) * 100 - 100).toFixed(0);
-      tier1.push({
-        id: `over-${b.category_id}`,
+    if (negativeNet) {
+      candidates.push(buildInsight({
+        id: "negative-net",
         level: "critical",
-        icon: "!",
-        title: `Budget "${b.category_name}" superato del ${pct}%`,
-        detail: `Speso ${b.spent.toLocaleString("it-IT", { style: "currency", currency: "EUR" })} su un limite di ${b.monthly_limit.toLocaleString("it-IT", { style: "currency", currency: "EUR" })}.`,
-      });
+        priority: 100,
+        title: "Hai speso più di quanto hai incassato nel periodo selezionato.",
+        detail: `Il saldo netto del periodo è negativo di ${formatCurrency(Math.abs(balance))}.`,
+      }));
     }
 
-    const saldo = openingBalance + balance;
-    const threshold = minBalanceThreshold ?? 0;
-    if (threshold > 0 && saldo < threshold) {
-      const diff = threshold - saldo;
-      tier1.push({
-        id: "below-threshold",
-        level: "critical",
-        icon: "↓",
-        title: "Saldo sotto soglia minima",
-        detail: `Servono +${diff.toLocaleString("it-IT", { style: "currency", currency: "EUR" })} per rientrare.`,
-      });
+    if (income > 0 && savingsRate < 10) {
+      candidates.push(buildInsight({
+        id: "low-savings",
+        level: negativeNet ? "critical" : "warning",
+        priority: negativeNet ? 95 : 80,
+        title: "Il margine di risparmio è molto basso.",
+        detail: `Stai trattenendo ${savingsRate.toFixed(1)}% delle entrate, sotto la soglia del 10%.`,
+      }));
     }
 
-    const recExpense = (recurring ?? [])
-      .filter((r) => r.type === "expense" && r.is_active)
-      .reduce((s, r) => s + r.amount, 0);
-    if (income > 0 && recExpense / income > 0.6) {
-      tier1.push({
-        id: "high-recurring",
-        level: "critical",
-        icon: "↓",
-        title: `Ricorrenze al ${((recExpense / income) * 100).toFixed(0)}% delle entrate`,
-        detail: "Oltre il 60% del reddito è impegnato in spese fisse.",
-      });
-    }
-
-    if (income === 0 && expense > 0) {
-      tier1.push({
-        id: "no-income",
-        level: "critical",
-        icon: "!",
-        title: "Nessuna entrata nel periodo",
-        detail: "Registra le entrate per un quadro completo.",
-      });
-    }
-
-    // ═══ TIER 2 — BEHAVIOR ═══
-    for (const b of budgetRows.filter((r: BudgetSummaryRow) => r.status !== "over" && (r.percent ?? 0) > 0.8)) {
-      const pct = ((b.percent ?? 0) * 100).toFixed(0);
-      tier2.push({
-        id: `warn-${b.category_id}`,
-        level: "warning",
-        icon: "↑",
-        title: `Sei all'${pct}% del budget "${b.category_name}"`,
-        detail: `Resta poco margine prima di superare il limite mensile.`,
-      });
-    }
-
-    if (byCategory.length > 0 && income > 0) {
-      const avgCat = expense / byCategory.length;
-      for (const cat of byCategory) {
-        if (cat.amount > Math.max(avgCat * 3, 300)) {
-          tier2.push({
-            id: `spike-${cat.name}`,
-            level: "warning",
-            icon: "↑",
-            title: `Spesa anomala in "${cat.name}"`,
-            detail: `${cat.amount.toLocaleString("it-IT", { style: "currency", currency: "EUR" })} — significativamente sopra la media.`,
-          });
-          break;
-        }
+    if (topCategory && expense > 0) {
+      const categoryWeight = (topCategory.amount / expense) * 100;
+      if (categoryWeight >= 35) {
+        candidates.push(buildInsight({
+          id: `dominant-category-${topCategory.name}`,
+          level: categoryWeight >= 50 ? "critical" : "warning",
+          priority: categoryWeight >= 50 ? 90 : 70,
+          title: `La categoria ${topCategory.name} pesa più di tutte nel periodo.",
+          detail: `Rappresenta il ${categoryWeight.toFixed(0)}% delle uscite, pari a ${formatCurrency(topCategory.amount)}.`,
+        }));
       }
     }
 
-    if (byCategory.length > 1 && expense > 0) {
-      const top = byCategory[0];
-      if (top && top.amount / expense > 0.5) {
-        tier2.push({
-          id: `dominant-${top.name}`,
+    if (topTransaction && expense > 0) {
+      const txWeight = (Number(topTransaction.amount) / expense) * 100;
+      const txAmount = Number(topTransaction.amount);
+      if (txWeight >= 25 || txAmount >= 500) {
+        const txLabel = topTransaction.description?.trim() || topTransaction.category?.name || "Spesa rilevante";
+        candidates.push(buildInsight({
+          id: `anomalous-transaction-${topTransaction.id}`,
+          level: txWeight >= 35 ? "critical" : "warning",
+          priority: txWeight >= 35 ? 85 : 65,
+          title: `La spesa “${txLabel}” ha inciso molto sul periodo.",
+          detail: `${formatCurrency(txAmount)} pari al ${txWeight.toFixed(0)}% delle uscite totali.`,
+        }));
+      }
+    }
+
+    for (const row of overBudgetRows.slice(0, 2)) {
+      const pct = ((row.percent ?? 0) * 100).toFixed(0);
+      candidates.push(buildInsight({
+        id: `budget-over-${row.category_id}`,
+        level: "critical",
+        priority: 88,
+        title: `La categoria ${row.category_name} ha superato il budget.",
+        detail: `${formatCurrency(row.spent)} spesi su ${formatCurrency(row.monthly_limit)} (${pct}%).`,
+      }));
+    }
+
+    if (overBudgetRows.length === 0) {
+      for (const row of warningBudgetRows.slice(0, 1)) {
+        const pct = ((row.percent ?? 0) * 100).toFixed(0);
+        candidates.push(buildInsight({
+          id: `budget-warning-${row.category_id}`,
           level: "warning",
-          icon: "↑",
-          title: `"${top.name}" assorbe il ${((top.amount / expense) * 100).toFixed(0)}% delle uscite`,
-          detail: "Una singola categoria domina la spesa. Valuta se è intenzionale.",
-        });
+          priority: 60,
+          title: `La categoria ${row.category_name} è vicina al limite budget.",
+          detail: `Hai già utilizzato il ${pct}% del budget nel periodo selezionato.`,
+        }));
       }
     }
 
-    // ═══ TIER 3 — POSITIVE ═══
-    if (savingsRate > 15) {
-      tier3.push({
-        id: "good-savings",
+    if (!negativeNet && income > 0 && savingsRate >= 10 && (overBudgetRows.length + warningBudgetRows.length) === 0) {
+      candidates.push(buildInsight({
+        id: "healthy-period",
         level: "positive",
-        icon: "💡",
-        title: `Ottimo: risparmio del ${savingsRate.toFixed(0)}%`,
-        detail: "Stai risparmiando una buona quota delle entrate.",
-      });
+        priority: 40,
+        title: "Periodo ordinato e sotto controllo.",
+        detail: `Netto positivo di ${formatCurrency(balance)} e budget senza criticità rilevanti.`,
+      }));
     }
 
-    if (income > 0 && expense < income * 0.6) {
-      tier3.push({
-        id: "low-expense-ratio",
-        level: "positive",
-        icon: "💡",
-        title: "Uscite contenute",
-        detail: `Le spese sono sotto il 60% delle entrate. Ottima gestione!`,
-      });
+    const unique = new Map<string, Insight>();
+    for (const insight of candidates) {
+      if (!unique.has(insight.id)) unique.set(insight.id, insight);
     }
 
-    const all = [...tier1, ...tier2, ...tier3];
-    all.sort((a, b) => PRIORITY[b.level] - PRIORITY[a.level]);
-    const deduped = filterDedup(all);
-    const final = deduped.slice(0, 3);
-
-    if (final.length > 0) {
-      markSeen(final.map((i) => i.id));
-    }
-
-    return final;
-  }, [dash, budgetRows, recurring, isLoading, openingBalance, minBalanceThreshold]);
+    return Array.from(unique.values())
+      .sort((a, b) => b.priority - a.priority)
+      .slice(0, 3);
+  }, [dash, budgetRows, transactionsQuery.data, isLoading]);
 
   return { insights, isLoading };
 }
