@@ -120,6 +120,16 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
           </div>
 
           <div className="space-y-1.5">
+            <Label>Categoria</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger><SelectValue placeholder="Seleziona" /></SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
             <Label>Conto</Label>
             <Select value={accountId} onValueChange={setAccountId}>
               <SelectTrigger><SelectValue placeholder="Seleziona conto" /></SelectTrigger>
@@ -143,16 +153,6 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
           <div className="space-y-1.5">
             <Label>Importo (€)</Label>
             <Input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Categoria</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger><SelectValue placeholder="Seleziona" /></SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="space-y-1.5">

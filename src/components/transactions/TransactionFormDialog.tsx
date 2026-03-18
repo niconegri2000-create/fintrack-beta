@@ -153,6 +153,34 @@ export function TransactionFormDialog({ trigger }: { trigger?: React.ReactNode }
             </Popover>
           </div>
 
+          {/* Description */}
+          <div className="space-y-1.5">
+            <Label>Nome</Label>
+            <Input
+              placeholder="Nome"
+              maxLength={200}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          {/* Category */}
+          <div className="space-y-1.5">
+            <Label>Categoria</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Account */}
           <div className="space-y-1.5">
             <Label>Conto</Label>
@@ -192,34 +220,6 @@ export function TransactionFormDialog({ trigger }: { trigger?: React.ReactNode }
               placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-            />
-          </div>
-
-          {/* Category */}
-          <div className="space-y-1.5">
-            <Label>Categoria</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Description */}
-          <div className="space-y-1.5">
-            <Label>Nome</Label>
-            <Input
-              placeholder="Nome"
-              maxLength={200}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
             />
           </div>
 
