@@ -44,8 +44,13 @@ function formatMonth(m: string) {
   return `${MONTH_LABELS[mo] ?? mo} ${y}`;
 }
 
-export function HealthScoreCard() {
-  const { score, status, label, pills, isLoading, insufficientData, trend } = useHealthScore();
+interface HealthScoreCardProps {
+  startDate: string;
+  endDate: string;
+}
+
+export function HealthScoreCard({ startDate, endDate }: HealthScoreCardProps) {
+  const { score, status, label, pills, isLoading, insufficientData, trend } = useHealthScore(startDate, endDate);
   const { isPrivacy } = usePrivacy();
   const [infoOpen, setInfoOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);

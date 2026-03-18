@@ -186,16 +186,11 @@ function useCategoryComparison(accountId: string | null, workspaceId: string) {
   });
 }
 
-export function useHealthScore(): HealthScoreResult {
+export function useHealthScore(startDate: string, endDate: string): HealthScoreResult {
   const workspaceId = useWorkspaceId();
   const { selectedAccountId, openingBalance, minBalanceThreshold } = useAccountContext();
 
-  // ── ALWAYS current month — independent of any period filter ──
-  const today = new Date();
-  const currentMonthFrom = format(startOfMonth(today), "yyyy-MM-dd");
-  const currentMonthTo = format(endOfMonth(today), "yyyy-MM-dd");
-
-  const { data, isLoading: dashLoading } = useDashboardData(currentMonthFrom, currentMonthTo, selectedAccountId);
+  const { data, isLoading: dashLoading } = useDashboardData(startDate, endDate, selectedAccountId);
   const { data: recurring, isLoading: recLoading } = useRecurringRules(selectedAccountId);
   const { data: histMonths, isLoading: histLoading } = useHistoricalMonthlyTotals(selectedAccountId, 3, workspaceId);
   const { data: catComparison } = useCategoryComparison(selectedAccountId, workspaceId);
