@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { DateInput, OptionalDateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -21,11 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { useCategories } from "@/hooks/useCategories";
 import { useCreateRecurring } from "@/hooks/useRecurringRules";
 import { useAccountContext } from "@/contexts/AccountContext";
@@ -171,32 +165,12 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
 
           <div className="space-y-1.5">
             <Label>Data inizio</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(startDate, "dd/MM/yyyy")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} initialFocus className="p-3 pointer-events-auto" />
-              </PopoverContent>
-            </Popover>
+            <DateInput value={startDate} onChange={(d) => setStartDate(d)} />
           </div>
 
           <div className="space-y-1.5">
             <Label>Data fine (opzionale)</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {endDate ? format(endDate, "dd/MM/yyyy") : "Nessuna data fine"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={endDate} onSelect={(d) => setEndDate(d || undefined)} initialFocus className="p-3 pointer-events-auto" />
-              </PopoverContent>
-            </Popover>
+            <OptionalDateInput value={endDate} onChange={(d) => setEndDate(d)} placeholder="GG/MM/AAAA" emptyLabel="Nessuna data fine" />
             {endDate && (
               <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => setEndDate(undefined)}>
                 Rimuovi data fine
