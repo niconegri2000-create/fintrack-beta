@@ -19,6 +19,8 @@ interface KpiDetailModalProps {
   periodLabel: string;
   workspaceName?: string;
   transactions?: TransactionRow[];
+  periodFrom?: string;
+  periodTo?: string;
 }
 
 /* ── Brand colors for PDF ── */
