@@ -2,7 +2,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DateInput } from "@/components/ui/date-input";
+import { MaskedDateInput } from "@/components/ui/masked-date-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -122,7 +122,7 @@ export function TransactionFormDialog({ trigger }: { trigger?: React.ReactNode }
           {/* Date */}
           <div className="space-y-1.5">
             <Label>Data</Label>
-            <DateInput value={date} onChange={setDate} />
+            <MaskedDateInput value={date} onChange={setDate} />
           </div>
 
           {/* Description */}

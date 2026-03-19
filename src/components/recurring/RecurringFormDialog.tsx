@@ -2,7 +2,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DateInput, OptionalDateInput } from "@/components/ui/date-input";
+import { MaskedDateInput, OptionalMaskedDateInput } from "@/components/ui/masked-date-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -165,12 +165,12 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
 
           <div className="space-y-1.5">
             <Label>Data inizio</Label>
-            <DateInput value={startDate} onChange={(d) => setStartDate(d)} />
+            <MaskedDateInput value={startDate} onChange={(d) => setStartDate(d)} />
           </div>
 
           <div className="space-y-1.5">
             <Label>Data fine (opzionale)</Label>
-            <OptionalDateInput value={endDate} onChange={(d) => setEndDate(d)} placeholder="GG/MM/AAAA" emptyLabel="Nessuna data fine" />
+            <OptionalMaskedDateInput value={endDate} onChange={(d) => setEndDate(d)} />
             {endDate && (
               <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => setEndDate(undefined)}>
                 Rimuovi data fine
