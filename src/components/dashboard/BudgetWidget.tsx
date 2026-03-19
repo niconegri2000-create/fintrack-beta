@@ -9,8 +9,8 @@ import {
   DashboardPeriodPicker,
   type DashboardPeriodPreset,
   presetToLocalRange,
-  countMonthsInRange,
 } from "./DashboardPeriodPicker";
+import { scaleBudgetByDays } from "@/lib/budgetThresholds";
 
 const BUDGET_PRESETS: DashboardPeriodPreset[] = [
   "current_month",
