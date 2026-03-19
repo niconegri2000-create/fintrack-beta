@@ -8,6 +8,7 @@ import { AccountSwitcher } from "@/components/dashboard/AccountSwitcher";
 import { useAccountContext } from "@/contexts/AccountContext";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { BudgetWidget } from "@/components/dashboard/BudgetWidget";
+import { useBudgetSummary } from "@/hooks/useCategoryBudgets";
 import { useForecast } from "@/hooks/useForecast";
 import { useWorkspace, useUpdateWorkspace } from "@/hooks/useWorkspace";
 import { ForecastWidget } from "@/components/dashboard/ForecastWidget";
