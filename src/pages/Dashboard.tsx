@@ -245,6 +245,8 @@ const Dashboard = () => {
         periodLabel={`${kpiRange.from} — ${kpiRange.to}`}
         workspaceName={workspace?.name}
         transactions={kpiTransactions ?? []}
+        periodFrom={kpiRange.from}
+        periodTo={kpiRange.to}
       />
 
       {/* 4. Charts — same period as KPIs */}

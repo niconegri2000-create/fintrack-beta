@@ -448,7 +448,7 @@ export function KpiDetailModal({
 
   const handleShare = async () => {
     try {
-      const doc = await generatePdf(data, budgetRows, transactions, accountLabel, periodLabel, workspaceName);
+      const doc = await generatePdf(data, scaledBudgetRows, transactions, accountLabel, periodLabel, workspaceName);
       const filename = `${buildDefaultFilename(periodLabel)}.pdf`;
       const blob = doc.output("blob");
       const file = new File([blob], filename, { type: "application/pdf" });
