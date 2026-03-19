@@ -388,7 +388,27 @@ export function KpiDetailModal({
     (b) => b.monthly_limit > 0 && (b.status === "over" || b.status === "warn2")
   );
 
-  const handlePrint = () => window.print();
+  const handlePrint = async () => {
+    try {
+      const doc = await generatePdf(data, budgetRows, transactions, accountLabel, periodLabel, workspaceName);
+      const blob = doc.output("blob");
+      const url = URL.createObjectURL(blob);
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          document.body.removeChild(iframe);
+        }, 1000);
+      };
+    } catch (err) {
+      console.error(err);
+      toast.error("Errore nella generazione del PDF");
+    }
+  };
 
   const handleSavePdf = async () => {
     try {
