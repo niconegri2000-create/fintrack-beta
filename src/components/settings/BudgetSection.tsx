@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { getBudgetStatus, getThresholds, type BudgetStatusType } from "@/lib/budgetThresholds";
+import { getBudgetStatus, getThresholds, scaleBudgetByDays, type BudgetStatusType } from "@/lib/budgetThresholds";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
