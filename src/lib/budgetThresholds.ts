@@ -63,3 +63,14 @@ export function getBudgetStatus(
   if (pct >= t.warning1Percent) return { status: "warn1", pct };
   return { status: "ok", pct };
 }
+
+/**
+ * Scale a monthly budget limit proportionally to the number of days in a date range.
+ * Formula: scaledLimit = monthlyLimit × (days / 30), rounded to 2 decimals.
+ */
+export function scaleBudgetByDays(monthlyLimit: number, startDate: string, endDate: string): number {
+  const d1 = new Date(startDate);
+  const d2 = new Date(endDate);
+  const days = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  return Math.round(monthlyLimit * (days / 30) * 100) / 100;
+}

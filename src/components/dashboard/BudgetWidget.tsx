@@ -53,7 +53,7 @@ export function BudgetWidget() {
     return budgetRows
       .filter((b) => b.monthly_limit > 0)
       .map((b) => {
-        const aggLimit = b.monthly_limit * monthCount;
+        const aggLimit = scaleBudgetByDays(b.monthly_limit, range.from, range.to);
         const percent = aggLimit > 0 ? b.spent / aggLimit : null;
         const { status: rawStatus } = getBudgetStatus(b.spent, aggLimit);
         const status = rawStatus === "none" ? "ok" : rawStatus;
@@ -65,7 +65,7 @@ export function BudgetWidget() {
         if (diff !== 0) return diff;
         return (b.percent ?? 0) - (a.percent ?? 0);
       });
-  }, [budgetRows, monthCount]);
+  }, [budgetRows, range]);
 
   return (
     <div className="rounded-xl border bg-card p-5 space-y-3">
