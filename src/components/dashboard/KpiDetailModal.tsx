@@ -201,7 +201,7 @@ async function generatePdf(
       }
       doc.setTextColor(...PDF_DARK_TEXT);
       doc.text(`${i + 1}. ${c.name}`, marginL + 2, y);
-      doc.setTextColor(...PDF_RED);
+      doc.setTextColor(...PDF_DARK_TEXT);
       doc.setFont("helvetica", "bold");
       doc.text(fmtEur(c.amount), marginR - 2, y, { align: "right" });
       doc.setFont("helvetica", "normal");
