@@ -70,7 +70,8 @@ const Dashboard = () => {
   // KPI data (period-filtered)
   const { data: kpiData, isLoading: kpiLoading } = useDashboardData(kpiRange.from, kpiRange.to, selectedAccountId);
 
-  // Budget: now handled by BudgetWidget component with its own period filter
+  // Budget rows for KPI period (used by KpiDetailModal "Critiche" tab)
+  const { data: kpiBudgetRows } = useBudgetSummary(kpiRange.from, kpiRange.to, selectedAccountId);
 
   const { enabled: healthScoreEnabled } = useHealthScoreEnabled();
   const { enabled: smartInsightsEnabled } = useSmartInsightsEnabled();
