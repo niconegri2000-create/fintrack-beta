@@ -34,7 +34,7 @@ export function BudgetWidget() {
     return presetToLocalRange(preset === "custom" ? "current_month" : preset);
   }, [preset, customRange]);
 
-  const monthCount = useMemo(() => countMonthsInRange(range.from, range.to), [range]);
+  
 
   const handlePreset = useCallback((p: DashboardPeriodPreset) => {
     setPreset(p);
