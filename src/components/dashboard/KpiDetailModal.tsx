@@ -7,8 +7,9 @@ import { Printer, FileDown, Share2, TrendingUp, TrendingDown, AlertTriangle } fr
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { toast } from "sonner";
 import type { DashboardData } from "@/hooks/useDashboardData";
-import type { BudgetSummaryRow } from "@/hooks/useCategoryBudgets";
+import type { BudgetSummaryRow, BudgetStatus } from "@/hooks/useCategoryBudgets";
 import type { TransactionRow } from "@/hooks/useTransactions";
+import { scaleBudgetByDays, getBudgetStatus } from "@/lib/budgetThresholds";
 
 interface KpiDetailModalProps {
   open: boolean;
