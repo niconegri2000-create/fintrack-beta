@@ -4,7 +4,6 @@ import { it } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
@@ -18,6 +17,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { MaskedDateInput } from "@/components/ui/masked-date-input";
 
 export type DashboardPeriodPreset =
   | "current_month"
@@ -87,38 +87,10 @@ function DateField({
   value: Date | undefined;
   onChange: (d: Date) => void;
 }) {
-  const [open, setOpen] = useState(false);
   return (
     <div className="space-y-1.5">
       <Label className="text-sm">{label}</Label>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            className={cn(
-              "w-full justify-start text-left font-normal",
-              !value && "text-muted-foreground"
-            )}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {value ? format(value, "dd MMM yyyy", { locale: it }) : "Seleziona data"}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
-          <Calendar
-            mode="single"
-            selected={value}
-            onSelect={(d) => {
-              if (d) {
-                onChange(d);
-                setOpen(false);
-              }
-            }}
-            initialFocus
-            className="p-3 pointer-events-auto"
-          />
-        </PopoverContent>
-      </Popover>
+      <MaskedDateInput value={value} onChange={onChange} />
     </div>
   );
 }
