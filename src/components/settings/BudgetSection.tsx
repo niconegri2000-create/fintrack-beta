@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { getBudgetStatus, getThresholds, type BudgetStatusType } from "@/lib/budgetThresholds";
+import { getBudgetStatus, getThresholds, scaleBudgetByDays, type BudgetStatusType } from "@/lib/budgetThresholds";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -41,11 +41,11 @@ export function BudgetSection() {
   const activeCategories = categories.filter((c) => c.is_active);
   const spendMap = new Map(spendingData.map((s) => [s.category_id, s.total_spent]));
 
-  // Build limits map from Supabase data
+  // Build limits map from Supabase data, scaled by period days
   const limitsMap = new Map<string, number>();
   for (const b of budgets) {
     if (b.is_active && b.monthly_limit > 0) {
-      limitsMap.set(b.category_id, b.monthly_limit);
+      limitsMap.set(b.category_id, scaleBudgetByDays(b.monthly_limit, start, end));
     }
   }
 

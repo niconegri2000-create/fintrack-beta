@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,9 @@ import { Printer, FileDown, Share2, TrendingUp, TrendingDown, AlertTriangle } fr
 import { usePrivacy } from "@/contexts/PrivacyContext";
 import { toast } from "sonner";
 import type { DashboardData } from "@/hooks/useDashboardData";
-import type { BudgetSummaryRow } from "@/hooks/useCategoryBudgets";
+import type { BudgetSummaryRow, BudgetStatus } from "@/hooks/useCategoryBudgets";
 import type { TransactionRow } from "@/hooks/useTransactions";
+import { scaleBudgetByDays, getBudgetStatus } from "@/lib/budgetThresholds";
 
 interface KpiDetailModalProps {
   open: boolean;
@@ -19,6 +20,8 @@ interface KpiDetailModalProps {
   periodLabel: string;
   workspaceName?: string;
   transactions?: TransactionRow[];
+  periodFrom?: string;
+  periodTo?: string;
 }
 
 /* ── Brand colors for PDF ── */
@@ -375,22 +378,36 @@ export function KpiDetailModal({
   periodLabel,
   workspaceName = "Workspace",
   transactions = [],
+  periodFrom,
+  periodTo,
 }: KpiDetailModalProps) {
   const { formatAmount, isPrivacy } = usePrivacy();
   const [filenameOpen, setFilenameOpen] = useState(false);
   const [pendingDoc, setPendingDoc] = useState<any>(null);
   const defaultFilename = buildDefaultFilename(periodLabel);
 
+  // Scale budget rows by days if period dates are provided
+  const scaledBudgetRows = useMemo(() => {
+    if (!periodFrom || !periodTo) return budgetRows;
+    return budgetRows.map((b) => {
+      const scaledLimit = scaleBudgetByDays(b.monthly_limit, periodFrom, periodTo);
+      const percent = scaledLimit > 0 ? b.spent / scaledLimit : null;
+      const { status: rawStatus } = getBudgetStatus(b.spent, scaledLimit);
+      const status: BudgetStatus = rawStatus === "none" ? "ok" : (rawStatus as BudgetStatus);
+      return { ...b, monthly_limit: scaledLimit, percent, status };
+    });
+  }, [budgetRows, periodFrom, periodTo]);
+
   if (!data) return null;
 
   const topCategories = data.byCategory.slice(0, 5);
-  const criticalBudgets = budgetRows.filter(
+  const criticalBudgets = scaledBudgetRows.filter(
     (b) => b.monthly_limit > 0 && (b.status === "over" || b.status === "warn2")
   );
 
   const handlePrint = async () => {
     try {
-      const doc = await generatePdf(data, budgetRows, transactions, accountLabel, periodLabel, workspaceName);
+      const doc = await generatePdf(data, scaledBudgetRows, transactions, accountLabel, periodLabel, workspaceName);
       const blob = doc.output("blob");
       const url = URL.createObjectURL(blob);
       const iframe = document.createElement("iframe");
@@ -412,7 +429,7 @@ export function KpiDetailModal({
 
   const handleSavePdf = async () => {
     try {
-      const doc = await generatePdf(data, budgetRows, transactions, accountLabel, periodLabel, workspaceName);
+      const doc = await generatePdf(data, scaledBudgetRows, transactions, accountLabel, periodLabel, workspaceName);
       setPendingDoc(doc);
       setFilenameOpen(true);
     } catch (err) {
@@ -431,7 +448,7 @@ export function KpiDetailModal({
 
   const handleShare = async () => {
     try {
-      const doc = await generatePdf(data, budgetRows, transactions, accountLabel, periodLabel, workspaceName);
+      const doc = await generatePdf(data, scaledBudgetRows, transactions, accountLabel, periodLabel, workspaceName);
       const filename = `${buildDefaultFilename(periodLabel)}.pdf`;
       const blob = doc.output("blob");
       const file = new File([blob], filename, { type: "application/pdf" });
