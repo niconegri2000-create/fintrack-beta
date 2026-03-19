@@ -386,8 +386,6 @@ export function KpiDetailModal({
   const [pendingDoc, setPendingDoc] = useState<any>(null);
   const defaultFilename = buildDefaultFilename(periodLabel);
 
-  if (!data) return null;
-
   // Scale budget rows by days if period dates are provided
   const scaledBudgetRows = useMemo(() => {
     if (!periodFrom || !periodTo) return budgetRows;
@@ -399,6 +397,8 @@ export function KpiDetailModal({
       return { ...b, monthly_limit: scaledLimit, percent, status };
     });
   }, [budgetRows, periodFrom, periodTo]);
+
+  if (!data) return null;
 
   const topCategories = data.byCategory.slice(0, 5);
   const criticalBudgets = scaledBudgetRows.filter(
