@@ -407,7 +407,7 @@ export function KpiDetailModal({
 
   const handlePrint = async () => {
     try {
-      const doc = await generatePdf(data, budgetRows, transactions, accountLabel, periodLabel, workspaceName);
+      const doc = await generatePdf(data, scaledBudgetRows, transactions, accountLabel, periodLabel, workspaceName);
       const blob = doc.output("blob");
       const url = URL.createObjectURL(blob);
       const iframe = document.createElement("iframe");
