@@ -24,15 +24,13 @@ function Calendar({ className, classNames, showOutsideDays = true, month: monthP
   }, [onMonthChange]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-    // Only handle when focus is on the container itself or nav buttons, not day cells
-    const target = e.target as HTMLElement;
-    if (target.closest("[role='gridcell']")) return;
-
     if (e.key === "ArrowLeft") {
       e.preventDefault();
+      e.stopPropagation();
       handleMonthChange(subMonths(currentMonth, 1));
     } else if (e.key === "ArrowRight") {
       e.preventDefault();
+      e.stopPropagation();
       handleMonthChange(addMonths(currentMonth, 1));
     }
   }, [currentMonth, handleMonthChange]);
