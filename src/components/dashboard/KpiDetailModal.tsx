@@ -429,7 +429,7 @@ export function KpiDetailModal({
 
   const handleSavePdf = async () => {
     try {
-      const doc = await generatePdf(data, budgetRows, transactions, accountLabel, periodLabel, workspaceName);
+      const doc = await generatePdf(data, scaledBudgetRows, transactions, accountLabel, periodLabel, workspaceName);
       setPendingDoc(doc);
       setFilenameOpen(true);
     } catch (err) {
