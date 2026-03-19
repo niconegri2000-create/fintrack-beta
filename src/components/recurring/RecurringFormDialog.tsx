@@ -165,7 +165,7 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
 
           <div className="space-y-1.5">
             <Label>Data inizio</Label>
-            <DateInput value={startDate} onChange={(d) => setStartDate(d)} />
+            <MaskedDateInput value={startDate} onChange={(d) => setStartDate(d)} />
           </div>
 
           <div className="space-y-1.5">
