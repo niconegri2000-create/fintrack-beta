@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 
 export interface WorkspaceData {
+  name: string;
   opening_balance: number;
   min_balance_threshold: number;
   forecast_horizon_months: number;
