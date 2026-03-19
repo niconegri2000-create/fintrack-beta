@@ -38,7 +38,7 @@ function Calendar({ className, classNames, showOutsideDays = true, month: monthP
   }, [currentMonth, handleMonthChange]);
 
   return (
-    <div onKeyDown={handleKeyDown} tabIndex={-1} className="outline-none">
+    <div onKeyDown={handleKeyDown} tabIndex={0} className="outline-none">
       <DayPicker
         showOutsideDays={showOutsideDays}
         weekStartsOn={weekStartsOn}
