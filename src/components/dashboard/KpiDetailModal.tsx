@@ -410,27 +410,22 @@ export function KpiDetailModal({
   };
 
   const handleShare = async () => {
-    const summary = [
-      `📊 Report ${accountLabel} — ${periodLabel}`,
-      `Entrate: ${fmtEur(data.income)}`,
-      `Uscite: ${fmtEur(data.expense)}`,
-      `Netto: ${fmtEur(data.balance)}`,
-      `% Risparmio: ${data.savingsRate.toFixed(1)}%`,
-    ].join("\n");
+    try {
+      const doc = await generatePdf(data, budgetRows, transactions, accountLabel, periodLabel, workspaceName);
+      const filename = `${buildDefaultFilename(periodLabel)}.pdf`;
+      const blob = doc.output("blob");
+      const file = new File([blob], filename, { type: "application/pdf" });
 
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `Report ${periodLabel}`, text: summary });
-      } catch {
-        /* user cancelled */
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: `Report ${periodLabel}` });
+      } else {
+        doc.save(filename);
+        toast.success("PDF scaricato — condividilo manualmente");
       }
-    } else {
-      try {
-        await navigator.clipboard.writeText(summary);
-        toast.success("Copiato negli appunti");
-      } catch {
-        toast.error("Impossibile copiare negli appunti");
-      }
+    } catch (err: any) {
+      if (err?.name === "AbortError") return; // user cancelled
+      console.error(err);
+      toast.error("Errore nella condivisione del PDF");
     }
   };
 
