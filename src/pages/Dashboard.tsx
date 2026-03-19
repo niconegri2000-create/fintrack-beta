@@ -9,6 +9,7 @@ import { useAccountContext } from "@/contexts/AccountContext";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { BudgetWidget } from "@/components/dashboard/BudgetWidget";
 import { useBudgetSummary } from "@/hooks/useCategoryBudgets";
+import { useTransactions } from "@/hooks/useTransactions";
 import { useForecast } from "@/hooks/useForecast";
 import { useWorkspace, useUpdateWorkspace } from "@/hooks/useWorkspace";
 import { ForecastWidget } from "@/components/dashboard/ForecastWidget";
@@ -72,6 +73,9 @@ const Dashboard = () => {
 
   // Budget rows for KPI period (used by KpiDetailModal "Critiche" tab)
   const { data: kpiBudgetRows } = useBudgetSummary(kpiRange.from, kpiRange.to, selectedAccountId);
+
+  // Transactions for KPI period (used by KpiDetailModal PDF export)
+  const { data: kpiTransactions } = useTransactions(kpiRange.from, kpiRange.to, selectedAccountId);
 
   const { enabled: healthScoreEnabled } = useHealthScoreEnabled();
   const { enabled: smartInsightsEnabled } = useSmartInsightsEnabled();
@@ -221,6 +225,8 @@ const Dashboard = () => {
         budgetRows={kpiBudgetRows}
         accountLabel={selectedAccount?.name ?? "Master"}
         periodLabel={`${kpiRange.from} — ${kpiRange.to}`}
+        workspaceName={workspace?.name}
+        transactions={kpiTransactions ?? []}
       />
 
       {/* 4. Charts — same period as KPIs */}

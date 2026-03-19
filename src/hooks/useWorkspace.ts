@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceId } from "@/contexts/WorkspaceContext";
 
 export interface WorkspaceData {
+  name: string;
   opening_balance: number;
   min_balance_threshold: number;
   forecast_horizon_months: number;
@@ -19,11 +20,12 @@ export function useWorkspace() {
     queryFn: async (): Promise<WorkspaceData> => {
       const { data, error } = await supabase
         .from("workspaces")
-        .select("opening_balance, min_balance_threshold, forecast_horizon_months")
+        .select("name, opening_balance, min_balance_threshold, forecast_horizon_months")
         .eq("id", workspaceId)
         .single();
       if (error) throw error;
       return {
+        name: data.name ?? "Workspace",
         opening_balance: Number(data.opening_balance ?? 0),
         min_balance_threshold: Number(data.min_balance_threshold ?? 0),
         forecast_horizon_months: Number(data.forecast_horizon_months ?? 6),
