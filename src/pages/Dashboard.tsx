@@ -50,8 +50,26 @@ const Dashboard = () => {
   const saldoConto = openingBalance + allTimeBalance;
 
   // ── B) KPI PERIOD: local state, default "current_month" ──
-  const [kpiPreset, setKpiPreset] = useState<DashboardPeriodPreset>("current_month");
-  const [kpiCustomRange, setKpiCustomRange] = useState<{ from: string; to: string } | null>(null);
+  const [kpiPreset, setKpiPresetRaw] = useState<DashboardPeriodPreset>(() => {
+    const saved = sessionStorage.getItem("kpi_preset");
+    return saved ? (saved as DashboardPeriodPreset) : "current_month";
+  });
+  const [kpiCustomRange, setKpiCustomRangeRaw] = useState<{ from: string; to: string } | null>(() => {
+    try {
+      const saved = sessionStorage.getItem("kpi_custom_range");
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+
+  const setKpiPreset = useCallback((p: DashboardPeriodPreset) => {
+    setKpiPresetRaw(p);
+    sessionStorage.setItem("kpi_preset", p);
+  }, []);
+  const setKpiCustomRange = useCallback((v: { from: string; to: string } | null) => {
+    setKpiCustomRangeRaw(v);
+    if (v) sessionStorage.setItem("kpi_custom_range", JSON.stringify(v));
+    else sessionStorage.removeItem("kpi_custom_range");
+  }, []);
 
   const kpiRange = useMemo(() => {
     if (kpiPreset === "custom" && kpiCustomRange) return kpiCustomRange;
