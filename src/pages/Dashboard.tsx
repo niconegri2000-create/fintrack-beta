@@ -74,6 +74,9 @@ const Dashboard = () => {
   // Budget rows for KPI period (used by KpiDetailModal "Critiche" tab)
   const { data: kpiBudgetRows } = useBudgetSummary(kpiRange.from, kpiRange.to, selectedAccountId);
 
+  // Transactions for KPI period (used by KpiDetailModal PDF export)
+  const { data: kpiTransactions } = useTransactions(kpiRange.from, kpiRange.to, selectedAccountId);
+
   const { enabled: healthScoreEnabled } = useHealthScoreEnabled();
   const { enabled: smartInsightsEnabled } = useSmartInsightsEnabled();
   const [kpiDetailOpen, setKpiDetailOpen] = useState(false);
