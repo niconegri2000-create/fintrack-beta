@@ -4,7 +4,6 @@ import { it } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
@@ -18,6 +17,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { MaskedDateInput } from "@/components/ui/masked-date-input";
 import { useDateRange, type PeriodPreset } from "@/contexts/DateRangeContext";
 
 const PRESETS: { value: PeriodPreset; label: string }[] = [
