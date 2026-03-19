@@ -201,7 +201,7 @@ async function generatePdf(
       }
       doc.setTextColor(...PDF_DARK_TEXT);
       doc.text(`${i + 1}. ${c.name}`, marginL + 2, y);
-      doc.setTextColor(...PDF_RED);
+      doc.setTextColor(...PDF_DARK_TEXT);
       doc.setFont("helvetica", "bold");
       doc.text(fmtEur(c.amount), marginR - 2, y, { align: "right" });
       doc.setFont("helvetica", "normal");
@@ -282,23 +282,22 @@ async function generatePdf(
     // Type badge
     const isIncome = tx.type === "income";
     const isRecurring = tx.source === "recurring_generated";
-    const typeLabel = isIncome ? "Entrata" : isRecurring ? "Ricorrente" : "Uscita";
+    const typeLabel = isRecurring
+      ? (isIncome ? "Ricorrente/Entrata" : "Ricorrente/Uscita")
+      : (isIncome ? "Entrata" : "Uscita");
 
     // Badge background
     const badgeX = marginL + 123;
+    doc.setFontSize(7.5);
     const badgeW = doc.getTextWidth(typeLabel) + 4;
     if (isIncome) {
       doc.setFillColor(220, 245, 230);
       doc.setTextColor(...PDF_GREEN);
-    } else if (isRecurring) {
-      doc.setFillColor(220, 245, 230);
-      doc.setTextColor(45, 122, 79);
     } else {
       doc.setFillColor(255, 225, 225);
       doc.setTextColor(...PDF_RED);
     }
     doc.roundedRect(badgeX, y - 3.5, badgeW, 4.5, 1, 1, "F");
-    doc.setFontSize(7.5);
     doc.text(typeLabel, badgeX + 2, y);
 
     // Amount
