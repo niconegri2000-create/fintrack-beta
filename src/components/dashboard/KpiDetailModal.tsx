@@ -28,7 +28,7 @@ const PDF_RED = [180, 40, 40] as const;           // negative / critical
 const PDF_GRAY_ROW = [245, 245, 245] as const;   // alternating row bg
 const PDF_GRAY_TEXT = [100, 100, 100] as const;
 const PDF_DARK_TEXT = [30, 30, 30] as const;
-const APP_URL = "fintrack-beta.lovable.app";
+const APP_URL = "TrackMyMoney";
 
 function fmtEur(v: number) {
   return v.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
