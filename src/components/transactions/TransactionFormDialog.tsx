@@ -122,7 +122,7 @@ export function TransactionFormDialog({ trigger }: { trigger?: React.ReactNode }
           {/* Date */}
           <div className="space-y-1.5">
             <Label>Data</Label>
-            <DateInput value={date} onChange={setDate} />
+            <MaskedDateInput value={date} onChange={setDate} />
           </div>
 
           {/* Description */}

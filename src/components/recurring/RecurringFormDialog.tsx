@@ -170,7 +170,7 @@ export function RecurringFormDialog({ trigger }: { trigger?: React.ReactNode } =
 
           <div className="space-y-1.5">
             <Label>Data fine (opzionale)</Label>
-            <OptionalDateInput value={endDate} onChange={(d) => setEndDate(d)} placeholder="GG/MM/AAAA" emptyLabel="Nessuna data fine" />
+            <OptionalMaskedDateInput value={endDate} onChange={(d) => setEndDate(d)} />
             {endDate && (
               <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => setEndDate(undefined)}>
                 Rimuovi data fine
