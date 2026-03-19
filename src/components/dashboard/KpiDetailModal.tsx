@@ -377,6 +377,8 @@ export function KpiDetailModal({
   periodLabel,
   workspaceName = "Workspace",
   transactions = [],
+  periodFrom,
+  periodTo,
 }: KpiDetailModalProps) {
   const { formatAmount, isPrivacy } = usePrivacy();
   const [filenameOpen, setFilenameOpen] = useState(false);
@@ -385,8 +387,20 @@ export function KpiDetailModal({
 
   if (!data) return null;
 
+  // Scale budget rows by days if period dates are provided
+  const scaledBudgetRows = useMemo(() => {
+    if (!periodFrom || !periodTo) return budgetRows;
+    return budgetRows.map((b) => {
+      const scaledLimit = scaleBudgetByDays(b.monthly_limit, periodFrom, periodTo);
+      const percent = scaledLimit > 0 ? b.spent / scaledLimit : null;
+      const { status: rawStatus } = getBudgetStatus(b.spent, scaledLimit);
+      const status: BudgetStatus = rawStatus === "none" ? "ok" : (rawStatus as BudgetStatus);
+      return { ...b, monthly_limit: scaledLimit, percent, status };
+    });
+  }, [budgetRows, periodFrom, periodTo]);
+
   const topCategories = data.byCategory.slice(0, 5);
-  const criticalBudgets = budgetRows.filter(
+  const criticalBudgets = scaledBudgetRows.filter(
     (b) => b.monthly_limit > 0 && (b.status === "over" || b.status === "warn2")
   );
 
