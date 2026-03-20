@@ -27,8 +27,6 @@ export function TransactionsTable({ data, isLoading }: Props) {
   const [editTransfer, setEditTransfer] = useState<TransactionRow | null>(null);
   const [deleteTransferId, setDeleteTransferId] = useState<string | null>(null);
 
-  const txIds = useMemo(() => data.map((t) => t.id), [data]);
-  const { data: tagsMap = {} } = useTransactionTagsMap(txIds);
 
   if (isLoading) {
     return (
