@@ -9,6 +9,7 @@ import { TransferFormDialog } from "@/components/transactions/TransferFormDialog
 import { FilterBar } from "@/components/filters/FilterBar";
 import { useTransactionTagsMap } from "@/hooks/useBatchTags";
 import { BulkDeleteDialog } from "@/components/bulk-delete/BulkDeleteDialog";
+import { TagSummaryBanner } from "@/components/transactions/TagSummaryBanner";
 import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
 
 const Transazioni = () => {
