@@ -44,6 +44,7 @@ export function TransferEditDialog({ transaction, open, onOpenChange }: Props) {
 
   const { accounts } = useAccountContext();
   const update = useUpdateTransfer();
+  const qc = useQueryClient();
   const { data: existingTagIds = [] } = useTransactionTags(open ? transaction.id : null);
 
   useEffect(() => {

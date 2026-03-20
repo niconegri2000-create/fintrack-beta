@@ -51,6 +51,7 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
   const { data: categories = [] } = useCategories();
   const { accounts } = useAccountContext();
   const update = useUpdateTransaction();
+  const qc = useQueryClient();
   const { data: existingTagIds = [] } = useTransactionTags(open ? transaction.id : null);
 
   useEffect(() => {
