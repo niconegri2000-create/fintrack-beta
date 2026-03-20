@@ -15,6 +15,8 @@ const FINANCIAL_KEYS = [
   ["report"],
   ["category_spending"],
   ["historical_monthly_totals"],
+  ["transaction_tags"],
+  ["transaction_tags_batch"],
 ] as const;
 
 const RECURRING_KEYS = [

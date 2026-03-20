@@ -15,6 +15,7 @@ export interface TransactionRow {
   notes: string | null;
   account_id: string;
   category: { id: string; name: string } | null;
+  tags: { id: string; name: string }[];
   transfer_id: string | null;
   linked_account_id: string | null;
   transfer_direction: string | null;
@@ -43,7 +44,7 @@ export function useTransactions(from: string, to: string, accountId: string | nu
     queryFn: async () => {
       let q = supabase
         .from("transactions")
-        .select("id, date, description, amount, type, is_fixed, source, notes, account_id, transfer_id, linked_account_id, transfer_direction, category:categories(id, name)")
+        .select("id, date, description, amount, type, is_fixed, source, notes, account_id, transfer_id, linked_account_id, transfer_direction, category:categories(id, name), transaction_tags(tag:tags(id, name))")
         .eq("workspace_id", workspaceId)
         .gte("date", from)
         .lte("date", to)
@@ -51,7 +52,10 @@ export function useTransactions(from: string, to: string, accountId: string | nu
       if (accountId) q = q.eq("account_id", accountId);
       const { data, error } = await q;
       if (error) throw error;
-      return data as unknown as TransactionRow[];
+      return (data as any[]).map((row) => ({
+        ...row,
+        tags: (row.transaction_tags || []).map((tt: any) => tt.tag).filter(Boolean),
+      })) as unknown as TransactionRow[];
     },
   });
 }
