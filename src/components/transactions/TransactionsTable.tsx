@@ -13,8 +13,6 @@ import { TransactionEditDialog } from "./TransactionEditDialog";
 import { TransactionDeleteDialog } from "./TransactionDeleteDialog";
 import { TransferEditDialog } from "./TransferEditDialog";
 import { TransferDeleteDialog } from "./TransferDeleteDialog";
-import { useTransactionTagsMap } from "@/hooks/useBatchTags";
-
 interface Props {
   data: TransactionRow[];
   isLoading: boolean;
@@ -29,8 +27,6 @@ export function TransactionsTable({ data, isLoading }: Props) {
   const [editTransfer, setEditTransfer] = useState<TransactionRow | null>(null);
   const [deleteTransferId, setDeleteTransferId] = useState<string | null>(null);
 
-  const txIds = useMemo(() => data.map((t) => t.id), [data]);
-  const { data: tagsMap = {} } = useTransactionTagsMap(txIds);
 
   if (isLoading) {
     return (
@@ -86,7 +82,7 @@ export function TransactionsTable({ data, isLoading }: Props) {
           </TableHeader>
           <TableBody>
             {data.map((tx) => {
-              const txTags = tagsMap[tx.id] || [];
+              const txTags = tx.tags || [];
               return (
                 <TableRow key={tx.id}>
                   <TableCell className="text-xs">{tx.date}</TableCell>
