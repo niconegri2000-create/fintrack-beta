@@ -82,8 +82,7 @@ export function TransactionsTable({ data, isLoading }: Props) {
           </TableHeader>
           <TableBody>
             {data.map((tx) => {
-              const txTags = tagsMap[tx.id] || [];
-              return (
+              const txTags = tx.tags || [];
                 <TableRow key={tx.id}>
                   <TableCell className="text-xs">{tx.date}</TableCell>
                   <TableCell>
