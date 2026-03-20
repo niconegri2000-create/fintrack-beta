@@ -66,11 +66,22 @@ export function getBudgetStatus(
 
 /**
  * Scale a monthly budget limit proportionally to the number of days in a date range.
- * Formula: scaledLimit = monthlyLimit × (days / 30), rounded to 2 decimals.
+ * If the range is exactly one calendar month (1st to last day), return the limit as-is.
+ * Otherwise: scaledLimit = monthlyLimit × (days / 30), rounded to 2 decimals.
  */
 export function scaleBudgetByDays(monthlyLimit: number, startDate: string, endDate: string): number {
   const d1 = new Date(startDate);
   const d2 = new Date(endDate);
+
+  // Exact month check: same year+month, starts on 1st, ends on last day of that month
+  const isExactMonth =
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === 1 &&
+    d2.getDate() === new Date(d2.getFullYear(), d2.getMonth() + 1, 0).getDate();
+
+  if (isExactMonth) return monthlyLimit;
+
   const days = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   return Math.round(monthlyLimit * (days / 30) * 100) / 100;
 }
