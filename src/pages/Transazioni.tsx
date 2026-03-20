@@ -9,6 +9,7 @@ import { TransferFormDialog } from "@/components/transactions/TransferFormDialog
 import { FilterBar } from "@/components/filters/FilterBar";
 import { useTransactionTagsMap } from "@/hooks/useBatchTags";
 import { BulkDeleteDialog } from "@/components/bulk-delete/BulkDeleteDialog";
+import { TagSummaryBanner } from "@/components/transactions/TagSummaryBanner";
 import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
 
 const Transazioni = () => {
@@ -71,6 +72,8 @@ const Transazioni = () => {
         {filtered.length} moviment{filtered.length === 1 ? "o" : "i"}
         {hasFilters && ` (filtrati da ${data.length})`}
       </p>
+
+      <TagSummaryBanner filtered={filtered} selectedTagIds={filterTagIds} />
 
       <section className="space-y-2">
         <div className="flex items-center gap-2">
