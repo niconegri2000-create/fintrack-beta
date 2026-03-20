@@ -13,8 +13,6 @@ import { TransactionEditDialog } from "./TransactionEditDialog";
 import { TransactionDeleteDialog } from "./TransactionDeleteDialog";
 import { TransferEditDialog } from "./TransferEditDialog";
 import { TransferDeleteDialog } from "./TransferDeleteDialog";
-import { useTransactionTagsMap } from "@/hooks/useBatchTags";
-
 interface Props {
   data: TransactionRow[];
   isLoading: boolean;
