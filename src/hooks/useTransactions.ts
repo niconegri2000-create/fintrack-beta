@@ -52,7 +52,10 @@ export function useTransactions(from: string, to: string, accountId: string | nu
       if (accountId) q = q.eq("account_id", accountId);
       const { data, error } = await q;
       if (error) throw error;
-      return data as unknown as TransactionRow[];
+      return (data as any[]).map((row) => ({
+        ...row,
+        tags: (row.transaction_tags || []).map((tt: any) => tt.tag).filter(Boolean),
+      })) as unknown as TransactionRow[];
     },
   });
 }
