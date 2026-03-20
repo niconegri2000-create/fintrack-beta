@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -50,6 +51,7 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
   const { data: categories = [] } = useCategories();
   const { accounts } = useAccountContext();
   const update = useUpdateTransaction();
+  const qc = useQueryClient();
   const { data: existingTagIds = [] } = useTransactionTags(open ? transaction.id : null);
 
   useEffect(() => {
@@ -94,6 +96,8 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
       {
         onSuccess: async () => {
           try { await syncTransactionTags(transaction.id, tagIds); } catch {}
+          qc.invalidateQueries({ queryKey: ["transaction_tags"] });
+          qc.invalidateQueries({ queryKey: ["transaction_tags_batch"] });
           toast.success("Transazione aggiornata");
           onOpenChange(false);
         },
