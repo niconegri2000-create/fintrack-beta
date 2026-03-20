@@ -94,6 +94,8 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
       {
         onSuccess: async () => {
           try { await syncTransactionTags(transaction.id, tagIds); } catch {}
+          qc.invalidateQueries({ queryKey: ["transaction_tags"] });
+          qc.invalidateQueries({ queryKey: ["transaction_tags_batch"] });
           toast.success("Transazione aggiornata");
           onOpenChange(false);
         },
