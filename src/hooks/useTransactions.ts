@@ -15,6 +15,7 @@ export interface TransactionRow {
   notes: string | null;
   account_id: string;
   category: { id: string; name: string } | null;
+  tags: { id: string; name: string }[];
   transfer_id: string | null;
   linked_account_id: string | null;
   transfer_direction: string | null;
