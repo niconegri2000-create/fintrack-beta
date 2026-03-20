@@ -73,6 +73,8 @@ const Transazioni = () => {
         {hasFilters && ` (filtrati da ${data.length})`}
       </p>
 
+      <TagSummaryBanner filtered={filtered} selectedTagIds={filterTagIds} />
+
       <section className="space-y-2">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-success" />
