@@ -80,7 +80,6 @@ export function useCategorySpending(startDate: string, endDate: string, accountI
       const map = new Map<string, number>();
       for (const r of data ?? []) {
         if (!r.category_id) continue;
-        if (r.source === "recurring_generated") continue;
         if (r.source === "manual" && (r as any).type === "transfer_out") continue;
         map.set(r.category_id, (map.get(r.category_id) ?? 0) + Number(r.amount));
       }
