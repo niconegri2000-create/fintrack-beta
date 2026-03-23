@@ -27,17 +27,22 @@ export function useForecast(baseMonth: string, horizonMonths: number = 6, accoun
       const endDate = `${baseMonth}-${String(lastDay).padStart(2, "0")}`;
 
       // Fetch ALL transactions up to end of base month to compute real cumulative balance
-      let txQ = supabase.from("transactions").select("amount, type")
+      let txQ = supabase.from("transactions").select("amount, type, date")
         .eq("workspace_id", workspaceId).lte("date", endDate);
       if (accountId) txQ = txQ.eq("account_id", accountId);
       const { data: txns, error: tErr } = await txQ;
       if (tErr) throw tErr;
 
-      let baseIncome = 0, baseExpense = 0;
+      const baseMonthStart = `${baseMonth}-01`;
+      let allIncome = 0, allExpense = 0;
+      let monthIncome = 0, monthExpense = 0;
       for (const t of txns ?? []) {
         if (t.type === "transfer_in" || t.type === "transfer_out") continue;
         const amt = Number(t.amount);
-        if (t.type === "income") baseIncome += amt; else baseExpense += amt;
+        if (t.type === "income") allIncome += amt; else allExpense += amt;
+        if (t.date >= baseMonthStart) {
+          if (t.type === "income") monthIncome += amt; else monthExpense += amt;
+        }
       }
 
       let rulesQ = supabase.from("recurring_rules")
