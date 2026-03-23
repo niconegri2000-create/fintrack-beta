@@ -308,12 +308,10 @@ const Dashboard = () => {
                       if (!active || !payload?.[0]) return null;
                       const name = payload[0].name as string;
                       const amount = Number(payload[0].value);
-                      const pct = total > 0 ? ((amount / total) * 100).toFixed(1) : "0";
+                      const pct = total > 0 ? Math.round((amount / total) * 100) : 0;
                       return (
-                        <div className="rounded-lg border bg-card p-2.5 text-xs shadow-md space-y-0.5 text-card-foreground">
-                          <p className="font-medium">{name}</p>
-                          <p>Speso: {formatAmount(amount)}</p>
-                          <p>{pct}% del totale</p>
+                        <div className="rounded-lg border bg-card p-2.5 text-xs shadow-md text-card-foreground">
+                          <p className="font-medium">{name} — {formatAmount(amount)} — {pct}%</p>
                         </div>
                       );
                     }}
