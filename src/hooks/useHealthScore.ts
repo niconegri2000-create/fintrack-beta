@@ -232,8 +232,11 @@ export function useHealthScore(startDate: string, endDate: string): HealthScoreR
 
     const { status, label } = getStatus(current.score);
 
+    // Only include months strictly before the selected period
+    const selectedStartMonth = startDate.slice(0, 7);
     const previousScores: { month: string; score: number }[] = [];
     for (const m of hist) {
+      if (m.month >= selectedStartMonth) continue; // skip months within selected period
       if (m.income === 0) continue;
       const s = computeHealthScore({
         income: m.income, expense: m.expense, balance: m.balance,
@@ -243,8 +246,8 @@ export function useHealthScore(startDate: string, endDate: string): HealthScoreR
     }
 
     let trend: TrendResult;
-    if (previousScores.length === 0) {
-      trend = { direction: "unavailable", delta: 0, previousScores: [], dominantCause: null };
+    if (previousScores.length < 2) {
+      trend = { direction: "unavailable", delta: 0, previousScores, dominantCause: null };
     } else {
       const avgPrev = previousScores.reduce((s, p) => s + p.score, 0) / previousScores.length;
       const delta = Math.round(current.score - avgPrev);
