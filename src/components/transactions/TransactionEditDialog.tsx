@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { MaskedDateInput } from "@/components/ui/masked-date-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -20,11 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { useCategories } from "@/hooks/useCategories";
 import { useUpdateTransaction, TransactionRow } from "@/hooks/useTransactions";
 import { useAccountContext } from "@/contexts/AccountContext";
@@ -114,25 +107,47 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
           <DialogTitle>Modifica transazione</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
+          {/* Date */}
           <div className="space-y-1.5">
             <Label>Data</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(date, "dd/MM/yyyy")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus className="p-3 pointer-events-auto" />
-              </PopoverContent>
-            </Popover>
+            <MaskedDateInput value={date} onChange={setDate} />
           </div>
 
+          {/* Description */}
+          <div className="space-y-1.5">
+            <Label>Nome</Label>
+            <Input
+              placeholder="Nome"
+              maxLength={200}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          {/* Category */}
+          <div className="space-y-1.5">
+            <Label>Categoria</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Account */}
           <div className="space-y-1.5">
             <Label>Conto</Label>
             <Select value={accountId} onValueChange={setAccountId}>
-              <SelectTrigger><SelectValue placeholder="Seleziona conto" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona conto" />
+              </SelectTrigger>
               <SelectContent>
                 {accounts.map((a) => (
                   <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
@@ -141,10 +156,13 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
             </Select>
           </div>
 
+          {/* Type */}
           <div className="space-y-1.5">
             <Label>Tipo</Label>
             <Select value={type} onValueChange={setType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="income">Entrata</SelectItem>
                 <SelectItem value="expense">Uscita</SelectItem>
@@ -152,26 +170,17 @@ export function TransactionEditDialog({ transaction, open, onOpenChange }: Props
             </Select>
           </div>
 
+          {/* Amount */}
           <div className="space-y-1.5">
             <Label>Importo (€)</Label>
-            <Input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Categoria</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger><SelectValue placeholder="Seleziona categoria" /></SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Nome</Label>
-            <Input placeholder="Nome" maxLength={200} value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Input
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
           </div>
 
           {/* Tags */}
