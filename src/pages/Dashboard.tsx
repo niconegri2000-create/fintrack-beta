@@ -279,51 +279,53 @@ const Dashboard = () => {
           <p className="text-sm font-medium">Spese per categoria</p>
           {(kpiData?.byCategory ?? []).length === 0 ? (
             <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">Nessun dato nel periodo</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie
-                  data={kpiData!.byCategory}
-                  dataKey="amount"
-                  nameKey="name"
-                  cx="50%" cy="45%"
-                  outerRadius={80}
-                  innerRadius={30}
-                  label={({ name, percent, x, y, textAnchor }) => {
-                    const pctLabel = `${(percent * 100).toFixed(0)}%`;
-                    return (
-                      <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" fill="hsl(var(--foreground))" fontSize={11}>
-                        {`${name} ${pctLabel}`}
-                      </text>
-                    );
-                  }}
-                  labelLine={false}
-                >
-                  {kpiData!.byCategory.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.[0]) return null;
-                    const entry = payload[0];
-                    const name = entry.name as string;
-                    const amount = Number(entry.value);
-                    return (
-                      <div className="rounded-lg border bg-card p-2.5 text-xs shadow-md space-y-0.5 text-card-foreground">
-                        <p className="font-medium">{name}</p>
-                        <p>Speso: {formatAmount(amount)}</p>
-                      </div>
-                    );
-                  }}
-                />
-                <Legend
-                  wrapperStyle={{ fontSize: 12, paddingTop: 12 }}
-                  formatter={(value) => <span style={{ color: "hsl(var(--foreground))" }}>{value}</span>}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
+          ) : (() => {
+            const raw = kpiData!.byCategory;
+            const total = raw.reduce((s, c) => s + c.amount, 0);
+            let pieData = raw;
+            if (raw.length > 8) {
+              const main = raw.filter((c) => c.amount / total >= 0.03);
+              const otherAmt = raw.filter((c) => c.amount / total < 0.03).reduce((s, c) => s + c.amount, 0);
+              pieData = otherAmt > 0 ? [...main, { name: "Altro", amount: otherAmt }] : main;
+            }
+            return (
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="amount"
+                    nameKey="name"
+                    cx="50%" cy="45%"
+                    outerRadius={80}
+                    innerRadius={30}
+                  >
+                    {pieData.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.[0]) return null;
+                      const name = payload[0].name as string;
+                      const amount = Number(payload[0].value);
+                      const pct = total > 0 ? ((amount / total) * 100).toFixed(1) : "0";
+                      return (
+                        <div className="rounded-lg border bg-card p-2.5 text-xs shadow-md space-y-0.5 text-card-foreground">
+                          <p className="font-medium">{name}</p>
+                          <p>Speso: {formatAmount(amount)}</p>
+                          <p>{pct}% del totale</p>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: 12, paddingTop: 12 }}
+                    formatter={(value) => <span style={{ color: "hsl(var(--foreground))" }}>{value}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            );
+          })()}
         </div>
       </div>
 
