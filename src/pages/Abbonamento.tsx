@@ -85,7 +85,7 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mb-2">
             <Crown className="h-7 w-7" />
           </div>
-          <h1 className="text-3xl font-bold">Sblocca TrackMyMoney</h1>
+          <h1 className="text-3xl font-bold">Sblocca Contly</h1>
           <p className="text-muted-foreground">
             Per accedere alla dashboard è necessario un abbonamento Premium attivo.
           </p>
