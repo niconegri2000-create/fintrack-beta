@@ -94,7 +94,7 @@ export default function Auth() {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary text-primary-foreground mb-2">
             <Lock className="h-6 w-6" />
           </div>
-          <h1 className="text-2xl font-bold">TrackMyMoney</h1>
+          <h1 className="text-2xl font-bold">Contly</h1>
           <p className="text-sm text-muted-foreground">
             {isLogin ? "Accedi al tuo account" : "Crea un nuovo account"}
           </p>
