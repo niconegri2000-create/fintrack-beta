@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -10,6 +10,7 @@ import {
   FileBarChart,
   Settings,
   UserCircle,
+  LogOut,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -22,6 +23,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
+  SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
@@ -41,13 +43,19 @@ const navItems = [
 export function AppSidebar() {
   const { isMobile, setOpenMobile } = useSidebar();
   const location = useLocation();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
 
   const displayLabel = user?.user_metadata?.display_name || user?.email || "";
 
   useEffect(() => {
     if (isMobile) setOpenMobile(false);
   }, [location.pathname, isMobile, setOpenMobile]);
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/auth");
+  };
 
   return (
     <Sidebar className="border-r-0">
@@ -88,6 +96,24 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter className="px-3 pb-4">
+        <div className="border-t border-sidebar-border pt-2">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <button
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                >
+                  <LogOut className="h-4 w-4 shrink-0" />
+                  <span>Logout</span>
+                </button>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }
