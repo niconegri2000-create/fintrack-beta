@@ -53,9 +53,11 @@ export function AppSidebar() {
     <Sidebar className="border-r-0">
       <SidebarHeader className="px-5 py-6">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
-            <span className="text-sidebar-primary-foreground font-bold text-sm">₿</span>
-          </div>
+          <img
+            src="https://imjufmomirowmzxefunc.supabase.co/storage/v1/object/public/Assets/Logo%20Contly.PNG"
+            alt="Contly"
+            className="h-10 w-auto"
+          />
           <div>
             <h2 className="text-sm font-semibold text-sidebar-accent-foreground">Contly</h2>
             <p className="text-xs text-sidebar-muted truncate max-w-[140px]">Personale — {displayLabel}</p>
