@@ -52,16 +52,13 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r-0">
       <SidebarHeader className="px-5 py-6">
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-col items-center gap-2">
           <img
             src="https://imjufmomirowmzxefunc.supabase.co/storage/v1/object/public/Assets/Logo%20Contly.PNG"
             alt="Contly"
             className="h-10 w-auto"
           />
-          <div>
-            <h2 className="text-sm font-semibold text-sidebar-accent-foreground">Contly</h2>
-            <p className="text-xs text-sidebar-muted truncate max-w-[140px]">Personale — {displayLabel}</p>
-          </div>
+          <p className="text-sm text-sidebar-foreground/70 truncate max-w-full text-center">{displayLabel}</p>
         </div>
       </SidebarHeader>
 
