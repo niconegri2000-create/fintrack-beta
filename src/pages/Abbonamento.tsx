@@ -72,7 +72,7 @@ export default function Abbonamento({ onAccessGranted }: AbbonamentoProps) {
       return;
     }
 
-    toast({ title: "Accesso attivato!", description: "Benvenuto in TrackMyMoney Premium." });
+    toast({ title: "Accesso attivato!", description: "Benvenuto in Contly Premium." });
     setCodeModalOpen(false);
     onAccessGranted();
     setSubmitting(false);
