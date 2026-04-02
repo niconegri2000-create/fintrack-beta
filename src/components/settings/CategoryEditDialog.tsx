@@ -32,7 +32,7 @@ export function CategoryEditDialog({ category }: Props) {
       return;
     }
     update.mutate(
-      { id: category.id, name: normalized, priority, is_active: isActive },
+      { id: category.id, name: normalized, is_active: isActive },
       {
         onSuccess: () => { toast.success("Categoria aggiornata"); setOpen(false); },
         onError: () => toast.error("Errore nell'aggiornamento"),
