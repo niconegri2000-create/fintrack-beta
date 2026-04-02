@@ -456,7 +456,7 @@ const Report = () => {
         const fmtPp = (v: number | null) => {
           if (isPrivacy) return "••••";
           if (v === null) return "—";
-          return `${prefix(v)}${v.toFixed(1)} pp`;
+          return `${prefix(v)}${v.toFixed(1)}%`;
         };
 
         return (
