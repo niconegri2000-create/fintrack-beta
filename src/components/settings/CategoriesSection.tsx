@@ -109,8 +109,6 @@ function SyncedScrollTable({ categories, onToggle, onDelete }: {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead>Priorità</TableHead>
-              
               <TableHead className="text-center w-[80px]">Attiva</TableHead>
               <TableHead className="text-right w-[120px]">Azioni</TableHead>
             </TableRow>
