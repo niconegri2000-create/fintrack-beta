@@ -7,9 +7,6 @@ import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Category, useUpdateCategory } from "@/hooks/useCategories";
 import { capitalizeFirst } from "@/lib/normalize";
 import { toast } from "sonner";
@@ -21,8 +18,6 @@ interface Props {
 export function CategoryEditDialog({ category }: Props) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(category.name);
-  const [priority, setPriority] = useState(category.priority);
-  
   const [isActive, setIsActive] = useState(category.is_active);
 
   const update = useUpdateCategory();
@@ -34,7 +29,7 @@ export function CategoryEditDialog({ category }: Props) {
       return;
     }
     update.mutate(
-      { id: category.id, name: normalized, priority, is_active: isActive },
+      { id: category.id, name: normalized, is_active: isActive },
       {
         onSuccess: () => { toast.success("Categoria aggiornata"); setOpen(false); },
         onError: () => toast.error("Errore nell'aggiornamento"),
@@ -44,7 +39,7 @@ export function CategoryEditDialog({ category }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => {
-      if (v) { setName(category.name); setPriority(category.priority); setIsActive(category.is_active); }
+      if (v) { setName(category.name); setIsActive(category.is_active); }
       setOpen(v);
     }}>
       <DialogTrigger asChild>
@@ -56,18 +51,6 @@ export function CategoryEditDialog({ category }: Props) {
           <div className="space-y-1.5">
             <Label>Nome</Label>
             <Input maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Priorità</Label>
-            <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nessuna priorità</SelectItem>
-                <SelectItem value="mandatory">Obbligatoria</SelectItem>
-                <SelectItem value="reducible">Riducibile</SelectItem>
-                <SelectItem value="eliminable">Eliminabile</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
           <div className="flex items-center justify-between">
             <Label>Attiva</Label>

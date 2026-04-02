@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import {
@@ -14,12 +14,6 @@ import { CategoryFormDialog } from "./CategoryFormDialog";
 import { CategoryEditDialog } from "./CategoryEditDialog";
 import { toast } from "sonner";
 
-const priorityLabel: Record<string, string> = {
-  none: "Nessuna priorità",
-  mandatory: "Obbligatoria",
-  reducible: "Riducibile",
-  eliminable: "Eliminabile",
-};
 
 export function CategoriesSection() {
   const { data: categories = [], isLoading } = useAllCategories();
@@ -115,8 +109,6 @@ function SyncedScrollTable({ categories, onToggle, onDelete }: {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead>Priorità</TableHead>
-              
               <TableHead className="text-center w-[80px]">Attiva</TableHead>
               <TableHead className="text-right w-[120px]">Azioni</TableHead>
             </TableRow>
@@ -125,11 +117,6 @@ function SyncedScrollTable({ categories, onToggle, onDelete }: {
             {categories.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.name}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className="text-[11px]">
-                    {priorityLabel[c.priority] ?? c.priority}
-                  </Badge>
-                </TableCell>
                 <TableCell className="text-center">
                   <span className={`inline-block h-2 w-2 rounded-full ${c.is_active ? "bg-success" : "bg-muted-foreground"}`} />
                 </TableCell>

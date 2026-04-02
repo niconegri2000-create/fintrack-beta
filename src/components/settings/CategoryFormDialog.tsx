@@ -7,9 +7,6 @@ import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { useCreateCategory } from "@/hooks/useCategories";
 import { capitalizeFirst } from "@/lib/normalize";
 import { toast } from "sonner";
@@ -17,16 +14,12 @@ import { toast } from "sonner";
 export function CategoryFormDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [priority, setPriority] = useState("none");
-  
   const [isActive, setIsActive] = useState(true);
 
   const create = useCreateCategory();
 
   const reset = () => {
     setName("");
-    setPriority("none");
-    
     setIsActive(true);
   };
 
@@ -38,7 +31,7 @@ export function CategoryFormDialog() {
     }
 
     create.mutate(
-      { name: normalized, priority, is_fixed_default: false, is_active: isActive },
+      { name: normalized, is_fixed_default: false, is_active: isActive },
       {
         onSuccess: () => { toast.success("Categoria creata"); reset(); setOpen(false); },
         onError: () => toast.error("Errore nel salvataggio"),
@@ -57,18 +50,6 @@ export function CategoryFormDialog() {
           <div className="space-y-1.5">
             <Label>Nome</Label>
             <Input maxLength={100} value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Trasporti" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Priorità</Label>
-            <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nessuna priorità</SelectItem>
-                <SelectItem value="mandatory">Obbligatoria</SelectItem>
-                <SelectItem value="reducible">Riducibile</SelectItem>
-                <SelectItem value="eliminable">Eliminabile</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
           <div className="flex items-center justify-between">
             <Label>Attiva</Label>
