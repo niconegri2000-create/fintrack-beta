@@ -34,7 +34,7 @@ export function CategoryFormDialog() {
     }
 
     create.mutate(
-      { name: normalized, priority, is_fixed_default: false, is_active: isActive },
+      { name: normalized, is_fixed_default: false, is_active: isActive },
       {
         onSuccess: () => { toast.success("Categoria creata"); reset(); setOpen(false); },
         onError: () => toast.error("Errore nel salvataggio"),
