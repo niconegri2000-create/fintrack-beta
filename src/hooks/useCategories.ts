@@ -48,7 +48,6 @@ export function useCategories() {
 
 export interface NewCategory {
   name: string;
-  priority: string;
   is_fixed_default: boolean;
   is_active: boolean;
 }
