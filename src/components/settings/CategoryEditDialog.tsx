@@ -42,7 +42,7 @@ export function CategoryEditDialog({ category }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => {
-      if (v) { setName(category.name); setPriority(category.priority); setIsActive(category.is_active); }
+      if (v) { setName(category.name); setIsActive(category.is_active); }
       setOpen(v);
     }}>
       <DialogTrigger asChild>
