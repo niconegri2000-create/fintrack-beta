@@ -444,13 +444,20 @@ const Report = () => {
         const diffIncome = p.income - cmp.income;
         const diffExpense = p.expense - cmp.expense;
         const diffSavings = p.savings - cmp.savings;
-        const diffSavingsPercent = cmp.savings !== 0 ? ((p.savings - cmp.savings) / Math.abs(cmp.savings)) * 100 : 0;
+
+        const rateA = p.income > 0 ? (p.savings / p.income) * 100 : null;
+        const rateB = cmp.income > 0 ? (cmp.savings / cmp.income) * 100 : null;
+        const varTasso = rateA !== null && rateB !== null ? rateA - rateB : null;
 
         const colorFor = (v: number) =>
           v > 0 ? "text-green-600 dark:text-green-400" : v < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground";
         const prefix = (v: number) => (v > 0 ? "+" : "");
         const fmtDiff = (v: number) => `${prefix(v)}${fmtAmount(v)}`;
-        const fmtPctDiff = (v: number) => isPrivacy ? "••••" : `${prefix(v)}${v.toFixed(1)}%`;
+        const fmtPp = (v: number | null) => {
+          if (isPrivacy) return "••••";
+          if (v === null) return "—";
+          return `${prefix(v)}${v.toFixed(1)} pp`;
+        };
 
         return (
           <Card>
@@ -464,7 +471,12 @@ const Report = () => {
               <StatCard label="Differenza entrate" value={fmtDiff(diffIncome)} colorClass={colorFor(diffIncome)} />
               <StatCard label="Differenza uscite" value={fmtDiff(diffExpense)} colorClass={colorFor(diffExpense)} />
               <StatCard label="Differenza risparmio" value={fmtDiff(diffSavings)} colorClass={colorFor(diffSavings)} />
-              <StatCard label="% Differenza risparmio" value={fmtPctDiff(diffSavingsPercent)} colorClass={colorFor(diffSavingsPercent)} />
+              <StatCard
+                label="Var. tasso risparmio"
+                value={fmtPp(varTasso)}
+                colorClass={varTasso !== null ? colorFor(varTasso) : "text-muted-foreground"}
+                sub={<p className="text-xs text-muted-foreground">Differenza nel tasso di risparmio tra i due periodi</p>}
+              />
             </CardContent>
           </Card>
         );
