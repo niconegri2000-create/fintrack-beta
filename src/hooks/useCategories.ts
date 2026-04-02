@@ -60,7 +60,6 @@ export function useCreateCategory() {
       const { error } = await supabase.from("categories").insert({
         workspace_id: workspaceId,
         name: cat.name,
-        priority: cat.priority,
         is_fixed_default: cat.is_fixed_default,
         is_active: cat.is_active,
       });
