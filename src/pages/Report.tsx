@@ -416,13 +416,13 @@ const Report = () => {
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <StatCard label="Entrate" value={fmtAmount(p.income)} colorClass="text-green-600 dark:text-green-400" />
           <StatCard label="Uscite" value={fmtAmount(p.expense)} colorClass="text-red-600 dark:text-red-400" />
-          <StatCard label="Risparmio netto" value={fmtAmount(p.savings)} sub={<DiffBadge value={p.savings} formatter={fmtAmount} />} />
+          <StatCard label="Risparmio netto" value={fmtAmount(p.savings)} />
           <StatCard label="% Risparmio" value={isPrivacy ? "••••" : `${p.savingsRate.toFixed(1)}%`} />
         </CardContent>
       </Card>
 
       {/* ── Card 2 – Periodo B ── */}
-      {cmp && diff && (
+      {cmp && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -433,11 +433,42 @@ const Report = () => {
           <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <StatCard label="Entrate" value={fmtAmount(cmp.income)} colorClass="text-green-600 dark:text-green-400" />
             <StatCard label="Uscite" value={fmtAmount(cmp.expense)} colorClass="text-red-600 dark:text-red-400" />
-            <StatCard label="Risparmio" value={fmtAmount(cmp.savings)} />
-            <StatCard label="Differenza risparmio" value={fmtAmount(diff.savings)} sub={<DiffBadge value={diff.savings} formatter={fmtAmount} />} />
+            <StatCard label="Risparmio netto" value={fmtAmount(cmp.savings)} />
+            <StatCard label="% Risparmio" value={isPrivacy ? "••••" : `${cmp.savingsRate.toFixed(1)}%`} />
           </CardContent>
         </Card>
       )}
+
+      {/* ── Card 3 – Confronto ── */}
+      {cmp && (() => {
+        const diffIncome = p.income - cmp.income;
+        const diffExpense = p.expense - cmp.expense;
+        const diffSavings = p.savings - cmp.savings;
+        const diffSavingsPercent = cmp.savings !== 0 ? ((p.savings - cmp.savings) / Math.abs(cmp.savings)) * 100 : 0;
+
+        const colorFor = (v: number) =>
+          v > 0 ? "text-green-600 dark:text-green-400" : v < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground";
+        const prefix = (v: number) => (v > 0 ? "+" : "");
+        const fmtDiff = (v: number) => `${prefix(v)}${fmtAmount(v)}`;
+        const fmtPctDiff = (v: number) => isPrivacy ? "••••" : `${prefix(v)}${v.toFixed(1)}%`;
+
+        return (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Confronto
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <StatCard label="Differenza entrate" value={fmtDiff(diffIncome)} colorClass={colorFor(diffIncome)} />
+              <StatCard label="Differenza uscite" value={fmtDiff(diffExpense)} colorClass={colorFor(diffExpense)} />
+              <StatCard label="Differenza risparmio" value={fmtDiff(diffSavings)} colorClass={colorFor(diffSavings)} />
+              <StatCard label="% Differenza risparmio" value={fmtPctDiff(diffSavingsPercent)} colorClass={colorFor(diffSavingsPercent)} />
+            </CardContent>
+          </Card>
+        );
+      })()}
 
     </div>
   );
