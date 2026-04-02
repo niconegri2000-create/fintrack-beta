@@ -21,8 +21,6 @@ interface Props {
 export function CategoryEditDialog({ category }: Props) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(category.name);
-  const [priority, setPriority] = useState(category.priority);
-  
   const [isActive, setIsActive] = useState(category.is_active);
 
   const update = useUpdateCategory();

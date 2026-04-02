@@ -54,18 +54,6 @@ export function CategoryFormDialog() {
             <Label>Nome</Label>
             <Input maxLength={100} value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Trasporti" />
           </div>
-          <div className="space-y-1.5">
-            <Label>Priorità</Label>
-            <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nessuna priorità</SelectItem>
-                <SelectItem value="mandatory">Obbligatoria</SelectItem>
-                <SelectItem value="reducible">Riducibile</SelectItem>
-                <SelectItem value="eliminable">Eliminabile</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
           <div className="flex items-center justify-between">
             <Label>Attiva</Label>
             <Switch checked={isActive} onCheckedChange={setIsActive} />
