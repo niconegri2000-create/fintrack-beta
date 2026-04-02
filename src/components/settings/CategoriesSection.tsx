@@ -14,12 +14,6 @@ import { CategoryFormDialog } from "./CategoryFormDialog";
 import { CategoryEditDialog } from "./CategoryEditDialog";
 import { toast } from "sonner";
 
-const priorityLabel: Record<string, string> = {
-  none: "Nessuna priorità",
-  mandatory: "Obbligatoria",
-  reducible: "Riducibile",
-  eliminable: "Eliminabile",
-};
 
 export function CategoriesSection() {
   const { data: categories = [], isLoading } = useAllCategories();
