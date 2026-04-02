@@ -117,11 +117,6 @@ function SyncedScrollTable({ categories, onToggle, onDelete }: {
             {categories.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.name}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className="text-[11px]">
-                    {priorityLabel[c.priority] ?? c.priority}
-                  </Badge>
-                </TableCell>
                 <TableCell className="text-center">
                   <span className={`inline-block h-2 w-2 rounded-full ${c.is_active ? "bg-success" : "bg-muted-foreground"}`} />
                 </TableCell>
